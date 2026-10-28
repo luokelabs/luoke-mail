@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>螺壳邮件助手</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="img/favicon.png">
+</head>
+<body>
+<div class="shell" id="shell">
+  <aside class="rail" aria-label="导航">
+    <div class="brand">
+      <img src="img/app-mail.png" alt="">
+      <div class="brand-text">
+        <span class="brand-name">螺壳邮件助手</span>
+        <span class="brand-ver" id="version"></span>
+      </div>
+      <button type="button" class="icon-btn" id="fold" title="收起侧栏" aria-label="收起侧栏"><span data-icon="panel-left-close"></span></button>
+    </div>
+    <div class="group-label" id="src-label">邮箱</div>
+    <ul class="nav sources" role="radiogroup" aria-label="邮箱" data-sources></ul>
+    <!-- first run: the setup steps; once set up, the everyday pages -->
+    <div class="group-label" id="steps-label" hidden>首次设置</div>
+    <ol class="steps" id="steps" hidden>
+      <li><button data-step="welcome" title="开始"><span class="num">1</span><span class="ico" data-icon="hand"></span><span class="label">开始</span></button></li>
+      <li><button data-step="mail" title="连接邮箱"><span class="num">2</span><span class="ico" data-icon="plug"></span><span class="label">连接邮箱</span></button></li>
+      <li><button data-step="model" title="选择本机模型"><span class="num">3</span><span class="ico" data-icon="cpu"></span><span class="label">选择本机模型</span></button></li>
+    </ol>
+    <div class="group-label" id="nav-label">日常</div>
+    <ul class="nav" id="nav" hidden>
+      <li><button data-step="review" title="今日处理"><span data-icon="mail-check"></span><span class="label">今日处理</span><span class="badge" data-review-badge hidden title="今天处理过、还没看过的邮件"></span></button></li>
+      <li><button data-step="inbox" title="收件箱"><span data-icon="inbox"></span><span class="label">收件箱</span><span class="badge" data-badge hidden></span></button></li>
+      <li><button data-step="digest" title="精选"><span data-icon="sparkles"></span><span class="label">精选</span></button></li>
+      <li><button data-step="clean" title="清理"><span data-icon="eraser"></span><span class="label">清理</span></button></li>
+      <li><button data-step="subs" title="订阅体检"><span data-icon="stethoscope"></span><span class="label">订阅体检</span></button></li>
+      <li><button data-step="rules" title="规则"><span data-icon="list-filter"></span><span class="label">规则</span></button></li>
+      <li><button data-step="log" title="操作记录"><span data-icon="history"></span><span class="label">操作记录</span></button></li>
+      <li><button data-step="memory" title="记忆"><span data-icon="brain"></span><span class="label">记忆</span><span class="badge" data-memory-badge hidden title="想问你的"></span></button></li>
+      <li><button data-step="settings" title="设置"><span data-icon="settings"></span><span class="label">设置</span></button></li>
+    </ul>
+    <!-- before setup is done: the demo's pages -->
+    <ul class="tools" id="tools" hidden>
+      <li><button data-step="inbox" title="收件箱"><span data-icon="inbox"></span><span class="label">收件箱</span><span class="badge" data-badge hidden></span></button></li>
+      <li><button data-step="digest" title="精选"><span data-icon="sparkles"></span><span class="label">精选</span></button></li>
+      <li><button data-step="clean" title="清理"><span data-icon="eraser"></span><span class="label">清理</span></button></li>
+      <li><button data-step="subs" title="订阅体检"><span data-icon="stethoscope"></span><span class="label">订阅体检</span></button></li>
+      <li><button data-step="rules" title="规则"><span data-icon="list-filter"></span><span class="label">规则</span></button></li>
+      <li><button data-step="log" title="操作记录"><span data-icon="history"></span><span class="label">操作记录</span></button></li>
+      <li><button data-step="memory" title="记忆"><span data-icon="brain"></span><span class="label">记忆</span><span class="badge" data-memory-badge hidden title="想问你的"></span></button></li>
+    </ul>
+    <div class="rail-bottom">
+      <button type="button" class="rail-activity" id="rail-activity" hidden></button>
+      <button type="button" class="rail-status" id="rail-status" data-step="settings" hidden></button>
+      <p class="rail-foot"><span data-icon="lock" data-size="12"></span><span>邮件只在本机处理</span></p>
+    </div>
+  </aside>
+
+  <main class="stage" id="stage">
+    <!-- 开始 -->
+    <section class="panel single" data-panel="welcome">
+      <img class="mascot" src="img/k-peek.webp" alt="">
+      <h1 class="display">让本机模型替你把收件箱理清楚</h1>
+      <p class="lede">看出哪些要回、哪些该进日程、哪些可以清掉。你确认后，它帮你归档、存回复草稿、退订不看的推送。</p>
+      <ul class="promises">
+        <li><span class="pi" data-icon="lock"></span><div><strong>数据留在本机</strong><span class="d">邮件由本机模型分析，不经过任何云服务。</span></div></li>
+        <li><span class="pi" data-icon="check"></span><div><strong>能撤回的先做，你事后复查</strong><span class="d">分析过的标为已读，按你确认过的习惯归档；每一封都列在「今日处理」里，都能撤销。</span></div></li>
+        <li><span class="pi" data-icon="shield-alert"></span><div><strong>不会做的事</strong><span class="d">不发信、不永久删除、不转发，不执行邮件里写给 AI 的指令。</span></div></li>
+      </ul>
+      <div class="actions">
+        <button class="btn primary" data-go="mail">连接邮箱</button>
+        <button class="btn" data-go="model" data-demo="1">先用示例邮件试试</button>
+      </div>
+      <p class="hint" id="store-note"></p>
+    </section>
+
+    <!-- 邮箱 -->
+    <section class="panel single" data-panel="mail" hidden>
+      <button type="button" class="link back" data-go="settings" hidden>← 返回设置</button>
+      <h2 class="title" id="mail-title">连接邮箱</h2>
+      <p class="lede">填邮箱地址，再按说明拿一个授权码。授权码只存在这台 Mac 的钥匙串里。</p>
+      <form id="mail-form" autocomplete="off" class="form">
+      <label>邮箱地址
+        <input type="email" id="mail-address" required placeholder="name@example.com" spellcheck="false">
+      </label>
+      <div><p class="field-label">邮箱类型</p><div class="providers" id="providers" role="radiogroup" aria-label="邮箱类型"></div></div>
+      <div class="guide" id="guide" hidden></div>
+      <div class="form">
+        <label><span id="secret-label">授权码</span>
+          <span class="secret-row">
+            <input type="password" id="mail-secret" placeholder="" spellcheck="false" autocomplete="new-password">
+            <button type="button" class="btn ghost small" id="toggle-secret" aria-pressed="false">显示</button>
+          </span>
+          <span class="field-hint" id="secret-hint"></span>
+        </label>
+        <div class="custom-host" id="custom-host" hidden>
+          <label>IMAP 服务器<input id="mail-host" placeholder="imap.example.com" spellcheck="false"></label>
+          <label>端口<input id="mail-port" type="number" value="993" min="1" max="65535"></label>
+        </div>
+        <div class="actions">
+          <button class="btn primary" type="submit" id="mail-save">保存并测试连接</button>
+        </div>
+        <p class="status" id="mail-status" role="status" aria-live="polite"></p>
+      </div>
+      <div class="note-line" id="mail-hub-note" hidden><img src="img/app-core.png" alt=""><span>用螺壳的本机模型分析邮件，不用另外设置。</span></div>
+      </form>
+    </section>
+
+    <!-- 模型 -->
+    <section class="panel single" data-panel="model" hidden>
+      <button type="button" class="link back" data-go="settings" hidden>← 返回设置</button>
+      <h2 class="title">选择本机模型</h2>
+      <p class="lede" id="machine-line">正在检测本机…</p>
+      <h3 class="subhead">模型服务</h3>
+      <div class="services" id="services" role="radiogroup" aria-label="模型服务"><p class="status busy">正在查找本机模型服务…</p></div>
+      <details class="more" id="custom-wrap">
+        <summary>手动添加服务</summary>
+        <div class="form inline">
+          <label>服务地址<input id="custom-base" placeholder="http://127.0.0.1:8000/v1" spellcheck="false"></label>
+          <label>API Key（可选）<input id="custom-key" type="password" spellcheck="false" autocomplete="new-password"></label>
+          <button class="btn small" id="custom-connect" type="button">连接</button>
+        </div>
+      </details>
+      <div id="models-wrap" hidden>
+        <h3 class="subhead"><span id="models-head">选择模型</span> · <span id="models-service"></span></h3>
+        <div id="models"></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="engine-save" disabled>保存并测试</button>
+        <button class="btn ghost small" id="rescan" type="button">重新扫描</button>
+      </div>
+      <p class="status" id="engine-status" role="status" aria-live="polite"></p>
+      <div id="engine-sample"></div>
+    </section>
+
+    <!-- 收件箱 -->
+    <section class="panel" data-panel="inbox" hidden>
+      <div class="panel-head">
+        <div class="head-text"><h2 class="title">收件箱</h2>
+          <p class="lede">看过的邮件按要做的事排好了，从上往下处理就行。<button type="button" class="link" id="sync-scope" data-go="settings" title="在「设置」中修改">范围</button></p></div>
+        <div class="head-acts">
+          <button class="btn ghost small" id="sync-cancel" hidden>停止</button>
+          <button class="btn primary" id="sync"><span data-icon="refresh-cw"></span><span>同步新邮件</span></button>
+        </div>
+      </div>
+      <div class="mode-hint" id="mode-hint" hidden></div>
+      <p class="model-note" id="model-note" role="status" hidden></p>
+      <div class="clean-bar old-bar" id="old-bar" hidden></div>
+      <div class="progress" id="sync-progress" hidden>
+        <div class="bar"><span id="sync-bar"></span></div>
+        <p class="status" id="sync-status" role="status" aria-live="polite"></p>
+      </div>
+      <div class="clean-bar" id="clean-bar" hidden></div>
+      <div class="rack" id="rack" hidden></div>
+      <section class="auto-box" id="intro-box" hidden></section>
+      <section class="due-box" id="due-box" hidden></section>
+      <section class="waiting-box" id="waiting-box" hidden></section>
+      <section class="auto-box" id="auto-box" hidden></section>
+      <section class="archived-box" id="archived-box" hidden></section>
+      <div class="cards" id="cards"></div>
+    </section>
+
+    <!-- 清理：收件箱里的旧邮件和已归档的邮件，逐封分析后按建议处理 -->
+    <section class="panel" data-panel="clean" hidden>
+      <div class="panel-head">
+        <div class="head-text"><h2 class="title">清理</h2><p class="lede">把旧邮件按发件人分好类，勾选后一次处理。</p></div>
+        
+      </div>
+      <div class="tabs" role="tablist" aria-label="清理范围">
+        <button type="button" role="tab" data-tab="inbox">收件箱中的旧邮件</button>
+        <button type="button" role="tab" data-tab="archive">已归档的邮件</button>
+      </div>
+      <div class="mode-hint" id="clean-mode-hint" hidden></div>
+      <div data-tabpanel="inbox" id="sw-inbox">
+        <p class="lede"></p>
+        <p class="status" id="sw-inbox-status" role="status" aria-live="polite"></p>
+        <div class="judge-bar" hidden></div>
+        <div class="old"></div>
+        <div class="old-actions" hidden></div>
+      </div>
+      <div data-tabpanel="archive" id="sw-archive" hidden>
+        <p class="lede"></p>
+        <p class="status" id="sw-archive-status" role="status" aria-live="polite"></p>
+        <div class="judge-bar" hidden></div>
+        <div class="old"></div>
+        <div class="old-actions" hidden></div>
+      </div>
+    </section>
+
+    <!-- 订阅体检 -->
+    <section class="panel" data-panel="subs" hidden>
+      <div class="panel-head">
+        <div class="head-text"><h2 class="title">订阅体检</h2><p class="lede">找出你不读的订阅，退订或清理掉。</p></div>
+        <div class="head-acts">
+          <label class="inline-num">最近 <input id="subs-days" type="number" min="7" max="365" value="60"> 天</label>
+          <button class="btn primary" id="subs-run"><span data-icon="stethoscope"></span><span>开始体检</span></button>
+        </div>
+      </div>
+      <div class="mode-hint" id="subs-mode-hint" hidden></div>
+      <p class="status" id="subs-status" role="status" aria-live="polite"></p>
+      <div class="subs" id="subs"></div>
+    </section>
+
+    <!-- 规则 -->
+    <section class="panel" data-panel="rules" hidden>
+      <div class="panel-head">
+        <div class="head-text"><h2 class="title">规则</h2><p class="lede">告诉螺壳某类邮件以后怎么处理。</p></div>
+        
+      </div>
+      <div class="clean-bar" id="rules-gmail" hidden></div>
+      <form class="form inline rule-form" id="rule-form">
+        <label>类型<select id="rule-kind"></select></label>
+        <label>内容<input id="rule-value" placeholder="例如 news.shop.example" spellcheck="false" required></label>
+        <label>处理方式<select id="rule-action"></select></label>
+        <button class="btn primary" type="submit"><span data-icon="plus"></span><span>添加</span></button>
+      </form>
+      <p class="status" id="rule-status" role="status" aria-live="polite"></p>
+      <div class="rules" id="rules"></div>
+    </section>
+
+    <!-- 操作记录 -->
+    <section class="panel" data-panel="log" hidden>
+      <div class="panel-head">
+        <div class="head-text"><h2 class="title">操作记录</h2><p class="lede">螺壳对邮箱做过的每一步，退订以外都能撤销。</p></div>
+        
+      </div>
+      <div class="log" id="log"></div>
+    </section>
+
+    <!-- 精选：本机模型替你读订阅邮件，只挑出值得看的 -->
+    <section class="panel" data-panel="digest" hidden>
+      <div class="panel-head">
+        <div class="head-text"><h2 class="title">精选</h2><p class="lede">从订阅邮件里挑出值得看的内容。</p></div>
+        
+      </div>
+      <div class="taste" id="digest-taste"></div>
+      <p class="status" id="digest-status" role="status" aria-live="polite"></p>
+      <div class="judge-bar" id="digest-reading" hidden></div>
+      <div class="tabs" id="digest-tabs" role="tablist" aria-label="精选内容" hidden></div>
+      <div id="digest-list"></div>
+      <details class="others" id="digest-sources-box" hidden><summary id="digest-sources-title">精选来源</summary><div id="digest-sources"></div></details>
+    </section>
+
+    <!-- 记忆：螺壳记住的关于你的信息（luoke-mem） -->
+    <section class="panel" data-panel="review" hidden>
+      <div class="panel-head">
+        <div class="head-text"><h2 class="title">今日处理</h2><p class="lede">螺壳今天处理了哪些邮件。不对的改一下，它会记住。</p></div>
+        
+      </div>
+      <div class="memory" id="review"></div>
+    </section>
+
+    <section class="panel" data-panel="memory" hidden>
+      <div class="panel-head">
+        <div class="head-text"><h2 class="title">记忆</h2><p class="lede">螺壳从邮件里记住的关于你的事，可以随时改或删。</p></div>
+        
+      </div>
+      <div class="memory" id="memory"></div>
+    </section>
+
+    <!-- 设置 -->
+    <section class="panel" data-panel="settings" hidden>
+      <div class="panel-head"><div class="head-text"><h2 class="title">设置</h2></div></div>
+      <div class="settings">
+        <div class="settings-rows" id="settings"></div>
+        <div class="set-row" id="set-sort">
+          <span class="set-icon" data-icon="clock"></span>
+          <div class="set-label">分析范围</div>
+          <div class="set-body">
+            <p>同步和整理只看这个范围内的邮件</p>
+            <p class="status" id="scope-status" role="status" aria-live="polite"></p>
+          </div>
+          <div class="set-act form inline">
+            <label>最近<input id="f-days" type="number" min="1" max="365" aria-label="分析最近几天">天</label>
+            <label>每次最多<input id="f-limit" type="number" min="1" max="500" aria-label="每次同步最多几封">封</label>
+          </div>
+        </div>
+        <div class="set-row" id="set-sign">
+          <span class="set-icon" data-icon="pen-line"></span>
+          <div class="set-label">回复署名</div>
+          <div class="set-body"><p>写在回复草稿的末尾</p><p class="status" id="sign-status" role="status" aria-live="polite"></p></div>
+          <div class="set-act"><input id="signature" maxlength="60" placeholder="例如：小周" aria-label="回复署名"></div>
+        </div>
+        <div class="set-row" id="set-data">
+          <span class="set-icon" data-icon="lock"></span>
+          <div class="set-label">本机数据</div>
+          <div class="set-body">
+            <p>账号、授权码和分析结果只保存在本机。</p>
+            <p class="hint" id="settings-store-note"></p>
+          </div>
+          <div class="set-act"><button class="btn small" type="button" id="forget">全部清除</button></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<dialog id="dialog" class="dialog">
+  <form method="dialog" class="dialog-body">
+    <h3 id="dialog-title"></h3>
+    <div id="dialog-content"></div>
+    <div class="actions">
+      <button class="btn primary" value="ok" id="dialog-ok">确定</button>
+      <button class="btn" value="cancel">取消</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>

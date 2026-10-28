@@ -1,0 +1,118 @@
+{
+  "contract": 1,
+  "accessory": "luoke-mail",
+  "bundle_id": "ai.luoke.mail",
+  "name": "螺壳邮件助手",
+  "version": "0.18.17",
+  "icon": "AppIcon.icns",
+  "type": "app",
+  "entry": [
+    "-m",
+    "luoke_mail",
+    "--app"
+  ],
+  "resident": false,
+  "memory": true,
+  "ui_element": true,
+  "tasks": [
+    {
+      "name": "luoke-mail.triage",
+      "kind": "generate",
+      "main": true
+    },
+    {
+      "name": "luoke-mail.draft",
+      "kind": "generate",
+      "main": false
+    },
+    {
+      "name": "luoke-mail.senders",
+      "kind": "generate",
+      "main": false
+    },
+    {
+      "name": "luoke-mail.cleanup",
+      "kind": "generate",
+      "main": false
+    },
+    {
+      "name": "luoke-mail.digest-read",
+      "kind": "generate",
+      "main": false
+    },
+    {
+      "name": "luoke-mail.digest-pick",
+      "kind": "generate",
+      "main": false
+    },
+    {
+      "name": "luoke-mail.learn-sent",
+      "kind": "generate",
+      "main": false
+    },
+    {
+      "name": "luoke-mail.learn-orgs",
+      "kind": "generate",
+      "main": false
+    },
+    {
+      "name": "luoke-mail.thread",
+      "kind": "generate",
+      "main": false
+    }
+  ],
+  "data": [
+    "~/.luoke-mail"
+  ],
+  "jobs": [
+    {
+      "name": "clean",
+      "command": [
+        "-m",
+        "luoke_mail",
+        "--job",
+        "clean"
+      ],
+      "min_interval_minutes": 30,
+      "uses_model": true,
+      "memory_mb": 150,
+      "allow_battery": false,
+      "timeout_minutes": 30
+    },
+    {
+      "name": "digest",
+      "command": [
+        "-m",
+        "luoke_mail",
+        "--job",
+        "digest"
+      ],
+      "min_interval_minutes": 30,
+      "uses_model": true,
+      "memory_mb": 150,
+      "allow_battery": false,
+      "timeout_minutes": 30
+    },
+    {
+      "name": "learn",
+      "command": [
+        "-m",
+        "luoke_mail",
+        "--job",
+        "learn"
+      ],
+      "min_interval_minutes": 120,
+      "uses_model": true,
+      "memory_mb": 150,
+      "allow_battery": false,
+      "timeout_minutes": 30
+    }
+  ],
+  "commands": {
+    "uninstall": [
+      "-m",
+      "luoke_mail",
+      "--forget-secrets"
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.DS_Store
+*.egg-info/
+build/
+dist/
+.venv/
+CLAUDE.local.md
+*.noindex/
+# local data and secrets: never in the repo
+.env
+*.db
+*.sqlite
+.luoke-mail/
+.luoke/
+credentials.json
+
+# notes for Claude Code sessions: kept locally, not in the public tree (owner 2026-10-28)
+CLAUDE.md
