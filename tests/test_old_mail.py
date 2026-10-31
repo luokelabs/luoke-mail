@@ -398,7 +398,7 @@ class OldMailTests(unittest.TestCase):
         self.assertEqual(len(r.inbox()), 5)
         entry = r.app.store.log_entries(ME)[0]
         self.assertTrue(entry["undoable"])
-        self.assertIn("清理未完成：已处理 2 封", entry["detail"])
+        self.assertIn("清理未完成：至少已处理 2 封", entry["detail"])
         self.assertEqual(len(r.app.store.old_rows(ME, "inbox", "moved")), 2)    # the local list knows too
         r.app.actions("mailbox").undo(entry["id"])
         self.assertEqual(len(r.inbox()), 7)

@@ -316,7 +316,10 @@ function renderActions() {
       c.n && !canApply(c) ? el("span", { class: "hint", style: "display:block" }, NEEDS_MODE) : null),
     el("button", { type: "button", class: "btn primary", disabled: !c.n, onclick: async (e) => {
       const btn = e.currentTarget;
-      if (!canApply(chosen()) && !(await needWrite())) return;
+      if (!canApply(chosen())) {
+        if (!(await needWrite())) return;
+        bar.querySelector(".hint")?.remove();             // the mode is on now: the line asking for it goes
+      }
       apply({ currentTarget: btn });
     } }, actionText(c)));
 }

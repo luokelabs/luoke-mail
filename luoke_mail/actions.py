@@ -786,7 +786,10 @@ class _OldRun:
             raise _Stopped()
 
     def _unfinished(self) -> str:
-        return f"清理未完成：已处理 {self.count()} 封。可以撤销，也可以再执行一次，已完成的会自动跳过。"
+        # what this says stays if the process dies, and the batch then in flight may have moved too: "at least"
+        n = self.count()
+        done = f"至少已处理 {n} 封" if n else "可能已处理一部分"
+        return f"清理未完成：{done}。可以撤销，也可以再执行一次，已完成的会自动跳过。"
 
     def begin(self, steps: list[dict]) -> None:
         store = self.acts.store

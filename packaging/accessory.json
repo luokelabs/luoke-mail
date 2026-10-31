@@ -3,7 +3,7 @@
   "accessory": "luoke-mail",
   "bundle_id": "ai.luoke.mail",
   "name": "螺壳邮件助手",
-  "version": "0.18.17",
+  "version": "0.18.19",
   "icon": "AppIcon.icns",
   "type": "app",
   "entry": [

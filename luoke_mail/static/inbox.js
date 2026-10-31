@@ -186,7 +186,10 @@ function renderCleanBar() {
       canClean(n) ? null : el("span", { class: "hint", style: "display:block" }, NEEDS_MODE)),
     el("button", { type: "button", class: "btn primary", onclick: async (e) => {
       const btn = e.currentTarget;
-      if (!canClean(noiseIds()) && !(await needWrite())) return;
+      if (!canClean(noiseIds())) {
+        if (!(await needWrite())) return;
+        bar.querySelector(".hint")?.remove();             // the mode is on now: the line asking for it goes
+      }
       cleanAll({ currentTarget: btn });
     } }, "一键处理"));
 }
