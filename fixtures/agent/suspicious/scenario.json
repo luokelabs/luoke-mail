@@ -1,0 +1,161 @@
+{
+  "id": "suspicious",
+  "normalised": {
+    "$TMPDIR": "录的时候的临时目录",
+    "$VERSION": "邮件助手的版本号（server/discover、manifest.json）：每次发版都变，比对时不看",
+    "000000000001…": "方案编号（new-mail-…、suspicious-…、auto-done-… 后面的 16 位十六进制），按在本场景里出现的先后编号",
+    "resources/read": "contents[0].text 解开成了 JSON 值；线上是 JSON 文字",
+    "~/.luoke-mail": "LUOKE_MAIL_HOME（临时目录）"
+  },
+  "produced": {
+    "changes": [],
+    "fixture": [
+      "LUOKE_MAIL_HOME 指到新建的临时目录；假邮箱是 tests/fakes.py 的 FakeIMAP（gmail），假模型是 FakeChat，分拣和草稿的答复写在 scripts/record_agent_fixtures.py 的 `MAILS` 里",
+      "连上了假邮箱 me@example.com（Gmail，处理模式开着）",
+      "收件箱里放了：账户已冻结、答辩时间确认",
+      "2026-10-20T01:30:00Z 同步了一次（App.sync_mailbox：真的读信、分拣、做习惯里的事）"
+    ],
+    "mcp": "真的 App 和 agent.sock（luoke_mail/agent.py），一个常驻的服务；时钟由录制脚本的 `Clock` 停住",
+    "tz": "Asia/Shanghai",
+    "user_action_at": "点按时的 at 是那一步的时钟，按 Asia/Shanghai 写"
+  },
+  "situation": "一封冒充银行的邮件被判成可疑，同时来了一封要回的信。",
+  "steps": [
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "server/discover",
+      "file": "server-discover.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "列工具（agent 认 readOnlyHint）",
+      "file": "tools-list.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "列资源",
+      "file": "resources-list.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读 outbox（每分钟一次）",
+      "file": "read-outbox.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读概览（侧栏的计数和一句话）",
+      "file": "read-summary.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读权限的状态",
+      "file": "read-permissions.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/today",
+      "file": "read-page-today.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/inbox",
+      "file": "read-page-inbox.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/clean",
+      "file": "read-page-clean.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/digest",
+      "file": "read-page-digest.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/subs",
+      "file": "read-page-subs.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/rules",
+      "file": "read-page-rules.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/activity",
+      "file": "read-page-activity.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/settings",
+      "file": "read-page-settings.json"
+    },
+    {
+      "clock": "2026-10-20T01:32:00Z",
+      "do": "agent 把急事说给用户以后记一下（outbox_ack shown）",
+      "file": "call-outbox_ack-shown.json"
+    },
+    {
+      "clock": "2026-10-20T01:32:00Z",
+      "do": "用户在急事卡片上点「移到垃圾邮件」",
+      "file": "call-mail_apply_plan.json"
+    },
+    {
+      "clock": "2026-10-20T01:32:00Z",
+      "do": "点完再读 outbox",
+      "file": "read-outbox-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:32:00Z",
+      "do": "点完再读概览",
+      "file": "read-summary-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:32:00Z",
+      "do": "读基础页 page/today",
+      "file": "read-page-today-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:32:00Z",
+      "do": "读基础页 page/inbox",
+      "file": "read-page-inbox-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:32:00Z",
+      "do": "读基础页 page/clean",
+      "file": "read-page-clean-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:32:00Z",
+      "do": "读基础页 page/digest",
+      "file": "read-page-digest-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:32:00Z",
+      "do": "读基础页 page/subs",
+      "file": "read-page-subs-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:32:00Z",
+      "do": "读基础页 page/rules",
+      "file": "read-page-rules-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:32:00Z",
+      "do": "读基础页 page/activity",
+      "file": "read-page-activity-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:32:00Z",
+      "do": "读基础页 page/settings",
+      "file": "read-page-settings-after-apply.json"
+    }
+  ],
+  "title": "可疑邮件",
+  "window": [
+    "一件 `suspicious`、`urgent`：急事横幅，按「主动提醒」的设置发通知。卡片标题「可疑邮件」后面一个邮箱地址的标签，一行发件人（加粗）和主题，一行理由；每个选项一个按钮，只有「移到垃圾邮件」（`destructive`，浅红底）「先不动」，永远不给退订；root 带 `subtitle`（发件人 · 主题）。",
+    "`outbox_ack` `shown` 只是记账：agent 说过了，邮件助手不再发自己的通知。",
+    "点了以后答复带 `done: true`，这一件从 outbox 撤下，结果卡的 root 带 `group`（`<邮箱>/spam`）；概览的「可疑」减一。"
+  ]
+}

@@ -1,0 +1,379 @@
+{
+  "reply": {
+    "id": 2,
+    "jsonrpc": "2.0",
+    "result": {
+      "resultType": "complete",
+      "tools": [
+        {
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": true
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {
+              "button": {
+                "type": "string"
+              },
+              "page": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "page",
+              "button"
+            ],
+            "type": "object"
+          },
+          "name": "mail_view",
+          "title": "换一下页面上显示的内容"
+        },
+        {
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": false
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {
+              "button": {
+                "type": "string"
+              },
+              "checks": {
+                "type": "object"
+              },
+              "choices": {
+                "type": "object"
+              },
+              "fields": {
+                "type": "object"
+              },
+              "page": {
+                "type": "string"
+              },
+              "secrets": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "page",
+              "button"
+            ],
+            "type": "object"
+          },
+          "name": "mail_do",
+          "title": "照页面上点的按钮处理"
+        },
+        {
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": true
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "shown",
+                  "answered",
+                  "dismissed"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "state"
+            ],
+            "type": "object"
+          },
+          "name": "outbox_ack",
+          "title": "记下这件事已经说过"
+        },
+        {
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": false
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {
+              "choices": {
+                "type": "object"
+              },
+              "plan_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "plan_id",
+              "choices"
+            ],
+            "type": "object"
+          },
+          "name": "mail_apply_plan",
+          "title": "按方案处理邮件"
+        },
+        {
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": false
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {
+              "execution_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "execution_id"
+            ],
+            "type": "object"
+          },
+          "name": "mail_undo",
+          "title": "撤销刚才的处理"
+        },
+        {
+          "_meta": {
+            "ai.luoke/where": "mac"
+          },
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": true
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {
+              "plan_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "name": "mail_open",
+          "title": "在邮件助手里看"
+        },
+        {
+          "_meta": {
+            "ai.luoke/where": "mac"
+          },
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": true
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {},
+            "type": "object"
+          },
+          "name": "mail_open_settings",
+          "title": "打开邮件助手的设置"
+        },
+        {
+          "_meta": {
+            "ai.luoke/where": "mac"
+          },
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": false
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "plan_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "plan_id",
+              "key"
+            ],
+            "type": "object"
+          },
+          "name": "mail_open_calendar",
+          "title": "把这封的日程交给「日历」"
+        },
+        {
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": true
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {
+              "limit": {
+                "type": "integer"
+              },
+              "query": {
+                "type": "string"
+              },
+              "since": {
+                "type": "string"
+              },
+              "until": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "name": "mail_search",
+          "title": "搜索邮件"
+        },
+        {
+          "_meta": {
+            "ai.luoke/where": "mac"
+          },
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": false
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          },
+          "name": "mail_show",
+          "title": "打开这封邮件"
+        },
+        {
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": true
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          },
+          "name": "mail_read",
+          "title": "读一封邮件"
+        },
+        {
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": true
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {
+              "ids": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "ids"
+            ],
+            "type": "object"
+          },
+          "name": "mail_plan",
+          "title": "对选中的邮件出方案"
+        },
+        {
+          "_meta": {
+            "ai.luoke/where": "mac"
+          },
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": true
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {
+              "page": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "name": "mail_open_page",
+          "title": "打开邮件助手"
+        },
+        {
+          "_meta": {
+            "ai.luoke/where": "mac"
+          },
+          "annotations": {
+            "destructiveHint": false,
+            "readOnlyHint": false
+          },
+          "description": "",
+          "inputSchema": {
+            "properties": {},
+            "type": "object"
+          },
+          "name": "mail_disconnect",
+          "title": "到设置里移除邮箱"
+        }
+      ]
+    }
+  },
+  "request": {
+    "id": 2,
+    "jsonrpc": "2.0",
+    "method": "tools/list",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      }
+    }
+  }
+}

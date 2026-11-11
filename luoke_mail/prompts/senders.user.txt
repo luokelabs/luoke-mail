@@ -1,0 +1,3 @@
+{{#senders}}
+{{n}}. {{name}} <{{addr}}>：{{subjects}}
+{{/senders}}

@@ -1,0 +1,101 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "facts"
+  ],
+  "properties": {
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "topic",
+          "who",
+          "text",
+          "n"
+        ],
+        "properties": {
+          "topic": {
+            "type": "string",
+            "x-describe": [
+              [
+                "姓名",
+                ""
+              ],
+              [
+                "署名",
+                ""
+              ],
+              [
+                "职位",
+                ""
+              ],
+              [
+                "单位",
+                ""
+              ],
+              [
+                "工作",
+                ""
+              ],
+              [
+                "城市",
+                ""
+              ],
+              [
+                "语言",
+                ""
+              ],
+              [
+                "上级",
+                ""
+              ],
+              [
+                "同事",
+                ""
+              ],
+              [
+                "下属",
+                ""
+              ],
+              [
+                "客户",
+                ""
+              ],
+              [
+                "合作方",
+                ""
+              ],
+              [
+                "家人",
+                ""
+              ],
+              [
+                "朋友",
+                ""
+              ],
+              [
+                "其他",
+                ""
+              ]
+            ]
+          },
+          "who": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "n": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    }
+  }
+}

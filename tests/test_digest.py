@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import isolate  # noqa: F401,E402 -- first: never the user's real data (tests/isolate.py)
-from luoke_mail import actions, config, digest, editor, engines, memory, profile, samples, server  # noqa: E402
+from luoke_mail import actions, config, digest, editor, engines, memory, profile, profiler, samples, server  # noqa: E402
 from luoke_mail.credstore import FileStore  # noqa: E402
 from luoke_mail.store import Store  # noqa: E402
 from fakes import FakeChat  # noqa: E402
@@ -229,9 +229,11 @@ class BacklogTests(unittest.TestCase):
         r.app.curator.feedback({"source": "mailbox", "id": item["id"], "value": "useful"})
         rec = r.app.mem.records(topic="digest-feedback")[0]
         self.assertEqual((rec["speaker"], rec["kind"], rec["data"]["value"]), ("user", "statement", "useful"))
+        self.assertEqual(rec["data"]["text_by"], "sender")                     # the piece's words are the sender's
         self.assertEqual(r.app.curator.taste(ME)[1], [item["title"]])
         r.app.curator.opened({"source": "mailbox", "id": item["id"]})
         self.assertEqual(r.app.mem.records(topic="digest-open")[0]["kind"], "activity")     # attention, not a view
+        self.assertEqual(r.app.mem.records(topic="digest-open")[0]["data"]["text_by"], "sender")
         r.app.curator.feedback({"source": "mailbox", "id": item["id"], "value": None})    # taken back
         self.assertEqual(r.app.curator.taste(ME)[1], [])
         self.assertEqual(len(r.app.mem.records(topic="digest-feedback")), 2)              # both kept, the newest counts
@@ -296,7 +298,7 @@ class WeeklyTests(unittest.TestCase):
 
     def test_questions_the_memory_has_are_mentioned_once_a_week_and_answered_on_the_memory_page(self):
         r = DigestRig(self)
-        rid = r.app.mem.record("user", "activity", "把两封「某银行」的邮件从「归档」改为「待跟进」", topic="mail-override", ref="1")
+        rid = r.app.mem.record("user", "activity", "把两封「某银行」的邮件从「归档」改为「加星标」", topic="mail-override", ref="1")
         nid = r.app.mem.propose("preference", "某银行的邮件要跟进", [rid])
         whole = memory.luoke_mem.WholeMemory(r.app.mem.path, regrade=False)
         self.addCleanup(whole.close)
@@ -748,6 +750,16 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual([p["title"] for p in bare["posts"]], ["About this lab"])            # no feed: the links on the page
         with self.assertRaises(ValueError):
             profile.fetch_site("file:///etc/passwd", get=site_get)
+        # the feed the page points to: never a file, this Mac or the local network (unless the site is there too)
+        for feed in (b"file:///etc/passwd", b"http://127.0.0.1:8765/api/state", b"http://192.168.1.1/", b"http://printer.local/"):
+            asked = []
+
+            def get(u, feed=feed):
+                asked.append(u)
+                return (SITE.replace(b"/feed.xml", feed), "utf-8") if u == "https://lab.example/" else (FEED, "utf-8")
+            profile.fetch_site("https://lab.example/", get=get)
+            self.assertEqual(asked, ["https://lab.example/"], feed)
+        self.assertTrue(profile._may_read("http://localhost:4000/feed.xml", "http://localhost:4000/"))
 
     def learning(self, r, on=True):
         r.app.cfg["learn"].update(on=on, enabled_at=1 if on else None)
@@ -911,6 +923,6 @@ class PauseTests(unittest.TestCase):
                             lambda: r.app.set_judging({"source": "mailbox", "scope": "archive", "on": False}))
         v = r.view()
         self.assertFalse(v["judging"]["on"])
-        r.app.store.cache_update(ME, "profile", at=time.time(), records_v=2)   # the weekly records: written already
+        r.app.store.cache_update(ME, "profile", at=time.time(), records_v=profiler.RECORDS_V)   # the weekly records: written already
         r.app.cfg["learn"]["on"] = False                                     # 了解你 paused: only the work tested here
         self.assertFalse(r.app.idle_pending())

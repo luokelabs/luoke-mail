@@ -3,7 +3,7 @@
   "accessory": "luoke-mail",
   "bundle_id": "ai.luoke.mail",
   "name": "螺壳邮件助手",
-  "version": "0.18.19",
+  "version": "0.19.47",
   "icon": "AppIcon.icns",
   "type": "app",
   "entry": [
@@ -64,6 +64,8 @@
   "data": [
     "~/.luoke-mail"
   ],
+  "data_env": "LUOKE_MAIL_HOME",
+  "default_on": true,
   "jobs": [
     {
       "name": "clean",
@@ -108,6 +110,140 @@
       "timeout_minutes": 30
     }
   ],
+  "capabilities": {
+    "protocol": 1,
+    "socket": "~/.luoke-mail/run/agent.sock",
+    "reports": [
+      {
+        "kind": "new-mail",
+        "title": "要你处理的邮件",
+        "urgency": "normal"
+      },
+      {
+        "kind": "suspicious",
+        "title": "可疑邮件",
+        "urgency": "urgent"
+      },
+      {
+        "kind": "mailbox",
+        "title": "邮箱里不急的邮件",
+        "urgency": "low"
+      },
+      {
+        "kind": "auto-done",
+        "title": "按习惯自动处理的邮件",
+        "urgency": "normal"
+      },
+      {
+        "kind": "needs-access",
+        "title": "还没连邮箱",
+        "urgency": "low"
+      }
+    ],
+    "actions": [
+      {
+        "name": "mail_apply_plan",
+        "title": "按方案处理邮件（归档、删除、移到垃圾邮件、加星标、写草稿）",
+        "writes": true
+      },
+      {
+        "name": "mail_undo",
+        "title": "撤销刚才的处理",
+        "writes": true
+      },
+      {
+        "name": "mail_show",
+        "title": "打开搜到的邮件",
+        "writes": true
+      },
+      {
+        "name": "mail_open_calendar",
+        "title": "把邮件里的日程交给「日历」",
+        "writes": true
+      },
+      {
+        "name": "mail_disconnect",
+        "title": "到设置里移除邮箱",
+        "writes": true
+      },
+      {
+        "name": "mail_do",
+        "title": "照邮件助手页面上点的按钮处理",
+        "writes": true
+      }
+    ],
+    "service": {
+      "summary": true,
+      "pages": [
+        {
+          "id": "today",
+          "title": "今日处理"
+        },
+        {
+          "id": "inbox",
+          "title": "收件箱"
+        },
+        {
+          "id": "clean",
+          "title": "清理"
+        },
+        {
+          "id": "digest",
+          "title": "精选"
+        },
+        {
+          "id": "subs",
+          "title": "订阅体检"
+        },
+        {
+          "id": "rules",
+          "title": "规则"
+        },
+        {
+          "id": "activity",
+          "title": "处理记录"
+        },
+        {
+          "id": "settings",
+          "title": "设置"
+        }
+      ],
+      "ask": {
+        "search": "mail_search"
+      },
+      "ui": {
+        "open": "mail_open_page",
+        "pages": [
+          {
+            "id": "accounts",
+            "title": "邮箱"
+          },
+          {
+            "id": "rules",
+            "title": "规则"
+          }
+        ]
+      }
+    },
+    "permissions": [
+      {
+        "id": "mailbox",
+        "kind": "account",
+        "title": "邮箱",
+        "page": "accounts",
+        "remove": "mail_disconnect",
+        "facts": [
+          "用授权码连接，授权码只存在这台 Mac 的钥匙串里",
+          "邮件内容不离开这台 Mac",
+          "不发信，不永久删除"
+        ]
+      }
+    ],
+    "listing": {
+      "tagline": "用本机模型整理邮箱，每一步都能撤销",
+      "category": "效率"
+    }
+  },
   "commands": {
     "uninstall": [
       "-m",

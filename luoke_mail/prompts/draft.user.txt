@@ -1,0 +1,12 @@
+{{#about}}
+{{about}}
+{{/about}}
+回复要点：
+{{#points}}
+- {{.}}
+{{/points}}
+{{^points}}
+（没有给出要点，请根据邮件内容写一个得体的回复）
+{{/points}}
+
+{{>mail}}

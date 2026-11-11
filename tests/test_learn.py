@@ -2,6 +2,7 @@
 messages agree (the newest value wins on one-value topics); organisations' mail and the user's habits only ever
 are proposed for the memory to grade; credentials are never kept; on by default, can be paused (ADR 0013).
 功耗 makes every model call wait a multiple of the previous call's time."""
+import datetime as dt
 import json
 import os
 import re
@@ -114,7 +115,7 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(out, [{"topic": "服务:shop.example", "text": "在 shop.example 买东西", "n": [1]},
                                {"topic": "账户:招商银行", "text": "招商银行：持有信用卡", "n": [2]}])
         self.assertEqual(learner.Learner.ABOUT["服务"], "service")
-        self.assertIn("服务", learn.RECEIVED_PROMPT)
+        self.assertIn("服务", learn.received_messages([])[0]["content"])
         # a fact that names its organisation another way gets no prefix; the name is kept whole (10-22)
         out = learn.parse_facts(json.dumps({"facts": [
             {"topic": "账户", "who": "Example Cloud Services Co., Ltd.", "text": "在示例云有账户", "n": [1]}]}), 1, learn.LIFE_TOPICS)
@@ -128,6 +129,75 @@ class EngineTests(unittest.TestCase):
         long = {**m, "body": "开头" + "中" * 2000 + "签名：小周 产品经理"}
         self.assertTrue(learn.own_text(long).endswith("签名：小周 产品经理"))
         self.assertLessEqual(len(learn.own_text(long)), learn.SENT_CHARS + 5)
+
+
+def to_people(n, to, cc, days_ago, subject="事情"):
+    m = EmailMessage()
+    m["From"], m["To"], m["Subject"] = f"小周 <{ME}>", to, subject
+    if cc:
+        m["Cc"] = cc
+    m["Date"] = formatdate(time.time() - days_ago * 86400, localtime=True)
+    m["Message-ID"] = f"<c{n}@example.com>"
+    m.set_content("好的。")
+    return m.as_bytes()
+
+
+class ContactTests(unittest.TestCase):
+    """Who the user writes to (mail-contact, agreed with luoke-mem 2026-11-09: names for the voice input's hot
+    words): one record per address and finished month, from the Sent headers, no model."""
+
+    def test_who_the_user_wrote_to_month_by_month(self):
+        for flavour, provider in (("gmail", "gmail"), ("qq", "qq"), ("netease", "163")):
+            with self.subTest(flavour=flavour):
+                self.check(flavour, provider)
+
+    def check(self, flavour, provider):
+        r = LearnRig(self, flavour=flavour, provider=provider)
+        month = lambda days: time.strftime("%Y-%m", time.localtime(time.time() - days * 86400))   # noqa: E731
+        today = dt.date.today()
+        mid = (today.replace(day=1) - dt.timedelta(days=32)).replace(day=15)       # two months back, mid-month
+        d = (today - mid).days                                                     # d-2 .. d+2: the same month
+        r.send(to_people(1, "王磊 <WangLei@corp.example>", "陈老师 <chen@school.example>", d - 1, "排期调整"),
+               to_people(2, "wanglei@corp.example", f"小周 <{ME}>, 通知 <noreply@corp.example>", d + 1, "需求评审"),
+               to_people(7, "wanglei@corp.example", "", d, "Re: 你的问题"),             # his words: not a subject
+               to_people(8, "wanglei@corp.example", "", d, "自动回复：休假中"),
+               to_people(3, "王磊 <wanglei@corp.example>", "", 0),                     # this month: not yet
+               to_people(4, "Lucy <lucy@lab.example>", "", 400))
+        mem = r.app.mem
+        r.app.profiler.run(ME, {"cancel": False})
+        got = {x["ref"]: x for x in mem.records(topic="mail-contact")}
+        old = month(d)
+        self.assertEqual(set(got), {f"wanglei@corp.example@{old}", f"chen@school.example@{old}",
+                                    f"lucy@lab.example@{month(400)}"})
+        w = got[f"wanglei@corp.example@{old}"]
+        self.assertEqual({k: w["data"][k] for k in ("name", "month", "count", "to", "cc", "sender", "by", "subjects")},
+                         {"name": "王磊", "month": old, "count": 4, "to": 4, "cc": 0, "sender": "wanglei@corp.example",
+                          "by": "user", "subjects": ["排期调整", "需求评审"]})
+        self.assertTrue(w["data"]["account"].startswith("mbx-"))
+        self.assertEqual((w["speaker"], w["kind"]), ("user", "activity"))
+        self.assertEqual(w["text"], f"写信给 王磊 <wanglei@corp.example>：{old} 共 4 封")
+        self.assertEqual(w["happened_at"][:7], old)                              # when it was sent, not written
+        self.assertEqual(got[f"chen@school.example@{old}"]["data"]["cc"], 1)
+        before = len(mem.records(topic="mail-contact"))
+        r.app.profiler.run(ME, {"cancel": False})
+        self.assertEqual(len(mem.records(topic="mail-contact")), before)        # the same months: not again
+        r.send(to_people(5, "wanglei@corp.example", "", d))                      # found later in the same month
+        r.app.profiler.run(ME, {"cancel": False})
+        newest = mem.records(topic="mail-contact", ref=f"wanglei@corp.example@{old}")[0]
+        self.assertEqual((newest["data"]["count"], len(mem.records(topic="mail-contact"))), (5, before + 1))
+        # forgotten in the memory (it deletes that address's records): the same old months are not written back
+        self.assertEqual(mem.forget_records(topics=["mail-contact"], match={"sender": "chen@school.example"}), 1)
+        r.app.profiler.run(ME, {"cancel": False})
+        self.assertFalse([x for x in mem.records(topic="mail-contact") if x["data"]["sender"] == "chen@school.example"])
+        r.send(to_people(6, "陈老师 <chen@school.example>", "", 40))                 # written to again: back
+        r.app.profiler.run(ME, {"cancel": False})
+        self.assertEqual([x["ref"] for x in mem.records(topic="mail-contact") if x["data"]["sender"] == "chen@school.example"],
+                         [f"chen@school.example@{month(40)}"])
+
+    def test_not_for_the_demo(self):
+        r = LearnRig(self)
+        self.assertEqual(r.app.profiler._contacts("demo", [{"date": "2020-01-01 10:00", "from_addr": "me@x.example",
+                                                             "recipients": [{"name": "A", "addr": "a@x.example", "as": "to"}]}]), 0)
 
 
 class SentTests(unittest.TestCase):
@@ -224,7 +294,7 @@ class EventTests(unittest.TestCase):
         self.assertEqual(o["suggestion"], {"from": "archive", "to": "follow_up"})
         r.app.override({"source": "mailbox", "ids": [item["id"]], "action": "ignore"})
         o = r.app.mem.records(topic="mail-override")[0]["data"]
-        self.assertEqual((o["from"], o["to"]), ("keep", "trash"))                         # 「移到垃圾箱」 is trash
+        self.assertEqual((o["from"], o["to"]), ("keep", "trash"))                         # 「删除」 is trash
         self.assertTrue(o["sender"].startswith(("from:", "list:")) and o["account"].startswith("mbx-"))
         r.app.cfg["mode"]["write"] = True
         r.app.items_act(ME, [item["id"]], "archive")
@@ -238,12 +308,23 @@ class EventTests(unittest.TestCase):
         self.assertEqual(reads[0]["happened_at"][:7], d["month"])                  # when it happened, not when written
         opened = [x for x in reads if x["data"]["opened"]]
         self.assertTrue(opened and opened[0]["data"]["mails"][0]["text"])           # what it said: the memory reads it
+        self.assertEqual({m["text_by"] for m in opened[0]["data"]["mails"]}, {"sender"})   # the sender's words
         before = len(r.app.mem.records(topic="mail-read"))
         r.app.profiler.run(ME, {"cancel": False})
         self.assertEqual(len(r.app.mem.records(topic="mail-read")), before)        # the same months: not again
 
 
 class ReceivedTests(unittest.TestCase):
+    def test_mail_marked_read_by_the_assistant_was_not_opened(self):
+        r = LearnRig(self)
+        for i in range(3):
+            r.srv._add("INBOX", mail(500 + i, f"账单 {i}", "机构 <bill@org.example>", 20 + 40 * i), {"\\Seen"})
+        r.app.store.read_by_us = lambda acct: {f"<o{500 + i}@x.example>" for i in range(3)}
+        r.on()
+        r.run()
+        asked = [b["messages"][1]["content"] for b in r.chat.requests if b["messages"][0]["content"].startswith("下面是用户收到")]
+        self.assertFalse([a for a in asked if "org.example" in a])                  # only ever opened by the assistant
+
     def test_organisations_become_guesses_a_few_at_a_time(self):
         r = LearnRig(self)
         r.send(sent(1, "friend@mail.example", "周末", "周末见。", 2))
@@ -332,6 +413,71 @@ class ReceivedTests(unittest.TestCase):
         self.assertEqual(asked[1], asked[2])
         self.assertNotEqual(asked[0], asked[2])
         self.assertTrue(r.app.learner.state(ME).get("received_at"))
+
+    def orgs(self, r, n):
+        for k in range(n):
+            for i in range(3):
+                r.srv._add("INBOX", mail(300 + 10 * k + i, f"账单 {i}", f"机构{k} <bill@org{k}.example>", 20 + 40 * i), {"\\Seen"})
+
+    def garbled(self, when):
+        """The model's answer comes out unusable (empty, cut short) when `when(task, items, prompt)` says so."""
+        real = engines.Direct.chat
+
+        def chat(link, task, messages, *a, **kw):
+            if when(task, kw.get("items", 1), messages[1]["content"]):
+                return "", {}, 0.0
+            return real(link, task, messages, *a, **kw)
+        return mock.patch.object(engines.Direct, "chat", chat)
+
+    def test_no_usable_answer_is_not_nothing_found(self):
+        """An answer that does not parse was taken as 「nothing to learn」, and the whole batch was kept as looked at:
+        those organisations were never asked about again. Fewer at a time is tried; a shorter answer may come
+        out whole."""
+        r = LearnRig(self)
+        r.send(sent(1, "friend@mail.example", "周末", "周末见。", 2))
+        self.orgs(r, 7)
+        r.on()
+        with self.garbled(lambda task, items, _: task == "learn-orgs" and items > 3):
+            r.run()
+        texts = {c["text"] for c in r.app.store.learn_candidates(ME, "received")}
+        self.assertLessEqual({f"在机构{k}有账户" for k in range(7)}, texts)
+        self.assertLessEqual({f"from:bill@org{k}.example" for k in range(7)}, set(r.app.learner.state(ME)["received_seen"]))
+
+    def test_one_organisation_with_no_usable_answer_waits_then_is_let_be(self):
+        r = LearnRig(self)
+        r.send(sent(1, "friend@mail.example", "周末", "周末见。", 2))
+        self.orgs(r, 5)
+        r.on()
+        lr = r.app.learner
+        with self.garbled(lambda task, items, prompt: task == "learn-orgs" and "org3" in prompt):
+            for round_ in range(learner.MISS_LIMIT):
+                lr.store.cache_update(ME, "learn", failed_at=0)                 # the usual wait is over
+                lr.slice(ME, {"cancel": False})
+                st = lr.state(ME)
+                if round_ < learner.MISS_LIMIT - 1:                        # the model may be at fault now: later
+                    self.assertEqual(st.get("problem"), "本机模型暂时没有给出可用的结果。")
+                    self.assertNotIn("from:bill@org3.example", st["received_seen"])
+                    self.assertLess(st.get("received_at") or 0, 1)
+        st = lr.state(ME)
+        self.assertFalse(st.get("problem"))
+        self.assertTrue(st.get("received_at"))
+        self.assertIn("from:bill@org3.example", st["received_seen"])          # asked MISS_LIMIT times: let be
+        self.assertEqual(st.get("received_missed"), {})
+        texts = {c["text"] for c in r.app.store.learn_candidates(ME, "received")}
+        self.assertLessEqual({f"在机构{k}有账户" for k in (0, 1, 2, 4)}, texts)
+        self.assertNotIn("在机构3有账户", texts)
+
+    def test_sent_mail_with_no_usable_answer_is_read_fewer_at_a_time(self):
+        r = LearnRig(self)
+        for n in range(3):
+            r.send(sent(n, "friend@mail.example", f"周末 {n}", "周末见。", 2 + n))
+        r.on()
+        asked = []
+        with self.garbled(lambda task, items, _: task == "learn-sent" and (asked.append(items) or items > 1)):
+            r.run()
+        st = r.app.learner.state(ME)
+        self.assertEqual((st.get("sent_todo"), st.get("sent_done")), ([], 3))
+        self.assertEqual(asked.count(1), 3)                                 # each mail read, one at a time
 
 
 class CleanUpTests(unittest.TestCase):

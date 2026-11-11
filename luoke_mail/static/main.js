@@ -103,7 +103,7 @@ function fold(folded) {
   narrow.addEventListener("change", fit);
   fit();
   if (!hasToken()) {
-    $("stage").prepend(el("p", { class: "status err" }, "无法验证访问权限。请从「螺壳邮件助手」App 重新打开页面。"));
+    $("stage").prepend(el("p", { class: "status err" }, "无法验证访问权限。请重新打开螺壳邮件助手。"));
   }
   // the service may be restarting (the page was opened or refreshed meanwhile): wait for it, never fall back
   // to the first-run steps -- the setup is fine, the page just could not ask yet

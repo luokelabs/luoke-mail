@@ -1,0 +1,133 @@
+{
+  "reply": {
+    "id": 15,
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "已写好 1 封草稿，放在草稿箱，请检查后自行发送。",
+          "type": "text"
+        }
+      ],
+      "isError": false,
+      "resultType": "complete",
+      "structuredContent": {
+        "card": [
+          {
+            "updateComponents": {
+              "components": [
+                {
+                  "children": [
+                    "res-t1",
+                    "res-r2"
+                  ],
+                  "component": "Column",
+                  "group": {
+                    "badge": "me@example.com",
+                    "key": "me@example.com/draft",
+                    "label": "新邮件",
+                    "n": 1,
+                    "text": "已写好草稿 {n} 封"
+                  },
+                  "id": "root"
+                },
+                {
+                  "component": "Text",
+                  "id": "res-t1",
+                  "text": "已写好 1 封草稿，放在草稿箱，请检查后自行发送。"
+                },
+                {
+                  "action": {
+                    "event": {
+                      "context": {
+                        "execution_id": "new-mail-000000000001"
+                      },
+                      "name": "mail_undo"
+                    }
+                  },
+                  "child": "res-b3-text",
+                  "component": "Button",
+                  "id": "res-b3"
+                },
+                {
+                  "component": "Text",
+                  "id": "res-b3-text",
+                  "text": "撤销"
+                },
+                {
+                  "children": [
+                    "res-b3"
+                  ],
+                  "component": "Row",
+                  "id": "res-r2"
+                }
+              ],
+              "surfaceId": "new-mail-000000000001"
+            },
+            "version": "v0.9"
+          }
+        ],
+        "done": true
+      }
+    }
+  },
+  "request": {
+    "id": 15,
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "_meta": {
+        "ai.luoke/user-action": {
+          "at": "2026-10-20T09:35:00+08:00",
+          "componentId": "b13",
+          "surfaceId": "new-mail-000000000001"
+        },
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "arguments": {
+        "choices": {
+          "m5": [
+            "draft"
+          ]
+        },
+        "plan_id": "new-mail-000000000001"
+      },
+      "name": "mail_apply_plan"
+    }
+  }
+}

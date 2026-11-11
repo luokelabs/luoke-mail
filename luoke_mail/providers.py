@@ -22,15 +22,15 @@ PROVIDERS = {
         "block": {
             "title": "在 Gmail 中屏蔽或过滤",
             "steps": [
-                "在此卡片上点击「以后都移到垃圾箱」，再点击「导出到 Gmail…」，将过滤器文件导入 Gmail。之后由 Gmail 自动将其邮件移到垃圾箱。",
+                "在此卡片上点击「以后都删除」，再点击「导出到 Gmail…」，将过滤器文件导入 Gmail。之后由 Gmail 自动删除其邮件。",
                 "也可以在 Gmail 中打开该发件人的任意一封邮件，点击右上角「⋮」，选择「屏蔽“发件人”」。之后的邮件会直接进入垃圾邮件。",
             ],
             "link": {"label": "打开 Gmail 过滤器设置", "url": "https://mail.google.com/mail/u/0/#settings/filters"},
         },
         "name": "Gmail",
-        # the authserv-id Gmail puts on the Authentication-Results it adds on receipt (RFC 8601): its own verdict
-        # on the sender, which the sender cannot write. Other providers: not relied on yet
-        "authserv": "mx.google.com",
+        # the authserv-id (a pattern) on the Authentication-Results a provider adds on receipt (RFC 8601): its own
+        # verdict on the sender, which the sender cannot write
+        "authserv": r"mx\.google\.com",
         "host": "imap.gmail.com",
         "port": 993,
         "needs_id": False,
@@ -67,6 +67,7 @@ PROVIDERS = {
             "link": {"label": "打开 QQ 邮箱", "url": "https://mail.qq.com"},
         },
         "name": "QQ 邮箱",
+        "authserv": r"mx\.qq\.com",
         "host": "imap.qq.com",
         "port": 993,
         "needs_id": False,
@@ -77,6 +78,7 @@ PROVIDERS = {
             "在电脑浏览器登录 QQ 邮箱网页版，点击右上角头像旁的齿轮进入「设置」，选择「账号与安全」→「安全设置」（旧版界面在「设置」→「账户」）。",
             "找到「POP3/IMAP/SMTP/Exchange/CardDAV/CalDAV 服务」，开启「IMAP/SMTP 服务」。已经开着的，点击「生成授权码」。",
             "按页面提示验证身份（通常是用绑定的手机发一条短信，发完点击「我已发送」）。",
+            "在同一页的「收取选项」里，「收取 ___ 的邮件」选「全部」，并勾选「收取“我的文件夹”」：否则邮件助手看不到更早的邮件，也无法归档。",
             "复制页面显示的 16 位授权码，粘贴到下方。关掉页面就看不到了，忘了可以再生成一个。",
         ],
         "links": [
@@ -89,6 +91,7 @@ PROVIDERS = {
             "改过 QQ 密码或邮箱独立密码后，授权码会失效，要重新生成一个，在「设置 → 邮箱」里换上。",
             "邮箱地址要填完整，例如 12345678@qq.com，不是只填 QQ 号。foxmail.com 的地址也选 QQ 邮箱。",
         ],
+        "archive_hidden": "邮件没有移动：QQ 邮箱没有开放「我的文件夹」。请在网页版「设置 → 账号与安全 → 安全设置 → 收取选项」里勾选「收取“我的文件夹”」后再归档。",
         "refused": "QQ 邮箱拒绝登录：请确认已开启 IMAP/SMTP 服务，填写的是授权码，不是 QQ 密码。改过 QQ 密码的话，原来的授权码已经失效，要重新生成。",
     },
     "163": {
@@ -102,6 +105,7 @@ PROVIDERS = {
             "link": {"label": "打开 163 邮箱", "url": "https://mail.163.com"},
         },
         "name": "网易 163 邮箱",
+        "authserv": r"mx\d+|[a-z\d]+-mx-mta-g\d+-\d+",      # mx3 (older), gzga-mx-mta-g0-5 (2024 on)
         "host": "imap.163.com",
         "port": 993,
         "needs_id": True,
@@ -110,7 +114,7 @@ PROVIDERS = {
         "secret_hint": "16 位字母，不是邮箱登录密码",
         "steps": [
             "在电脑浏览器登录 163 邮箱网页版，点击顶部「设置」，选择「POP3/SMTP/IMAP」。",
-            "在「IMAP/SMTP 服务」一行点击「开启」，在弹出的窗口里确认。",
+            "在「IMAP/SMTP 服务」一行点击「开启」，在弹出的窗口里确认。同一页的「收取选项」默认是「收取最近30天邮件」，要整理更早的邮件，请选「收取全部邮件」。",
             "按提示验证：用绑定的手机扫码发送短信（或照页面上的内容手动发送），发完点击「我已发送」。",
             "复制页面显示的授权码，粘贴到下方。授权码只显示一次；以后需要新的，在同一页的授权密码管理里新增一个。",
         ],
@@ -135,6 +139,7 @@ PROVIDERS = {
             "link": {"label": "打开 126 邮箱", "url": "https://mail.126.com"},
         },
         "name": "网易 126 邮箱",
+        "authserv": r"mx\d+|[a-z\d]+-mx-mta-g\d+-\d+",      # mx3 (older), gzga-mx-mta-g0-5 (2024 on)
         "host": "imap.126.com",
         "port": 993,
         "needs_id": True,
@@ -143,7 +148,7 @@ PROVIDERS = {
         "secret_hint": "16 位字母，不是邮箱登录密码",
         "steps": [
             "在电脑浏览器登录 126 邮箱网页版，点击顶部「设置」，选择「POP3/SMTP/IMAP」。",
-            "在「IMAP/SMTP 服务」一行点击「开启」，在弹出的窗口里确认。",
+            "在「IMAP/SMTP 服务」一行点击「开启」，在弹出的窗口里确认。同一页的「收取选项」默认是「收取最近30天邮件」，要整理更早的邮件，请选「收取全部邮件」。",
             "按提示验证：用绑定的手机扫码发送短信（或照页面上的内容手动发送），发完点击「我已发送」。",
             "复制页面显示的授权码，粘贴到下方。授权码只显示一次；以后需要新的，在同一页的授权密码管理里新增一个。",
         ],

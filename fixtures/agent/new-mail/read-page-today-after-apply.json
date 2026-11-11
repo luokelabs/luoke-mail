@@ -1,0 +1,770 @@
+{
+  "reply": {
+    "id": 18,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "today"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g9-t1",
+                      "g9-r9",
+                      "g9-r14",
+                      "g9-r17",
+                      "g9-t18",
+                      "g9-k27",
+                      "g9-k36",
+                      "g9-r39",
+                      "g9-k48",
+                      "g9-k57",
+                      "g9-r60",
+                      "g9-k66"
+                    ],
+                    "component": "Column",
+                    "id": "root"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t1",
+                    "text": "螺壳今天处理了哪些邮件。不对的改一下，它会记住。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t2",
+                    "text": "今天",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b3-t",
+                    "text": "昨天"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b3",
+                          "page": "today"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g9-b3-t",
+                    "component": "Button",
+                    "id": "g9-b3",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b4-t",
+                    "text": "10/18"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b4",
+                          "page": "today"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g9-b4-t",
+                    "component": "Button",
+                    "id": "g9-b4",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b5-t",
+                    "text": "10/17"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b5",
+                          "page": "today"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g9-b5-t",
+                    "component": "Button",
+                    "id": "g9-b5",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b6-t",
+                    "text": "10/16"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b6",
+                          "page": "today"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g9-b6-t",
+                    "component": "Button",
+                    "id": "g9-b6",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b7-t",
+                    "text": "10/15"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b7",
+                          "page": "today"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g9-b7-t",
+                    "component": "Button",
+                    "id": "g9-b7",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b8-t",
+                    "text": "10/14"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b8",
+                          "page": "today"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g9-b8-t",
+                    "component": "Button",
+                    "id": "g9-b8",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g9-t2",
+                      "g9-b3",
+                      "g9-b4",
+                      "g9-b5",
+                      "g9-b6",
+                      "g9-b7",
+                      "g9-b8"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r9"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t10",
+                    "text": "全部 5",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b11-t",
+                    "text": "等你处理 2"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b11",
+                          "page": "today"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g9-b11-t",
+                    "component": "Button",
+                    "id": "g9-b11",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b12-t",
+                    "text": "留在收件箱 2"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b12",
+                          "page": "today"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g9-b12-t",
+                    "component": "Button",
+                    "id": "g9-b12",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b13-t",
+                    "text": "你处理的 1"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b13",
+                          "page": "today"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g9-b13-t",
+                    "component": "Button",
+                    "id": "g9-b13",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g9-t10",
+                      "g9-b11",
+                      "g9-b12",
+                      "g9-b13"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r14"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t15",
+                    "text": "等你处理",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t16",
+                    "text": "2",
+                    "variant": "caption"
+                  },
+                  {
+                    "children": [
+                      "g9-t15",
+                      "g9-t16"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r17"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t18",
+                    "text": "请到「收件箱」处理。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t19",
+                    "text": "项目周会",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t20",
+                    "text": "等你处理",
+                    "variant": "caption"
+                  },
+                  {
+                    "children": [
+                      "g9-t20"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r21"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t22",
+                    "text": "项目组 · 建议：加入日程 · 周四下午三点的周会",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b23-t",
+                    "text": "标为未读"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b23",
+                          "page": "today"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g9-b23-t",
+                    "component": "Button",
+                    "id": "g9-b23"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b24-t",
+                    "text": "改为…"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b24",
+                          "page": "today"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g9-b24-t",
+                    "component": "Button",
+                    "id": "g9-b24",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g9-b23",
+                      "g9-b24"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r25"
+                  },
+                  {
+                    "children": [
+                      "g9-t19",
+                      "g9-r21",
+                      "g9-t22",
+                      "g9-r25"
+                    ],
+                    "component": "Column",
+                    "id": "g9-c26"
+                  },
+                  {
+                    "child": "g9-c26",
+                    "component": "Card",
+                    "id": "g9-k27"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t28",
+                    "text": "合同扫描件",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t29",
+                    "text": "等你处理",
+                    "variant": "caption"
+                  },
+                  {
+                    "children": [
+                      "g9-t29"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r30"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t31",
+                    "text": "李律师 · 建议：加星标 · 律师发来合同扫描件",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b32-t",
+                    "text": "标为未读"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b32",
+                          "page": "today"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g9-b32-t",
+                    "component": "Button",
+                    "id": "g9-b32"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b33-t",
+                    "text": "改为…"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b33",
+                          "page": "today"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g9-b33-t",
+                    "component": "Button",
+                    "id": "g9-b33",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g9-b32",
+                      "g9-b33"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r34"
+                  },
+                  {
+                    "children": [
+                      "g9-t28",
+                      "g9-r30",
+                      "g9-t31",
+                      "g9-r34"
+                    ],
+                    "component": "Column",
+                    "id": "g9-c35"
+                  },
+                  {
+                    "child": "g9-c35",
+                    "component": "Card",
+                    "id": "g9-k36"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t37",
+                    "text": "已读，留在收件箱",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t38",
+                    "text": "2",
+                    "variant": "caption"
+                  },
+                  {
+                    "children": [
+                      "g9-t37",
+                      "g9-t38"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r39"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t40",
+                    "text": "双十一预告",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t41",
+                    "text": "已读，留在收件箱",
+                    "variant": "caption"
+                  },
+                  {
+                    "children": [
+                      "g9-t41"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r42"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t43",
+                    "text": "某某商城 · 建议：删除 · 促销",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b44-t",
+                    "text": "标为未读"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b44",
+                          "page": "today"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g9-b44-t",
+                    "component": "Button",
+                    "id": "g9-b44"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b45-t",
+                    "text": "改为…"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b45",
+                          "page": "today"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g9-b45-t",
+                    "component": "Button",
+                    "id": "g9-b45",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g9-b44",
+                      "g9-b45"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r46"
+                  },
+                  {
+                    "children": [
+                      "g9-t40",
+                      "g9-r42",
+                      "g9-t43",
+                      "g9-r46"
+                    ],
+                    "component": "Column",
+                    "id": "g9-c47"
+                  },
+                  {
+                    "child": "g9-c47",
+                    "component": "Card",
+                    "id": "g9-k48"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t49",
+                    "text": "本周精选",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t50",
+                    "text": "已读，留在收件箱",
+                    "variant": "caption"
+                  },
+                  {
+                    "children": [
+                      "g9-t50"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r51"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t52",
+                    "text": "周刊 · 建议：归档 · 周刊",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b53-t",
+                    "text": "标为未读"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b53",
+                          "page": "today"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g9-b53-t",
+                    "component": "Button",
+                    "id": "g9-b53"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-b54-t",
+                    "text": "改为…"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g9-b54",
+                          "page": "today"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g9-b54-t",
+                    "component": "Button",
+                    "id": "g9-b54",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g9-b53",
+                      "g9-b54"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r55"
+                  },
+                  {
+                    "children": [
+                      "g9-t49",
+                      "g9-r51",
+                      "g9-t52",
+                      "g9-r55"
+                    ],
+                    "component": "Column",
+                    "id": "g9-c56"
+                  },
+                  {
+                    "child": "g9-c56",
+                    "component": "Card",
+                    "id": "g9-k57"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t58",
+                    "text": "你处理的",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t59",
+                    "text": "1",
+                    "variant": "caption"
+                  },
+                  {
+                    "children": [
+                      "g9-t58",
+                      "g9-t59"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r60"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t61",
+                    "text": "答辩时间确认",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t62",
+                    "text": "你已保存回复草稿",
+                    "variant": "caption"
+                  },
+                  {
+                    "children": [
+                      "g9-t62"
+                    ],
+                    "component": "Row",
+                    "id": "g9-r63"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g9-t64",
+                    "text": "王老师 · 建议：回复 · 王老师问答辩时间，周五前回",
+                    "variant": "caption"
+                  },
+                  {
+                    "children": [
+                      "g9-t61",
+                      "g9-r63",
+                      "g9-t64"
+                    ],
+                    "component": "Column",
+                    "id": "g9-c65"
+                  },
+                  {
+                    "child": "g9-c65",
+                    "component": "Card",
+                    "id": "g9-k66"
+                  }
+                ],
+                "surfaceId": "today"
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/today"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 18,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/today"
+    }
+  }
+}

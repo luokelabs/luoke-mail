@@ -527,7 +527,7 @@ class AutoCleanTests(unittest.TestCase):
         self.assertIsNone(r.app._judge_next())                               # nothing left
         title, body = r.app.clean_note(ME)
         self.assertIn("4 封邮件已分析", title)
-        self.assertIn("移到垃圾箱 3 封", body)
+        self.assertIn("删除 3 封", body)
         self.assertIn("确认后才会处理", body)
         self.assertEqual(r.app._start_page(), "clean")                      # the notification opens 清理
         self.assertIsNone(r.app.clean_note(ME))                              # once
@@ -770,7 +770,24 @@ class DueSoonTests(unittest.TestCase):
         appt = next(e["item"] for e in view["entries"] if e["type"] == "item" and e["item"]["subject"] == "本周例会改到周四")
         self.assertEqual(appt["past_event"], yesterday)
         bill = next(it for it in view["due"] if it["subject"] == "双十一预热")
-        self.assertTrue(r.app.public_item(r.app.store.get(bill["id"]))["overdue"])
+        shown = r.app.public_item(r.app.store.get(bill["id"]))
+        self.assertTrue(shown["overdue"])
+        # past its date, high reads as medium (luoke-mail#80); the model's answer stays in the store
+        self.assertEqual((shown["priority"], appt["priority"], r.app.store.get(bill["id"])["priority"]),
+                         ("medium", "medium", "high"))
+
+    def test_high_priority_reads_as_medium_once_its_date_has_passed(self):
+        from luoke_mail import triage
+        today = "2026-11-09"
+        for it, want in (({"priority": "high", "due_date": "2026-11-08"}, "medium"),
+                         ({"priority": "high", "due_date": "2026-11-09"}, "high"),          # due today: still high
+                         ({"priority": "high", "due_date": None}, "high"),
+                         ({"priority": "low", "due_date": "2026-01-01"}, "low"),
+                         ({"priority": "high", "action": "schedule", "due_date": None,
+                           "event": {"date": "2026-11-01", "more": [{"date": "2026-11-12"}]}}, "high"),   # return leg ahead
+                         ({"priority": "high", "action": "schedule", "due_date": None, "event": {"date": "2026-11-01"}}, "medium"),
+                         ({"priority": "high", "action": "reply", "due_date": None, "event": {"date": "2026-11-01"}}, "high")):
+            self.assertEqual(triage.priority_now(it, today), want, it)
 
 
 class FilterPreviewTests(unittest.TestCase):

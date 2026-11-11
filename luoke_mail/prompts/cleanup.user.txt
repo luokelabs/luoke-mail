@@ -1,0 +1,5 @@
+今天是 {{today}}。
+
+{{#rows}}
+{{n}}. {{who}} · {{date}} · {{#subject}}{{subject}}{{/subject}}{{^subject}}（无主题）{{/subject}}{{#category}} · Gmail 分类：{{category}}{{/category}}{{#labels}} · 标签：{{labels}}{{/labels}}
+{{/rows}}

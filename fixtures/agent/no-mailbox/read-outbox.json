@@ -1,0 +1,141 @@
+{
+  "reply": {
+    "id": 4,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "items": [
+              {
+                "card": [
+                  {
+                    "createSurface": {
+                      "catalogId": "ai.luoke/a2ui/agent/1",
+                      "surfaceId": "needs-mailbox"
+                    },
+                    "version": "v0.9"
+                  },
+                  {
+                    "updateComponents": {
+                      "components": [
+                        {
+                          "children": [
+                            "h1",
+                            "t2",
+                            "r3"
+                          ],
+                          "component": "Column",
+                          "id": "root"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "h1",
+                          "text": "还没连邮箱",
+                          "variant": "h4"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t2",
+                          "text": "连上邮箱，新邮件就能在这里分拣好。授权码在邮件助手自己的页面里填，只存在这台 Mac 的钥匙串里。",
+                          "variant": "caption"
+                        },
+                        {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "page": "settings"
+                              },
+                              "name": "agent.open_page"
+                            }
+                          },
+                          "child": "b4-text",
+                          "component": "Button",
+                          "id": "b4",
+                          "variant": "primary"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b4-text",
+                          "text": "去设置"
+                        },
+                        {
+                          "children": [
+                            "b4"
+                          ],
+                          "component": "Row",
+                          "id": "r3"
+                        }
+                      ],
+                      "surfaceId": "needs-mailbox"
+                    },
+                    "version": "v0.9"
+                  }
+                ],
+                "created": "2026-10-20T09:30:00",
+                "deadline": null,
+                "expires": null,
+                "id": "needs-access/mailbox",
+                "kind": "needs-access",
+                "permission": "mailbox",
+                "summary": "连上邮箱，新邮件就能在这里分拣好。授权码在邮件助手自己的页面里填，只存在这台 Mac 的钥匙串里。",
+                "title": "还没连邮箱",
+                "urgency": "low",
+                "why_now": "连上邮箱才能分拣"
+              }
+            ]
+          },
+          "uri": "luoke://luoke-mail/outbox"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 4,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "luoke://luoke-mail/outbox"
+    }
+  }
+}

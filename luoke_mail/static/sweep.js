@@ -27,8 +27,8 @@ const gmailLike = () => S.source === "demo" || (currentMailbox() || {}).provider
 const allMail = () => (gmailLike() ? "「所有邮件」" : "归档文件夹");
 
 const SECTIONS = {
-  inbox: [["del", "建议移到垃圾箱"], ["todo", "待确认"], ["arch", "建议归档"], ["pending", "未分析"]],
-  archive: [["del", "建议移到垃圾箱"], ["keep", "建议保留"], ["pending", "未分析"]],
+  inbox: [["del", "建议删除"], ["todo", "待确认"], ["arch", "建议归档"], ["pending", "未分析"]],
+  archive: [["del", "建议删除"], ["keep", "建议保留"], ["pending", "未分析"]],
 };
 const sectionOf = (g) => (g.kind === "pending" ? "pending" : g.action === "trash" && g.suggested ? "del"
   : g.kind === "todo" ? "todo" : scope === "inbox" ? "arch" : "keep");
@@ -43,7 +43,7 @@ export function renderOldBar(old, open) {
   const left = old.total !== undefined ? old.total - old.judged : null;
   let text = `收件箱中有 ${old.count} 封超过 ${old.days} 天的邮件`;
   if (left === 0 && old.judged) {
-    const parts = [old.archive && `建议归档 ${old.archive} 封`, old.trash && `移到垃圾箱 ${old.trash} 封`,
+    const parts = [old.archive && `建议归档 ${old.archive} 封`, old.trash && `删除 ${old.trash} 封`,
       old.todo && `待你确认 ${old.todo} 封`].filter(Boolean);
     text = `超过 ${old.days} 天的 ${old.judged} 封已分析` + (parts.length ? `：${parts.join("、")}` : "");
   } else if (left && old.judging) {
@@ -198,7 +198,7 @@ function renderReading() {
     note.textContent = "";
     const toDigest = el("button", { type: "button", class: "link", onclick: () => nav.go("digest") }, "查看精选");
     if (!d.queued && !d.read) {
-      note.append(el("span", null, "移到垃圾箱之前，可以让本机模型先读一遍，把值得看的留下。"),
+      note.append(el("span", null, "删除之前，可以让本机模型先读一遍，把值得看的留下。"),
         el("button", { type: "button", class: "btn small", onclick: () => readFirst(rows) }, "先读一遍"));
     } else if (d.queued) {
       note.append(el("span", null, `${view.reading_on ? "正在阅读：" : "已暂停："}已读 ${d.read} / ${d.read + d.queued} 封${d.kept ? `，${d.kept} 封含精选内容` : ""}。`),
@@ -229,7 +229,7 @@ async function readFirst(rows) {
 }
 
 function row(g, all, rows) {
-  const verb = g.action === "trash" ? "移到垃圾箱" : "归档";
+  const verb = g.action === "trash" ? "删除" : "归档";
   const cb = el("input", { type: "checkbox", "aria-label": `${verb}：${g.name || g.addr} 的 ${g.count} 封`, onchange: () => {
     pick(g, cb.checked);
     all.checked = rows.every(picked);
@@ -302,7 +302,7 @@ function chosen() {
 }
 
 function actionText(c) {
-  if (scope === "archive") return c.n ? `移到垃圾箱（${c.n} 封）` : "移到垃圾箱";
+  if (scope === "archive") return c.n ? `删除（${c.n} 封）` : "删除";
   return c.n ? `处理（${c.n} 封）` : "处理";
 }
 
@@ -311,7 +311,7 @@ function renderActions() {
   bar.textContent = "";
   bar.hidden = false;
   const c = chosen();
-  const detail = scope === "inbox" && c.n ? `：归档 ${c.archive}，移到垃圾箱 ${c.trash}` : c.n ? `，约 ${human(c.trashBytes)}` : "";
+  const detail = scope === "inbox" && c.n ? `：归档 ${c.archive}，删除 ${c.trash}` : c.n ? `，约 ${human(c.trashBytes)}` : "";
   bar.append(el("span", null, el("strong", null, `已选 ${c.n} 封`), el("span", { class: "muted" }, detail),
       c.n && !canApply(c) ? el("span", { class: "hint", style: "display:block" }, NEEDS_MODE) : null),
     el("button", { type: "button", class: "btn primary", disabled: !c.n, onclick: async (e) => {
@@ -331,15 +331,15 @@ async function apply(e) {
   c.rows.forEach((g) => { const k = `${g.action}|${shownKind(g)}`; byKind[k] = (byKind[k] || 0) + g.count; });
   const lines = Object.entries(byKind).map(([k, n]) => {
     const [action, kind] = k.split("|");
-    return el("li", null, `${action === "trash" ? "移到垃圾箱" : "归档"}：${kindLabel(kind)} ${n} 封`);
+    return el("li", null, `${action === "trash" ? "删除" : "归档"}：${kindLabel(kind)} ${n} 封`);
   });
   // not judged yet: archived on the user's word alone, said apart (luoke-mail#32)
   const unjudged = c.rows.filter((g) => g.kind === "pending").reduce((n, g) => n + g.count, 0);
-  const ok = await confirmDialog(scope === "inbox" ? "处理旧邮件" : "移到垃圾箱", [
+  const ok = await confirmDialog(scope === "inbox" ? "处理旧邮件" : "删除", [
     el("ul", null, lines),
     unjudged ? el("p", { class: "warn-text" }, `其中 ${unjudged} 封还没有分析，会直接归档。`) : null,
     c.archive ? el("p", null, `归档的邮件将标为已读并移到${allMail()}。`) : null,
-    c.trash ? el("p", null, `移到垃圾箱的邮件约 ${human(c.trashBytes)}，${gmailLike() ? "30 天后由 Gmail 自动清空" : "由邮箱定期清空"}。`) : null,
+    c.trash ? el("p", null, `删除的邮件约 ${human(c.trashBytes)}，${gmailLike() ? "30 天后由 Gmail 自动清空" : "由邮箱定期清空"}。`) : null,
     c.kept ? el("p", null, `其中 ${c.kept} 封含精选内容，将保留并加星标。`) : null,
     c.labelled ? el("p", { class: "hint" }, `其中 ${c.labelled} 封带有你的标签，撤销时会一并恢复。`) : null,
     el("p", { class: "hint" }, S.source === "demo" ? "示例数据，不会更改邮箱。" : "可在操作记录中撤销。"),

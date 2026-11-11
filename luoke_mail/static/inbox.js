@@ -8,6 +8,9 @@ import { NEEDS_MODE, needWrite, renderModeHint, scopeText } from "./settings.js"
 
 let view = null;          // last /api/items response
 let filter = null;        // rack filter
+const SORT_KEY = "luoke-mail.inbox-sort";
+let byTime = false;       // 按时间: newest first, whatever the suggestion; kept on this browser
+try { byTime = localStorage.getItem(SORT_KEY) === "time"; } catch (e) { /* the default */ }
 let pollTimer = null;
 let job = null;
 
@@ -58,6 +61,7 @@ function render() {
   renderWaiting();
   renderAuto();
   renderArchived();
+  renderSort();
   const box = $("cards");
   box.textContent = "";
   const due = ((view && view.due) || []).filter(matches).length;
@@ -72,13 +76,24 @@ function render() {
   const rank = (e) => { const it = e.type === "group" ? e.items[0] : e.item;
     return it.suspicious ? 3.5 : !it.action ? 5 : ACTION_ORDER.indexOf(it.action) + (prio[it.priority] ?? 1) / 10; };
   const date = (e) => (e.type === "group" ? e.items[0] : e.item).date || "";
-  visible.sort((a, b) => rank(a) - rank(b) || date(b).localeCompare(date(a)));   // same kind and priority: newest first
+  visible.sort((a, b) => (byTime ? 0 : rank(a) - rank(b)) || date(b).localeCompare(date(a)));   // same kind and priority: newest first
   if (!visible.length && !due) box.append(el("p", { class: "empty-state" }, "没有此类邮件。"));
   visible.forEach((e) => box.append(e.type === "group" ? renderGroup(e) : renderCard(e.item)));
 }
 
-// mail the user archived in the last days (often on the phone) that still has something for them: a date for the
-// calendar, a question to answer -- shown apart from the inbox list, nothing moved back
+function renderSort() {
+  const box = $("inbox-sort");
+  box.hidden = !view.entries.length;
+  box.textContent = "";
+  if (box.hidden) return;
+  const choice = (label, time) => el("button", { type: "button", role: "radio", "aria-checked": String(byTime === time), onclick: () => {
+    byTime = time;
+    try { localStorage.setItem(SORT_KEY, time ? "time" : "suggestion"); } catch (e) { /* not kept */ }
+    render();
+  } }, label);
+  box.append(el("div", { class: "segmented", role: "radiogroup", "aria-label": "排序" }, choice("按建议", false), choice("按时间", true)));
+}
+
 // what needs the user and has a day to it, soonest first (a bill, a form, a meeting to answer)
 // the filter above counts these too (view.counts), so it filters them too (luoke-mail#21)
 function renderDue() {
@@ -135,6 +150,8 @@ function renderAuto() {
   });
 }
 
+// mail the user archived in the last days (often on the phone) that still has something for them: a date for the
+// calendar, a question to answer -- shown apart from the inbox list, nothing moved back
 function renderArchived() {
   const box = $("archived-box");
   const items = (view && view.archived) || [];
@@ -181,7 +198,7 @@ function renderCleanBar() {
   const total = n.archive.length + n.trash.length + n.spam.length;
   bar.hidden = !total;
   if (!total) return;
-  const parts = [n.archive.length && `归档 ${n.archive.length}`, n.trash.length && `移到垃圾箱 ${n.trash.length}`, n.spam.length && `垃圾邮件 ${n.spam.length}`].filter(Boolean);
+  const parts = [n.archive.length && `归档 ${n.archive.length}`, n.trash.length && `删除 ${n.trash.length}`, n.spam.length && `垃圾邮件 ${n.spam.length}`].filter(Boolean);
   bar.append(el("div", { id: "clean-text" }, el("strong", null, `${total} 封可直接处理`), el("span", { class: "muted" }, `（${parts.join(" · ")}）`),
       canClean(n) ? null : el("span", { class: "hint", style: "display:block" }, NEEDS_MODE)),
     el("button", { type: "button", class: "btn primary", onclick: async (e) => {
@@ -199,11 +216,11 @@ async function cleanAll(e) {
   const n = noiseIds();
   const lines = [
     n.archive.length && `归档 ${n.archive.length} 封：标为已读，移出收件箱`,
-    n.trash.length && `移到垃圾箱 ${n.trash.length} 封：标为已读，邮箱一般保留 30 天，可恢复`,
+    n.trash.length && `删除 ${n.trash.length} 封：标为已读，邮箱一般保留 30 天，可恢复`,
     n.spam.length && `移到垃圾邮件 ${n.spam.length} 封：可疑邮件`,
   ].filter(Boolean);
   const ok = await confirmDialog("一键处理", [el("ul", null, lines.map((l) => el("li", null, l))),
-    el("p", { class: "hint" }, S.source === "demo" ? "示例数据，不会更改邮箱。" : "需要回复、加入日程和待跟进的邮件不受影响。可在操作记录中撤销。")], "处理");
+    el("p", { class: "hint" }, S.source === "demo" ? "示例数据，不会更改邮箱。" : "需要回复、加入日程和加星标的邮件不受影响。可在操作记录中撤销。")], "处理");
   if (!ok) return;
   // a real mailbox takes a few seconds per step: say which step is running
   const steps = ["archive", "trash", "spam"].filter((op) => n[op].length);
@@ -364,6 +381,7 @@ async function override(ids, action, sample, count) {
 async function draft(it) {
   const r = await api("/api/items/draft", { source: S.source, id: it.id });
   it.draft_text = r.text;
+  it.draft_note = r.note || null;
   return r.text;
 }
 
@@ -375,9 +393,9 @@ async function saveDraft(it, text) {
   loadInbox();
 }
 
-async function calendar(it) {
+async function calendar(it, index) {
   try {
-    const r = await api("/api/items/calendar", { source: S.source, id: it.id });
+    const r = await api("/api/items/calendar", { source: S.source, id: it.id, ...(index === undefined ? {} : { index }) });
     if (r.google_url) window.open(r.google_url, "_blank", "noopener,noreferrer");
     else download(r.filename, r.ics);
     toast(r.google_url ? "已在 Google 日历中打开，保存即可。" : "已下载日历文件，打开即可添加到日历。");

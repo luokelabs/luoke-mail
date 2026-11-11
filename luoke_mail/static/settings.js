@@ -39,8 +39,8 @@ function themeRow() {
 async function setOwn(a) {
   if (!a.own) {
     const ok = await confirmDialog(`把 ${a.address} 设为螺壳自己的邮箱`, [
-      el("p", null, "这个邮箱的邮件分析后会直接处理：该归档的归档，该删的移到垃圾箱；可疑的和要你处理的留在收件箱。"),
-      el("p", { class: "hint" }, "每封都列在「今日处理」里，可以撤销；移到垃圾箱的，在邮箱清空垃圾箱之前都能撤销。只用于专给螺壳的邮箱，不要设在日常用的邮箱上。"),
+      el("p", null, "这个邮箱的邮件分析后会直接处理：该归档的归档，该删的删除；可疑的和要你处理的留在收件箱。"),
+      el("p", { class: "hint" }, "每封都列在「今日处理」里，可以撤销；删除的，在邮箱清空「已删除」之前都能撤销。只用于专给螺壳的邮箱，不要设在日常用的邮箱上。"),
     ], "设为螺壳自己的邮箱");
     if (!ok) return;
   }
@@ -195,10 +195,10 @@ function renderModeRow(r) {
     return;
   }
   if (S.state.mode.write) {
-    body.append(el("p", null, "已开启：批量移到垃圾箱、垃圾邮件时，每次都需要你确认。"));
+    body.append(el("p", null, "已开启：批量删除、移到垃圾邮件时，每次都需要你确认。"));
     act.append(el("button", { type: "button", class: "btn small", onclick: disableWrite }, "关闭"));
   } else {
-    body.append(el("p", null, "未开启：批量移到垃圾箱、垃圾邮件前需要开启。"));
+    body.append(el("p", null, "未开启：批量删除、移到垃圾邮件前需要开启。"));
     act.append(el("button", { type: "button", class: "btn small primary", onclick: enableWrite }, "开启处理模式"));
   }
 }
@@ -206,7 +206,7 @@ function renderModeRow(r) {
 export async function enableWrite() {
   const ok = await confirmDialog("开启处理模式", [
     el("p", null, "开启后，可以一次处理多封邮件："),
-    el("ul", null, ["移到垃圾箱或垃圾邮件（邮箱一般保留 30 天，可以恢复）",
+    el("ul", null, ["删除或移到垃圾邮件（邮箱一般保留 30 天，可以恢复）",
       "在订阅体检和清理里，清掉一个发件人的历史邮件"].map((x) => el("li", null, x))),
     el("p", { class: "hint" }, "归档、标为已读、加标签、存草稿和退订，不开也能用。螺壳不会发信、转发或永久删除邮件。"),
   ], "开启");
@@ -223,7 +223,7 @@ export async function needWrite(needed = true) {
   if (!needed || S.source === "demo" || S.state.mode.write) return true;
   return enableWrite();
 }
-export const NEEDS_MODE = "移到垃圾箱前需要先开启处理模式，点击时会说明。";
+export const NEEDS_MODE = "删除前需要先开启处理模式，点击时会说明。";
 
 async function disableWrite() {
   await api("/api/mode", { write: false });
@@ -232,9 +232,22 @@ async function disableWrite() {
 }
 
 // the one line a page shows about the mode (demo note, or why the buttons are greyed out)
-export function renderModeHint(box, after) {
+const shownWindow = new Set();         // said once per mailbox; stays on the page it was said on until it is left
+function windowNote(box) {
+  const acct = (S.state.accounts || []).find((a) => a.key === S.source);
+  if (!acct?.window_note) return;
+  const key = `luoke-mail.window-note.${acct.key}`;
+  let told = false;
+  try { told = localStorage.getItem(key) === "1"; localStorage.setItem(key, "1"); } catch { /* said each visit */ }
+  if (told && !shownWindow.has(key)) return;
+  shownWindow.add(key);
+  box.append(el("span", null, acct.window_note));
+}
+
+export function renderModeHint(box, after, older = false) {
   box.textContent = "";
   box.className = "mode-hint";
+  if (older) windowNote(box);
   if (S.source === "demo") {
     box.classList.add("demo");
     box.append(el("span", null, "示例数据：所有操作仅在示例中进行，不会更改邮箱。"));

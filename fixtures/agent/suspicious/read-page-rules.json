@@ -1,0 +1,252 @@
+{
+  "reply": {
+    "id": 12,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "rules"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g6-t1",
+                      "g6-k8",
+                      "g6-t9",
+                      "g6-t10",
+                      "g6-t11",
+                      "g6-t12"
+                    ],
+                    "component": "Column",
+                    "id": "root"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g6-t1",
+                    "text": "告诉螺壳某类邮件以后怎么处理。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g6-t2",
+                    "text": "添加规则",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "ChoicePicker",
+                    "id": "g6-p3",
+                    "label": "类型",
+                    "options": [
+                      {
+                        "label": "发件人",
+                        "value": "sender"
+                      },
+                      {
+                        "label": "域名",
+                        "value": "domain"
+                      },
+                      {
+                        "label": "邮件列表",
+                        "value": "list"
+                      }
+                    ],
+                    "value": {
+                      "path": "/choices/kind"
+                    }
+                  },
+                  {
+                    "component": "TextField",
+                    "id": "g6-f4",
+                    "label": "内容（例如 news.shop.example）",
+                    "value": {
+                      "path": "/fields/value"
+                    }
+                  },
+                  {
+                    "component": "ChoicePicker",
+                    "id": "g6-p5",
+                    "label": "处理方式",
+                    "options": [
+                      {
+                        "label": "回复",
+                        "value": "reply"
+                      },
+                      {
+                        "label": "加入日程",
+                        "value": "schedule"
+                      },
+                      {
+                        "label": "加星标",
+                        "value": "follow_up"
+                      },
+                      {
+                        "label": "归档",
+                        "value": "archive"
+                      },
+                      {
+                        "label": "删除",
+                        "value": "ignore"
+                      },
+                      {
+                        "label": "移到垃圾邮件",
+                        "value": "spam"
+                      }
+                    ],
+                    "value": {
+                      "path": "/choices/action"
+                    }
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g6-b6-t",
+                    "text": "添加"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g6-b6",
+                          "choices": {
+                            "path": "/choices"
+                          },
+                          "fields": {
+                            "path": "/fields"
+                          },
+                          "page": "rules"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g6-b6-t",
+                    "component": "Button",
+                    "id": "g6-b6",
+                    "variant": "primary"
+                  },
+                  {
+                    "children": [
+                      "g6-t2",
+                      "g6-p3",
+                      "g6-f4",
+                      "g6-p5",
+                      "g6-b6"
+                    ],
+                    "component": "Column",
+                    "id": "g6-c7"
+                  },
+                  {
+                    "child": "g6-c7",
+                    "component": "Card",
+                    "id": "g6-k8"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g6-t9",
+                    "text": "规则",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g6-t10",
+                    "text": "还没有规则。在收件箱中更改建议时可以创建规则，也可以在订阅体检中设置。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g6-t11",
+                    "text": "按习惯自动做的",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g6-t12",
+                    "text": "还没有。你确认过的处理习惯会列在这里。",
+                    "variant": "caption"
+                  }
+                ],
+                "surfaceId": "rules"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateDataModel": {
+                "path": "/",
+                "surfaceId": "rules",
+                "value": {
+                  "choices": {
+                    "action": [
+                      "archive"
+                    ],
+                    "kind": [
+                      "sender"
+                    ]
+                  },
+                  "fields": {
+                    "value": ""
+                  }
+                }
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/rules"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 12,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/rules"
+    }
+  }
+}

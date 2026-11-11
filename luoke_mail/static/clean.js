@@ -14,7 +14,7 @@ export function openClean(which) {
 export function showClean() {
   document.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   document.querySelectorAll("[data-tabpanel]").forEach((p) => { p.hidden = p.dataset.tabpanel !== tab; });
-  renderModeHint($("clean-mode-hint"), showClean);
+  renderModeHint($("clean-mode-hint"), showClean, true);
   showSweep(tab);
 }
 

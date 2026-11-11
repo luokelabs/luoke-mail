@@ -5,13 +5,13 @@ import { $, S, api, el, nav, toast, withBusy } from "./core.js";
 import { icon } from "./icons.js";
 
 const RESULT = {
-  auto_archive: "已自动归档", auto_trash: "已自动移到垃圾箱", auto_read: "已自动标为已读", auto_label: "已自动加标签", auto_complete: "已自动归档",
+  auto_archive: "已自动归档", auto_trash: "已自动删除", auto_read: "已自动标为已读", auto_label: "已自动加标签", auto_complete: "已自动归档",
   kept: "已读，留在收件箱", waiting: "等你处理", suspicious: "可疑", elsewhere: "你在邮箱中处理了", unsorted: "未分析",
-  you_archive: "你已归档", you_trash: "你已移到垃圾箱", you_spam: "你已移到垃圾邮件", you_complete: "你已完成并归档",
+  you_archive: "你已归档", you_trash: "你已删除", you_spam: "你已移到垃圾邮件", you_complete: "你已完成并归档",
   you_flag: "你已加星标", you_read: "你已标为已读", you_skip: "你已跳过", you_skipped: "你已跳过", you_done: "你已处理",
   you_draft: "你已保存回复草稿",
 };
-const SUGGEST = { reply: "回复", schedule: "加入日程", follow_up: "待跟进", archive: "归档", ignore: "移到垃圾箱" };   // triage.ACTIONS
+const SUGGEST = { reply: "回复", schedule: "加入日程", follow_up: "加星标", archive: "归档", ignore: "删除" };   // triage.ACTIONS
 let view = null;
 let day = null;
 let only = null;                                  // the group the header filters to, or all

@@ -1,0 +1,197 @@
+{
+  "reply": {
+    "id": 24,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "activity"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g15-t1",
+                      "g15-k7",
+                      "g15-k13"
+                    ],
+                    "component": "Column",
+                    "id": "root"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t1",
+                    "text": "螺壳对邮箱做过的每一步，退订以外都能撤销。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t2",
+                    "text": "已保存到草稿箱，请检查后自行发送",
+                    "variant": "body"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t3",
+                    "text": "10-20 09:35 · 王老师 · 答辩时间确认",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b4-t",
+                    "text": "撤销"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b4",
+                          "page": "activity"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b4-t",
+                    "component": "Button",
+                    "id": "g15-b4"
+                  },
+                  {
+                    "children": [
+                      "g15-b4"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r5"
+                  },
+                  {
+                    "children": [
+                      "g15-t2",
+                      "g15-t3",
+                      "g15-r5"
+                    ],
+                    "component": "Column",
+                    "id": "g15-c6"
+                  },
+                  {
+                    "child": "g15-c6",
+                    "component": "Card",
+                    "id": "g15-k7"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t8",
+                    "text": "分析后标为已读 5 封",
+                    "variant": "body"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t9",
+                    "text": "10-20 09:30",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b10-t",
+                    "text": "撤销"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b10",
+                          "page": "activity"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b10-t",
+                    "component": "Button",
+                    "id": "g15-b10"
+                  },
+                  {
+                    "children": [
+                      "g15-b10"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r11"
+                  },
+                  {
+                    "children": [
+                      "g15-t8",
+                      "g15-t9",
+                      "g15-r11"
+                    ],
+                    "component": "Column",
+                    "id": "g15-c12"
+                  },
+                  {
+                    "child": "g15-c12",
+                    "component": "Card",
+                    "id": "g15-k13"
+                  }
+                ],
+                "surfaceId": "activity"
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/activity"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 24,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/activity"
+    }
+  }
+}

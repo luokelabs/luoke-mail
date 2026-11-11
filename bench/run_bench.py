@@ -33,6 +33,11 @@ from luoke_mail import engines, hub, samples, triage  # noqa: E402
 
 
 def score(items: list[dict], results: list[dict]) -> dict:
+    """`watch` questions are new and only observed: they count in nothing below, and show in `watch` / `watch_n`."""
+    pairs = list(zip(items, results))
+    watched = [(it, r) for it, r in pairs if it.get("watch")]
+    items = [it for it, _ in pairs if not it.get("watch")]
+    results = [r for it, r in pairs if not it.get("watch")]
     n = len(items)
     ok = lambda xs: sum(1 for x in xs if x)  # noqa: E731
     sus = [(it, r) for it, r in zip(items, results) if it["expect"]["suspicious"]]
@@ -49,6 +54,8 @@ def score(items: list[dict], results: list[dict]) -> dict:
             return False
         if e["event_date"] and ((t.get("event") or {}).get("date") != e["event_date"]):
             return False
+        if e.get("more_dates") and [x.get("date") for x in (t.get("event") or {}).get("more") or []] != e["more_dates"]:
+            return False
         return True
     pri = [(it, r) for it, r in normal if it["expect"]["priority"]]
     good = [r for r in results if r.get("triage")]
@@ -58,6 +65,8 @@ def score(items: list[dict], results: list[dict]) -> dict:
         return bool(t) and t["action"] in e["action"] and t["suspicious"] == e["suspicious"] and date_ok(it, t)
     levels = {lv: [fully_right(it, r) for it, r in zip(items, results) if it.get("level", "basic") == lv] for lv in ("basic", "hard")}
     return {
+        "watch": ok(fully_right(it, r) for it, r in watched), "watch_n": len(watched),
+        "watch_wrong": [it["tag"] for it, r in watched if not fully_right(it, r)],
         "basic": ok(levels["basic"]), "basic_n": len(levels["basic"]),
         "hard": ok(levels["hard"]), "hard_n": len(levels["hard"]),
         "n": n,
@@ -124,7 +133,7 @@ def main() -> None:
             t = r["triage"]
             mark = "ok " if t["action"] in it["expect"]["action"] else "XX "
             ev = (t.get("event") or {}).get("date")
-            print(f"{i:2d} {mark}{it['tag']:18s} {t['action']:9s} {t['priority']:6s} due={t['due_date']} ev={ev} sus={t['suspicious']} {t['seconds']}s", flush=True)
+            print(f"{i:2d} {mark}{it['tag']:18s} {t['action']:9s} {t['priority']:6s} due={t['due_date']} ev={ev} sus={t['suspicious']}{' cleared' if t.get('cleared') else ''}{' risks=' + ','.join(t['risks']) if t.get('risks') else ''} {t['seconds']}s", flush=True)
         except Exception as e:  # noqa: BLE001
             r["error"] = str(e)[:300]
             print(f"{i:2d} ERR {it['tag']:18s} {r['error'][:100]}", flush=True)

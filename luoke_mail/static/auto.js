@@ -50,6 +50,9 @@ function lastText(a) {
   return `上次 ${a.last.at.slice(11)}：${a.last.text}${next}`;
 }
 
+// whose name macOS shows the notifications under: 螺壳 posts them when this runs inside it
+const notifier = () => (S.state.auto.desktop.in_luoke ? "螺壳" : "螺壳邮件助手");
+
 const stalled = (a) => a.enabled && a.desktop.supported && !a.service && (!a.desktop.installed || a.desktop.stale);
 
 // ---- the rail: always visible once set up -------------------------------------------------------------
@@ -105,10 +108,10 @@ export function renderAutoRow(row) {
   const n = S.state.notify;              // what macOS says of the app's notifications (luoke-core's launcher)
   if (n && (n.authorization === "denied" || n.alert === "disabled")) {
     row.classList.add("warn");
-    body.append(el("p", { class: "warn-text" }, "macOS 没有允许螺壳邮件助手显示通知，提醒不会出现在你面前。请在「系统设置 → 通知 → 螺壳邮件助手」里打开「允许通知」。"),
+    body.append(el("p", { class: "warn-text" }, `macOS 没有允许${notifier()}显示通知，提醒不会出现在你面前。请在「系统设置 → 通知 → ${notifier()}」里打开「允许通知」。`),
       el("p", null, el("button", { type: "button", class: "btn small primary", onclick: openNotifySettings }, "打开通知设置")));
   } else if (n && n.authorization === "not_determined") {
-    body.append(el("p", { class: "warn-text" }, "螺壳邮件助手还没有获得通知权限。点「发送测试通知」，在 macOS 的询问里选「允许」。"));
+    body.append(el("p", { class: "warn-text" }, `${notifier()}还没有获得通知权限。点「发送测试通知」，在 macOS 的询问里选「允许」。`));
   }
   act.append(sel);
   body.append(el("p", { class: a.last && !a.last.ok ? "warn-text" : null }, lastText(a)));
@@ -120,7 +123,7 @@ export function renderAutoRow(row) {
 async function openNotifySettings() {
   let r;
   try { r = await api("/api/auto/notify-settings", {}); } catch (err) { toast(err.message); return; }
-  if (!r.opened) { toast("请打开「系统设置 → 通知 → 螺壳邮件助手」，打开「允许通知」。"); return; }
+  if (!r.opened) { toast(`请打开「系统设置 → 通知 → ${notifier()}」，打开「允许通知」。`); return; }
   toast("已打开系统设置。打开「允许通知」后回到这里，提示会自动消失。");
   const again = () => { if (document.visibilityState === "visible") { document.removeEventListener("visibilitychange", again); nav.refresh(); } };
   document.addEventListener("visibilitychange", again);
@@ -131,8 +134,8 @@ async function testNotify() {
   let r;
   try { r = await api("/api/auto/test-notify", {}); } catch (err) { toast(err.message); return; }
   toast(r.result === "not allowed"
-    ? "macOS 没有允许螺壳邮件助手发通知。请在「系统设置 → 通知 → 螺壳邮件助手」里打开。"
-    : "已发送测试通知。没有看到的话，请在「系统设置 → 通知」里检查螺壳邮件助手，并确认没有开着专注模式。");
+    ? `macOS 没有允许${notifier()}发通知。请在「系统设置 → 通知 → ${notifier()}」里打开。`
+    : `已发送测试通知。没有看到的话，请在「系统设置 → 通知」里检查${notifier()}，并确认没有开着专注模式。`);
   await nav.refresh();                   // the settings row says again whether notifications are allowed
 }
 
@@ -144,9 +147,10 @@ async function enable() {
     el("ul", null, ["同步并分析新邮件", "有要回复、加日程或跟进的邮件时通知你；每晚 20:00 发一条「今天处理了 N 封」",
       "标为已读，按你确认过的习惯归档或加标签；都能在「今日处理」里撤销"].map((x) => el("li", null, x))),
     el("p", { class: "hint" }, S.state.accounts.some((x) => x.own)
-      ? "不会退订或发信。设为螺壳自己的邮箱里，建议移到垃圾箱的会移到垃圾箱，其他邮箱不会。"
-      : "不会移到垃圾箱、退订或发信。"),
-    d.supported ? el("p", { class: "hint" }, `会添加一个登录项（可能显示为 python3）和应用「${d.app_name}」，关闭时一并移除。第一次通知时，请在系统提示里选「允许」。`) : null,
+      ? "不会退订或发信。设为螺壳自己的邮箱里，建议删除的会删除，其他邮箱不会。"
+      : "不会删除邮件、退订或发信。"),
+    d.in_luoke ? el("p", { class: "hint" }, "第一次通知时，请在系统提示里选「允许」。")
+      : d.supported ? el("p", { class: "hint" }, `会添加一个登录项（可能显示为 python3）和应用「${d.app_name}」，关闭时一并移除。第一次通知时，请在系统提示里选「允许」。`) : null,
   ], "开启");
   if (ok) await turnOn(Number(sel.value), false);
 }
@@ -176,9 +180,9 @@ async function waitForService(repair) {
 
 async function disable() {
   const a = S.state.auto;
-  const leaving = a.service;
+  const leaving = a.service && !a.desktop.in_luoke;
   const sure = await confirmDialog("关闭后台自动整理", [
-    el("p", null, a.desktop.supported ? `将移除登录项和「${a.desktop.app_name}」，不再定时整理和发送通知。` : "将不再定时整理和发送通知。"),
+    el("p", null, a.desktop.supported && !a.desktop.in_luoke ? `将移除登录项和「${a.desktop.app_name}」，不再定时整理和发送通知。` : "将不再定时整理和发送通知。"),
     leaving ? el("p", null, "螺壳邮件助手将随之退出。之后可在终端运行 python3 -m luoke_mail 重新打开。") : null,
   ], "关闭");
   if (!sure) return;

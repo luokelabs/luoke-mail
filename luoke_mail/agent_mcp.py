@@ -1,5 +1,7 @@
-# Copied from luoke-agent (luoke_agent/mcp.py, commit e4e4d97): the tool protocol's reference code, stdlib only.
+# Copied from luoke-agent (luoke_agent/mcp.py, commit 15a9f75): the tool protocol's reference code, stdlib only.
 # Change it there and copy it again; do not edit this copy.
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+# Copyright 2026 螺壳实验室 Luoke Labs
 """工具协议（docs/工具协议.md）的参考实现：MCP 2026-07-28 数据层的一个子集，HTTP/1.1 跑在 Unix socket 上。
 
 服务端 `ToolServer` 给工具用（整个文件可以拷进工具自己的仓库），客户端 `ToolClient` 给 agent 用。
@@ -7,6 +9,7 @@
 """
 from __future__ import annotations
 
+import base64
 import http.client
 import itertools
 import json
@@ -16,6 +19,8 @@ import socketserver
 import stat
 import sys
 import threading
+import traceback
+import urllib.parse
 from http.server import BaseHTTPRequestHandler
 from typing import Any, Callable, Dict, List, Optional
 
@@ -26,6 +31,14 @@ META_VERSION = "io.modelcontextprotocol/protocolVersion"
 META_CLIENT = "io.modelcontextprotocol/clientInfo"
 META_CAPABILITIES = "io.modelcontextprotocol/clientCapabilities"
 META_SERVER = "io.modelcontextprotocol/serverInfo"
+# 告诉工具这个核心认 §4 后加的哪些卡片写法（工具协议 §4「后加的写法」）：工具看到了再用，旧的核心照原来的写法收
+# 和 a2ui.A2UI_FEATURES 一样（测试核对）；这个文件给应用单独拷，不引 a2ui
+CLIENT_CAPABILITIES = {"experimental": {"ai.luoke/a2ui": {"features": ["placement", "badge", "strong", "maxLines",
+                                                                       "optionIcons", "collapsed", "lucide", "tooltip",
+                                                                       "doneGroup", "itemIcons", "countLabel", "openPage",
+                                                                       "subtitle", "countAlso", "countWeights",
+                                                                       "pageArgs", "bigPages", "secureField", "pageRefresh",
+                                                                       "saveFile", "neutralBadge", "chips", "pageSections"]}}}
 USER_ACTION = "ai.luoke/user-action"  # 会改动东西的调用必带：用户在哪张卡片上点的（§5）
 
 PARSE_ERROR = -32700
@@ -34,6 +47,9 @@ METHOD_NOT_FOUND = -32601
 INVALID_PARAMS = -32602
 INTERNAL_ERROR = -32603
 RESOURCE_NOT_FOUND = -32002
+BAD_TOKEN = -32001          # 工具要口令，没带或不对（螺壳搜索的发布版，hostlink.py）
+
+TOKEN_META = "ai.luoke/token"
 
 MAX_BODY = 1 << 20  # 一条消息最多 1 MB
 
@@ -46,6 +62,16 @@ WRITE_CALL_TIMEOUT = 300.0
 
 def outbox_uri(accessory: str) -> str:
     return f"luoke://{accessory}/outbox"
+
+
+def features_of(meta: Any) -> frozenset:
+    """请求的 `params._meta` 里核心认的 §4 后加的写法：`clientCapabilities.experimental["ai.luoke/a2ui"].features`
+    （同 cards.host_features；这个文件给工具单独拷，不引 cards）。旧的核心不写，是空集合。"""
+    caps = meta.get(META_CAPABILITIES) if isinstance(meta, dict) else None
+    exp = caps.get("experimental") if isinstance(caps, dict) else None
+    a2 = exp.get("ai.luoke/a2ui") if isinstance(exp, dict) else None
+    feats = a2.get("features") if isinstance(a2, dict) else None
+    return frozenset(f for f in feats if isinstance(f, str)) if isinstance(feats, list) else frozenset()
 
 
 # ---------------------------------------------------------------- 服务端
@@ -69,7 +95,10 @@ class ToolServer:
 
     工具函数 `fn(arguments, meta) -> dict`：返回的 dict 必须有 `text`（给用户看的一句话），
     其余键（`card`、`done`……）原样放进 `structuredContent`。执行不了就抛 `ToolError`。
-    资源函数 `fn() -> 可以 JSON 序列化的值`。
+    资源函数 `fn() -> 可以 JSON 序列化的值`；登记时写了 `args=True` 的是 `fn(参数)`：带参数读的页
+    （`page/<id>?<键>=<值>&…`，§4 pageArgs）把解开的参数（键 → 文字）交给它，没带是 `{}`。
+    登记时写了 `features=True` 的再多收一个关键字参数 `features`：这次请求的核心认的 §4 后加的写法
+    （`features_of(_meta)`，frozenset），页、画卡片的 outbox 照它决定用不用新写法。没写的照旧，不收。
     """
 
     def __init__(self, name: str, version: str):
@@ -101,8 +130,12 @@ class ToolServer:
             },
         }
 
-    def resource(self, uri: str, fn: Callable[[], Any], *, name: str, mime_type: str = "application/json") -> None:
-        self._resources[uri] = {"fn": fn, "spec": {"uri": uri, "name": name, "mimeType": mime_type}}
+    def resource(self, uri: str, fn: Callable[..., Any], *, name: str, mime_type: str = "application/json",
+                 args: bool = False, features: bool = False) -> None:
+        """`args=True`：读的时候可以带参数（`<uri>?<键>=<值>&…`），`fn` 收一个 dict。没写的照旧不收参数，带了也当没带。
+        `features=True`：`fn` 再收关键字参数 `features`（这次请求的核心认的写法，§4「后加的写法」）。"""
+        self._resources[uri] = {"fn": fn, "args": args, "features": features,
+                                "spec": {"uri": uri, "name": name, "mimeType": mime_type}}
 
     # 处理一条 JSON-RPC 消息（不经 socket 也能直接测）
 
@@ -128,14 +161,24 @@ class ToolServer:
             if method == "resources/list":
                 return _result(rid, {"resources": [r["spec"] for r in self._resources.values()]})
             if method == "resources/read":
-                return self._read(rid, params)
+                return self._read(rid, params, meta)
             if method == "tools/list":
                 return _result(rid, {"tools": [t["spec"] for t in self._tools.values()]})
             if method == "tools/call":
                 return self._call(rid, params, meta)
-        except Exception:  # 工具自己的毛病：不把细节交出去，工具自己记日志
+        except Exception as e:  # 工具自己的毛病：细节不交给 agent，记进工具自己的 stderr（它的日志），不然就悄悄没了
+            print(f"{self.name}: {self._which(method, params)} 出错 {type(e).__name__}（{_where(e)}）", file=sys.stderr)
             return _error(rid, INTERNAL_ERROR, "工具内部出错")
         return _error(rid, METHOD_NOT_FOUND, f"没有这个方法：{method}")
+
+    def _which(self, method: str, params: dict) -> str:
+        """出错的是哪个：方法，加上工具名或资源。只写这里登记过的名字，不写 agent 送来的任意字符串；
+        带参数读的页只写页（`page/<id>`），不写参数（工具协议 §1a：参数里是用户填的字）"""
+        key = params.get("name") if method == "tools/call" else params.get("uri") if method == "resources/read" else None
+        if method == "resources/read" and isinstance(key, str):
+            key = key.split("?", 1)[0]
+        known = self._tools if method == "tools/call" else self._resources
+        return f"{method} {key}" if isinstance(key, str) and key in known else method
 
     def _discover(self) -> dict:
         caps: Dict[str, Any] = {}
@@ -149,12 +192,26 @@ class ToolServer:
             "_meta": {META_SERVER: {"name": self.name, "version": self.version}},
         }
 
-    def _read(self, rid: Any, params: dict) -> dict:
+    def _read(self, rid: Any, params: dict, meta: dict) -> dict:
         uri = params.get("uri")
         res = self._resources.get(uri) if isinstance(uri, str) else None
+        query = ""
+        if res is None and isinstance(uri, str) and "?" in uri:      # 带参数读（§4 pageArgs）
+            base, query = uri.split("?", 1)
+            res = self._resources.get(base)
         if res is None:
             return _error(rid, RESOURCE_NOT_FOUND, "没有这个资源", {"uri": uri})
-        value = res["fn"]()
+        call: List[Any] = []
+        if res["args"]:
+            try:
+                pairs = urllib.parse.parse_qsl(query, keep_blank_values=True, strict_parsing=bool(query))
+            except ValueError:
+                pairs = []
+            call.append(dict(pairs))
+        value = res["fn"](*call, features=features_of(meta)) if res["features"] else res["fn"](*call)
+        if isinstance(value, (bytes, bytearray)):     # 图（缩略图）：base64 的 blob
+            blob = base64.b64encode(bytes(value)).decode("ascii")
+            return _result(rid, {"contents": [{"uri": uri, "mimeType": res["spec"]["mimeType"], "blob": blob}]})
         text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
         return _result(rid, {"contents": [{"uri": uri, "mimeType": res["spec"]["mimeType"], "text": text}]})
 
@@ -259,6 +316,12 @@ def _prepare_socket(path: str) -> None:
     raise RuntimeError(f"{path} 上已经有进程在服务")
 
 
+def _where(e: BaseException, frames: int = 3) -> str:
+    """出错的地方，最里面的在前：文件名:行 函数。和 handle_error 一样只记位置和类型，不记错误信息：信息里可能带着邮件、文件的内容"""
+    tb = traceback.extract_tb(e.__traceback__)[-frames:]
+    return " ← ".join(f"{os.path.basename(f.filename)}:{f.lineno} {f.name}" for f in reversed(tb)) or "位置不明"
+
+
 class _UnixServer(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
     daemon_threads = True
     tool_server: ToolServer
@@ -355,6 +418,40 @@ class ToolResult:
         return bool(self.structured.get("done"))
 
 
+class _Lines:
+    """一行一行地读一条连接。`next()`：下一行（不含换行）；读到结尾、一个字节都没有是 None；
+    超过 limit 还没有换行就把读到的交出去（调用方判太长）。一次读到的几行都留着，不丢。"""
+
+    def __init__(self, conn: socket.socket, limit: int):
+        self._conn = conn
+        self._limit = limit
+        self._buf = bytearray()
+        self._eof = False
+
+    def next(self) -> Optional[bytes]:
+        while True:
+            i = self._buf.find(b"\n")
+            if i >= 0:
+                line = bytes(self._buf[:i])
+                del self._buf[:i + 1]
+                return line
+            if self._eof or len(self._buf) > self._limit:
+                line, self._buf = bytes(self._buf), bytearray()
+                return line or None
+            chunk = self._conn.recv(65536)
+            if not chunk:
+                self._eof = True
+            self._buf += chunk
+
+
+def _is_notification(raw: bytes) -> bool:
+    try:
+        msg = json.loads(raw)
+    except ValueError:
+        return False
+    return isinstance(msg, dict) and "id" not in msg and "method" in msg
+
+
 class _UnixConnection(http.client.HTTPConnection):
     def __init__(self, path: str, connect_timeout: float, timeout: float):
         super().__init__("localhost", timeout=timeout)
@@ -374,20 +471,73 @@ class _UnixConnection(http.client.HTTPConnection):
 
 
 class ToolClient:
-    """agent 连一个工具。每个请求一条连接（无状态，§2）。"""
+    """agent 连一个工具。每个请求一条连接（无状态，§2）。
 
-    def __init__(self, socket_path: str, *, client_name: str = "luoke-agent", client_version: str = "0"):
+    两种连法：
+    - 给 `socket_path`：自己连工具的 Unix socket，上面跑 HTTP/1.1（§2）；
+    - 另给 `opener`：每个请求调它一次，拿一条已经接好的连接（螺壳本体起的工具进程的标准输入输出，`hostlink.py`），
+      在上面写一行 JSON-RPC、读回一行就关（§2a）。这时 `socket_path` 只是个名字。
+    """
+
+    def __init__(self, socket_path: str, *, client_name: str = "luoke-agent", client_version: str = "0",
+                 check: Optional[Callable[[str], bool]] = None, opener: Optional[Callable[[], socket.socket]] = None,
+                 token: Optional[Callable[[bool], Optional[str]]] = None):
         self.socket_path = socket_path
         self._client = {"name": client_name, "version": client_version}
+        self._check = check              # 每次连之前查一下 socket，不过就当没在运行
+        self._opener = opener
+        self._token = token              # 工具要的口令（hostlink.HostToken.get）：每个请求带在 _meta 里；参数 True 是再要一次
         self._ids = itertools.count(1)
 
     def request(self, method: str, params: Optional[dict] = None, *, timeout: float = LIST_TIMEOUT,
                 extra_meta: Optional[dict] = None) -> dict:
-        meta = {META_VERSION: PROTOCOL_VERSION, META_CLIENT: self._client, META_CAPABILITIES: {}}
+        """工具答「口令不对」（它重起过，口令换了）：再要一次口令，换了就重发一次；还不对就当它不在。
+        它在执行之前就拒了，重发不会做两遍。"""
+        token = self._token(False) if self._token else None
+        try:
+            return self._request(method, params, timeout, extra_meta, token)
+        except RpcError as e:
+            if e.code != BAD_TOKEN or self._token is None:
+                raise
+        fresh = self._token(True)
+        if fresh is None or fresh == token:
+            raise NotRunning("口令不对")
+        try:
+            return self._request(method, params, timeout, extra_meta, fresh)
+        except RpcError as e:
+            if e.code == BAD_TOKEN:
+                raise NotRunning("口令不对") from None
+            raise
+
+    def _request(self, method: str, params: Optional[dict], timeout: float, extra_meta: Optional[dict],
+                 token: Optional[str]) -> dict:
+        meta = {META_VERSION: PROTOCOL_VERSION, META_CLIENT: self._client, META_CAPABILITIES: CLIENT_CAPABILITIES}
         if extra_meta:
             meta.update(extra_meta)
+        if token is not None:
+            meta[TOKEN_META] = token
         body = json.dumps({"jsonrpc": "2.0", "id": next(self._ids), "method": method,
                            "params": {**(params or {}), "_meta": meta}}, ensure_ascii=False).encode("utf-8")
+        raw = self._over_line(method, body, timeout) if self._opener else self._over_http(method, body, timeout)
+        if len(raw) > MAX_BODY:
+            raise RpcError(INTERNAL_ERROR, "答复太长")
+        try:
+            reply = json.loads(raw)
+        except ValueError:
+            raise RpcError(PARSE_ERROR, "答复不是 JSON") from None
+        if not isinstance(reply, dict):
+            raise RpcError(INVALID_REQUEST, "答复不是对象")
+        if "error" in reply:
+            err = reply["error"] if isinstance(reply["error"], dict) else {}
+            raise RpcError(int(err.get("code", INTERNAL_ERROR)), str(err.get("message", "")), err.get("data"))
+        result = reply.get("result")
+        if not isinstance(result, dict):
+            raise RpcError(INVALID_REQUEST, "答复里没有 result")
+        return result
+
+    def _over_http(self, method: str, body: bytes, timeout: float) -> bytes:
+        if self._check is not None and not self._check(self.socket_path):
+            raise NotRunning("socket")
         conn = _UnixConnection(self.socket_path, CONNECT_TIMEOUT, timeout)
         try:
             try:
@@ -408,21 +558,35 @@ class ToolClient:
             conn.close()
         if resp.status != 200:
             raise RpcError(INTERNAL_ERROR, f"HTTP {resp.status}")
-        if len(raw) > MAX_BODY:
-            raise RpcError(INTERNAL_ERROR, "答复太长")
+        return raw
+
+    def _over_line(self, method: str, body: bytes, timeout: float) -> bytes:
+        """§2a：拿一条接好的连接，写一行请求、关掉写的一头（工具读到结尾就知道只有这一条），读回一行。
+        中途收到的通知（没有 id 的消息）跳过。"""
         try:
-            reply = json.loads(raw)
-        except ValueError:
-            raise RpcError(PARSE_ERROR, "答复不是 JSON") from None
-        if not isinstance(reply, dict):
-            raise RpcError(INVALID_REQUEST, "答复不是对象")
-        if "error" in reply:
-            err = reply["error"] if isinstance(reply["error"], dict) else {}
-            raise RpcError(int(err.get("code", INTERNAL_ERROR)), str(err.get("message", "")), err.get("data"))
-        result = reply.get("result")
-        if not isinstance(result, dict):
-            raise RpcError(INVALID_REQUEST, "答复里没有 result")
-        return result
+            conn = self._opener()     # 给不了（工具没带、没开、本体不在）就是 NotRunning
+        except OSError as e:
+            raise NotRunning(type(e).__name__) from None
+        try:
+            conn.settimeout(timeout)
+            try:
+                conn.sendall(body + b"\n")
+                conn.shutdown(socket.SHUT_WR)
+                lines = _Lines(conn, MAX_BODY)
+                while True:
+                    raw = lines.next()
+                    if raw is None:
+                        raise NotRunning("没有答复")   # 工具没答就退了
+                    if not _is_notification(raw):
+                        return raw
+            except socket.timeout:
+                if method == "tools/call":
+                    raise TimedOut(method) from None
+                raise NotRunning("timeout") from None
+            except OSError as e:
+                raise NotRunning(type(e).__name__) from None
+        finally:
+            conn.close()
 
     def discover(self) -> dict:
         return self.request("server/discover")
@@ -436,6 +600,18 @@ class ToolClient:
             return json.loads(contents[0]["text"])
         except ValueError:
             raise RpcError(PARSE_ERROR, "资源不是 JSON") from None
+
+    def read_blob(self, uri: str, *, timeout: float = 10.0) -> bytes:
+        """读一个答 `blob`（base64）的资源，例如搜索结果的缩略图 `thumb/<id>`（工具协议 §1b）。"""
+        result = self.request("resources/read", {"uri": uri}, timeout=timeout)
+        contents = result.get("contents") or []
+        blob = contents[0].get("blob") if contents and isinstance(contents[0], dict) else None
+        if not isinstance(blob, str):
+            raise RpcError(INVALID_REQUEST, "资源没有 blob")
+        try:
+            return base64.b64decode(blob, validate=True)
+        except ValueError:
+            raise RpcError(PARSE_ERROR, "blob 不是 base64") from None
 
     def outbox(self, accessory: str) -> List[dict]:
         data = self.read_json(outbox_uri(accessory))

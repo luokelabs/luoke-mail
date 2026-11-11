@@ -1,0 +1,39 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "state",
+    "since",
+    "what"
+  ],
+  "properties": {
+    "state": {
+      "type": "string",
+      "enum": [
+        "user_turn",
+        "other_turn",
+        "done"
+      ],
+      "x-describe": [
+        [
+          "user_turn",
+          "轮到用户——对方问了用户问题、请用户做事、改东西、确认、选时间，用户还没回复。"
+        ],
+        [
+          "other_turn",
+          "轮到对方——用户问了问题、提了请求、发了材料等对方确认，对方还没有回应（或者对方只说了「我明天弄」这类还没做完的话）。"
+        ],
+        [
+          "done",
+          "这件事已经了结——最后一封只是道谢、确认收到、「好的」、通知，谁都不欠谁一个答复。"
+        ]
+      ]
+    },
+    "since": {
+      "type": "string"
+    },
+    "what": {
+      "type": "string"
+    }
+  }
+}

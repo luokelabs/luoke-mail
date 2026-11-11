@@ -6,6 +6,9 @@ macOS:
 - Launcher = a small AppleScript app 「螺壳邮件助手」 in ~/Applications. Opening it opens the page; the
   service also asks it to post notifications, so they carry our name and clicking one opens the page
   (notifications posted with plain `osascript` belong to Script Editor, and clicking them opens that).
+Inside 螺壳.app: no app, no launcher and no login item of our own. 螺壳's body starts this code with its own Python and
+keeps it running (BodyDesktop); notifications go to the body over a pipe (BodyLink), because a process with no app
+bundle of its own can't post them.
 Elsewhere: notifications through notify-send when it exists; no login item yet (sorting then runs only
 while the page's server is running).
 
@@ -27,6 +30,7 @@ import sys
 import tempfile
 import threading
 import time
+import traceback
 
 from .config import CONFIG_DIR, private_dir
 
@@ -168,6 +172,95 @@ def packaged() -> bool:
     return ".app/Contents/" in PKG_PARENT
 
 
+def own_app() -> str | None:
+    """The app this code runs from (螺壳邮件助手.app or 螺壳.app), or None from a source tree."""
+    at = PKG_PARENT.find(".app/Contents/")
+    return PKG_PARENT[:at + 4] if at >= 0 else None
+
+
+def in_luoke() -> bool:
+    """This code is part of 螺壳.app: true in every process it runs, the resident one, 主控's idle jobs and the uninstall
+    command alike. The app's manifest sits in Resources/mail there; in 螺壳邮件助手.app it sits in Resources."""
+    app = own_app()
+    return bool(app) and os.path.exists(os.path.join(app, "Contents", "Resources", "mail", "luoke-accessory.json"))
+
+
+# ---- who is on the other end of a Unix socket (agent.sock) ----------------------------------------------
+SOL_LOCAL, LOCAL_PEERPID = 0, 2                 # macOS <sys/un.h>
+PROC_PIDTBSDINFO, BSDINFO_SIZE = 3, 136         # <sys/proc_info.h>: struct proc_bsdinfo, pbi_ppid the 5th uint32
+
+
+def peer_pid(conn) -> int | None:
+    """The process that connected: LOCAL_PEERPID on macOS, SO_PEERCRED on Linux; None when unknown."""
+    import socket
+    import struct
+    try:
+        if sys.platform == "darwin":
+            return int(conn.getsockopt(SOL_LOCAL, LOCAL_PEERPID))
+        if hasattr(socket, "SO_PEERCRED"):
+            return struct.unpack("3i", conn.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i")))[0]
+    except (OSError, struct.error):
+        return None
+    return None
+
+
+def _libproc():
+    import ctypes
+    return ctypes, ctypes.CDLL("/usr/lib/libproc.dylib")
+
+
+def process_path(pid: int) -> str | None:
+    """The executable a process runs (macOS), resolved; None when it is gone or unknown."""
+    if sys.platform != "darwin" or not pid or pid < 0:
+        return None
+    try:
+        ctypes, lib = _libproc()
+        buf = ctypes.create_string_buffer(4096)
+        n = lib.proc_pidpath(int(pid), buf, 4096)
+        return os.path.realpath(buf.value.decode()) if n > 0 else None
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def parent_pid(pid: int) -> int | None:
+    if sys.platform != "darwin" or not pid or pid < 0:
+        return None
+    try:
+        import struct
+        ctypes, lib = _libproc()
+        info = ctypes.create_string_buffer(BSDINFO_SIZE)
+        n = lib.proc_pidinfo(int(pid), PROC_PIDTBSDINFO, ctypes.c_uint64(0), info, BSDINFO_SIZE)
+        return struct.unpack_from("5I", info.raw)[4] if n == BSDINFO_SIZE else None
+    except OSError:
+        return None
+
+
+def team_of(app: str) -> str | None:
+    """The Developer ID team an app is signed by; None when ad hoc or unsigned."""
+    try:
+        r = subprocess.run(["/usr/bin/codesign", "-dv", "--verbose=2", app], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    for line in r.stderr.splitlines():
+        if line.startswith("TeamIdentifier="):
+            team = line.split("=", 1)[1].strip()
+            return team if team and team != "not set" else None
+    return None
+
+
+def signed_as(app: str, bundle_id: str, team: str) -> bool:
+    """The app's signature is intact, for this bundle id, by that Developer ID team. No team, no pass: an ad hoc
+    signature names no one, and anyone can sign an app with any bundle id."""
+    if not team:
+        return False
+    req = f'identifier "{bundle_id}" and anchor apple generic and certificate leaf[subject.OU] = "{team}"'
+    try:
+        r = subprocess.run(["/usr/bin/codesign", "--verify", "--strict", f"-R={req}", app], capture_output=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return r.returncode == 0
+
+
 def _child_env() -> dict:
     env = {**os.environ, "PYTHONPATH": PKG_PARENT, "LUOKE_MAIL_HOME": CONFIG_DIR, "PYTHONIOENCODING": "utf-8"}
     if packaged():
@@ -191,8 +284,11 @@ def alert(text: str) -> None:
     """A dialog, for the app (no terminal to print to). The text is passed as data, never as code."""
     print(f"[luoke-mail] {text}", file=sys.stderr)
     if sys.platform == "darwin":
-        subprocess.run(["/usr/bin/osascript", "-e", "on run argv", "-e", f"display alert {_as_string(APP_NAME)} message (item 1 of argv) as warning",
-                        "-e", "end run", text], capture_output=True, timeout=600)
+        try:
+            subprocess.run(["/usr/bin/osascript", "-e", "on run argv", "-e", f"display alert {_as_string(APP_NAME)} message (item 1 of argv) as warning",
+                            "-e", "end run", text], capture_output=True, timeout=600)
+        except (OSError, subprocess.SubprocessError) as ex:      # no one there to answer it: said in the log above
+            print(f"[luoke-mail] no dialog: {type(ex).__name__}", file=sys.stderr)
 
 
 def open_app(bundle_id: str) -> None:
@@ -501,35 +597,25 @@ class Desktop:
 
     def notify(self, title: str, subtitle: str, body: str) -> str:
         """Post a notification; returns how it went out. Mail text in it is passed as data, never as code. Each
-        one is noted -- when, the title, how it went out and what came back -- so a notification that never showed
-        can be traced (2026-10-20: none seen all afternoon)."""
+        one is noted -- when, how it went out and what came back -- so a notification that never showed can be
+        traced (2026-10-20: none seen all afternoon). Not what it said: that is mail text, and an address."""
         title, subtitle, body = _one_line(title, 40), _one_line(subtitle, 60), _one_line(body, 160)
         how, result = self._post(title, subtitle, body)
-        self._note(title, subtitle, how, result)
+        self._note(how, result)
         return how
 
-    def _note(self, title: str, subtitle: str, how: str, result: str) -> None:
-        print(f"[luoke-mail] notification ({how}, {result}): {title}：{subtitle}", file=sys.stderr)
+    def _note(self, how: str, result: str) -> None:
+        print(f"[luoke-mail] notification ({how}, {result})", file=sys.stderr)
         path = os.path.join(self.home, "run", "notifications.json")
         try:
-            try:
-                with open(path, encoding="utf-8") as f:
-                    seen = json.load(f)
-            except (OSError, ValueError):
-                seen = []
-            seen = (seen + [{"at": time.strftime("%Y-%m-%d %H:%M:%S"), "title": title, "subtitle": subtitle,
-                             "how": how, "result": result}])[-100:]
+            seen = (_noted(path) + [{"at": time.strftime("%Y-%m-%d %H:%M:%S"), "how": how, "result": result}])[-100:]
             os.makedirs(os.path.dirname(path), exist_ok=True)
             _write_private(path, json.dumps(seen, ensure_ascii=False))
         except OSError as ex:
-            print(f"[luoke-mail] notification not noted: {ex}", file=sys.stderr)
+            print(f"[luoke-mail] notification not noted: {type(ex).__name__}", file=sys.stderr)
 
     def recent_notifications(self) -> list[dict]:
-        try:
-            with open(os.path.join(self.home, "run", "notifications.json"), encoding="utf-8") as f:
-                return json.load(f)
-        except (OSError, ValueError):
-            return []
+        return _noted(os.path.join(self.home, "run", "notifications.json"))
 
     def _post(self, title: str, subtitle: str, body: str) -> tuple[str, str]:
         try:
@@ -538,10 +624,6 @@ class Desktop:
                 # 螺壳邮件助手.app's own launcher posts it under the app's name; clicking it opens the page
                 r = self.run([launcher, "--notify", title, subtitle, body], capture_output=True, timeout=20)
                 code = getattr(r, "returncode", 0)
-                err = (getattr(r, "stderr", b"") or b"")
-                err = err.decode("utf-8", "replace") if isinstance(err, bytes) else str(err)
-                if err.strip():
-                    print(f"[luoke-mail] launcher --notify: {err.strip()[:300]}", file=sys.stderr)
                 return "app", self.LAUNCHER_RESULTS.get(code, f"exit {code}")
             if self.platform == "darwin":
                 if self.launcher.exists():
@@ -556,8 +638,7 @@ class Desktop:
                 self.run(["notify-send", "-a", APP_NAME, f"{title}：{subtitle}", body], capture_output=True, timeout=20)
                 return "notify-send", "posted"
         except (OSError, subprocess.SubprocessError) as ex:
-            print(f"[luoke-mail] notification failed: {ex}", file=sys.stderr)
-            return "failed", str(ex)[:120]
+            return "failed", type(ex).__name__        # a timeout's text is the command line: the mail text in it
         return "log", "no way to post"
 
 
@@ -572,6 +653,55 @@ def _rotate(path: str, most: int = LOG_MOST) -> None:
             os.replace(path, path + ".1")
     except OSError:
         pass
+
+
+def _noted(path: str) -> list[dict]:
+    """The notifications noted so far, without the words an older version kept with them."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return [{k: n.get(k) for k in ("at", "how", "result")} for n in json.load(f)]
+    except (OSError, ValueError, TypeError, AttributeError):
+        return []
+
+
+def clear_old_logs(home: str) -> None:
+    """Once, at the first start of a version that keeps mail out of its log: what older ones wrote there stays until
+    the log is cut, and 螺壳's diagnostics carry service.log. Emptied in place, launchd holds it open. If this fails
+    it is not marked, and the next start tries again."""
+    _clear_old_app_log(home)
+    mark = os.path.join(home, "run", "old-logs-cleared")
+    if os.path.exists(mark):
+        return
+    log, noted = os.path.join(home, "service.log"), os.path.join(home, "run", "notifications.json")
+    try:
+        if os.path.exists(log):
+            os.truncate(log, 0)
+        if os.path.exists(log + ".1"):
+            os.remove(log + ".1")
+        if os.path.exists(noted):
+            _write_private(noted, json.dumps(_noted(noted), ensure_ascii=False))
+        os.makedirs(os.path.dirname(mark), exist_ok=True)
+        _write_private(mark, time.strftime("%Y-%m-%d %H:%M:%S"))
+    except OSError as ex:
+        print(f"[luoke-mail] old logs not cleared: {type(ex).__name__}", file=sys.stderr)
+
+
+def _clear_old_app_log(home: str) -> None:
+    """app.log, where a page started from the terminal or the old 螺壳邮件助手.app logged: once too, under its own
+    mark (0.19.35 marked the others before it was cleared). Written again, it has no mail in it."""
+    mark = os.path.join(home, "run", "old-app-log-cleared")
+    if os.path.exists(mark):
+        return
+    try:
+        log = os.path.join(home, "app.log")
+        if os.path.exists(log):
+            os.truncate(log, 0)
+        if os.path.exists(log + ".1"):
+            os.remove(log + ".1")
+        os.makedirs(os.path.dirname(mark), exist_ok=True)
+        _write_private(mark, time.strftime("%Y-%m-%d %H:%M:%S"))
+    except OSError as ex:
+        print(f"[luoke-mail] old app log not cleared: {type(ex).__name__}", file=sys.stderr)
 
 
 class Stamped(io.TextIOBase):
@@ -614,10 +744,41 @@ class Stamped(io.TextIOBase):
         return False
 
 
+def _on_a_terminal() -> bool:
+    try:
+        return sys.stderr.isatty()
+    except (AttributeError, ValueError):        # no stderr, or a closed one
+        return False
+
+
+def log_crash(ex: BaseException | None, what: str) -> None:
+    """What nothing expected, for the log: the exception's type and where, never its text. That text can hold mail,
+    and 螺壳's diagnostics carry this log to us. The page still gets it (the job's error, a 500's answer). On a
+    terminal nothing is kept, so whoever is running it gets the whole traceback."""
+    if ex is None:                              # sys.unraisablehook can have no exception to give
+        print(f"[luoke-mail] {what}", file=sys.stderr)
+        return
+    if _on_a_terminal():
+        print(f"[luoke-mail] {what}:", file=sys.stderr)
+        traceback.print_exception(type(ex), ex, ex.__traceback__, file=sys.stderr)
+        return
+    frames = traceback.extract_tb(getattr(ex, "__traceback__", None))[-5:]
+    where = " < ".join(f"{os.path.basename(f.filename)}:{f.lineno} {f.name}" for f in reversed(frames))
+    print(f"[luoke-mail] {what}: {type(ex).__name__}" + (f" at {where}" if where else ""), file=sys.stderr)
+
+
+def crashes_without_text() -> None:
+    """Python's own crash reports print the exception's text: in a process whose stderr is a log, log_crash instead."""
+    sys.excepthook = lambda kind, ex, tb: log_crash(ex, "crashed")
+    sys.unraisablehook = lambda u: log_crash(u.exc_value, "ignored")
+    threading.excepthook = lambda a: None if a.exc_type is SystemExit else log_crash(a.exc_value, "a thread crashed")
+
+
 def stamp_stderr() -> None:
     """Put the time on what this process says on stderr (a log file, not a terminal)."""
     if not isinstance(sys.stderr, Stamped):
         sys.stderr = Stamped(sys.stderr)
+    crashes_without_text()
 
 
 def log_to_file(path: str, most: int = LOG_MOST) -> None:
@@ -629,8 +790,162 @@ def log_to_file(path: str, most: int = LOG_MOST) -> None:
         os.dup2(fd, 2)
         os.close(fd)
         sys.stderr = Stamped(os.fdopen(2, "w", buffering=1, encoding="utf-8", errors="replace", closefd=False))
+        crashes_without_text()
     except OSError:
         pass
+
+
+# ---- inside 螺壳.app, started by its body -----------------------------------------------------------------------
+class BodyLink:
+    """The pipe to 螺壳's body: one JSON object a line, ours on stdout, the body's on stdin. Requests carry an id and
+    the body answers with the same id; `{"op": "ready"}` says the page is up, `{"op": "not-starting"}` that it won't come
+    up and the user is being told, `{"op": "open"}` from the body opens it."""
+
+    def __init__(self, rx, tx):
+        self.rx, self.tx = rx, tx
+        self.on_open = None                 # set by the server once the page is up
+        self.lock = threading.Lock()
+        self.waiting: dict[int, tuple[threading.Event, list]] = {}
+        self.next_id = 0
+        self.closed = False
+
+    def start(self) -> "BodyLink":
+        threading.Thread(target=self._read, name="luoke-body", daemon=True).start()
+        return self
+
+    def _read(self) -> None:
+        try:
+            for line in self.rx:
+                try:
+                    msg = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(msg, dict):
+                    try:
+                        self._take(msg)
+                    except Exception as ex:      # this thread ending would leave the body with no one to answer
+                        print(f"[luoke-mail] a line from the body passed over: {type(ex).__name__}", file=sys.stderr)
+        except (OSError, ValueError):
+            pass
+        with self.lock:
+            self.closed = True
+            waiting = list(self.waiting.values())
+            self.waiting.clear()
+        for done, _ in waiting:
+            done.set()
+
+    def _take(self, msg: dict) -> None:
+        if msg.get("op") == "open":
+            if self.on_open:                     # not on this thread: it reads the body's answers
+                threading.Thread(target=self.on_open, name="luoke-open", daemon=True).start()
+            return
+        with self.lock:
+            slot = self.waiting.pop(msg.get("id"), None)
+        if slot:
+            slot[1].append(msg)
+            slot[0].set()
+
+    def tell(self, msg: dict) -> bool:
+        with self.lock:
+            return self._write(msg)
+
+    def _write(self, msg: dict) -> bool:
+        try:
+            self.tx.write(json.dumps(msg, ensure_ascii=False) + "\n")
+            self.tx.flush()
+            return True
+        except (OSError, ValueError):
+            return False
+
+    def ask(self, msg: dict, timeout: float = 15) -> dict | None:
+        """The body's answer, or None when it didn't come in time or the pipe is gone."""
+        done, got = threading.Event(), []
+        with self.lock:
+            if self.closed:
+                return None
+            self.next_id += 1
+            n = self.next_id
+            self.waiting[n] = (done, got)
+            if not self._write({**msg, "id": n}):
+                del self.waiting[n]
+                return None
+        done.wait(timeout)
+        with self.lock:
+            self.waiting.pop(n, None)
+        return got[0] if got else None
+
+
+_body: BodyLink | None = None
+
+
+def attach_body(parent: int, grace: float = 15) -> BodyLink:
+    """Started by 螺壳's body: stdin and stdout become the pipe to it. What else this process prints goes to its log, so
+    nothing stray reaches the pipe. When the body is gone (killed, crashed) this process winds down the way SIGTERM
+    makes it, and is ended if that takes longer than `grace` seconds."""
+    global _body
+    rx = os.fdopen(os.dup(0), "r", encoding="utf-8", errors="replace")
+    tx = os.fdopen(os.dup(1), "w", encoding="utf-8", errors="replace")     # mail text can hold lone surrogates
+    null = os.open(os.devnull, os.O_RDONLY)
+    os.dup2(null, 0)
+    os.close(null)
+    os.dup2(2, 1)
+    _body = BodyLink(rx, tx).start()
+    threading.Thread(target=_watch_parent, args=(parent, grace), name="luoke-parent", daemon=True).start()
+    return _body
+
+
+def _watch_parent(parent: int, grace: float, every: float = 2) -> None:
+    import signal
+    while os.getppid() == parent:
+        time.sleep(every)
+    print("[luoke-mail] 螺壳's body is gone, stopping", file=sys.stderr)
+    os.kill(os.getpid(), signal.SIGTERM)
+    time.sleep(grace)
+    os._exit(1)
+
+
+class BodyDesktop(Desktop):
+    """Inside 螺壳.app: the body starts this process and keeps it running, so there is nothing to install or start, and
+    background sorting is only the setting. No `LUOKE_LAUNCHER` here: AppDesktop would `open` a second 螺壳 and ask its
+    main program for `--notify`. Without a link (an idle job, a command) there is no one to post a notification."""
+
+    def __init__(self, home: str = CONFIG_DIR, link: BodyLink | None = None, run=subprocess.run,
+                 agents_dir: str | None = None, apps_dir: str | None = None):
+        super().__init__(home, agents_dir, apps_dir, run=run, platform="darwin")
+        self.link = link
+
+    @property
+    def supported(self) -> bool:
+        return True
+
+    def status(self) -> dict:
+        return {"supported": True, "installed": False, "stale": False, "app_name": None, "in_luoke": True}
+
+    def disable(self) -> None:
+        return
+
+    def notify_status(self) -> dict | None:
+        got = self.link.ask({"op": "notify-status"}) if self.link else None
+        return {"authorization": str(got.get("authorization") or ""), "alert": str(got.get("alert") or "")} if got else None
+
+    def open_notification_settings(self) -> bool:
+        """The notifications are 螺壳's: its page in System Settings."""
+        try:
+            with open(os.path.join(own_app() or "", "Contents", "Info.plist"), "rb") as f:
+                bundle = plistlib.load(f).get("CFBundleIdentifier")
+        except (OSError, ValueError, plistlib.InvalidFileException):
+            return False
+        if not bundle:
+            return False
+        self.run(["/usr/bin/open", f"x-apple.systempreferences:com.apple.Notifications-Settings.extension?id={bundle}"],
+                 capture_output=True, timeout=20)
+        return True
+
+    def _post(self, title: str, subtitle: str, body: str) -> tuple[str, str]:
+        if not self.link:
+            return "log", "not started by 螺壳"
+        got = self.link.ask({"op": "notify", "title": title, "subtitle": subtitle, "body": body}, timeout=20)   # macOS may be asking
+        return "app", str(got.get("result") or "failed") if got else "no answer"
 
 
 # ---- inside 螺壳邮件助手.app, with 螺壳主控 ------------------------------------------------------------------------
@@ -669,7 +984,7 @@ class AppDesktop(Desktop):
         try:
             self.hub().call("PUT", "/accessory/resident", {"resident": on})
         except Exception as ex:            # engines.EngineError: not running, or it refused
-            print(f"[luoke-mail] resident={on} not declared: {ex}", file=sys.stderr)
+            print(f"[luoke-mail] resident={on} not declared: {type(ex).__name__}", file=sys.stderr)
             raise DesktopError("螺壳没有运行，无法在登录时启动后台自动整理。") from ex
 
     def enable(self, port: int) -> None:
@@ -697,7 +1012,7 @@ class AppDesktop(Desktop):
             if self.hub is not None:
                 self.hub().call("POST", "/accessory/exiting", {})
         except Exception as ex:
-            print(f"[luoke-mail] exiting not told: {ex}", file=sys.stderr)
+            print(f"[luoke-mail] exiting not told: {type(ex).__name__}", file=sys.stderr)
 
     def migrate(self) -> bool:
         """Before 螺壳主控, a LaunchAgent of our own kept luoke-mail running and an AppleScript launcher posted its
@@ -720,7 +1035,9 @@ class AppDesktop(Desktop):
 
 
 def for_this_app(home: str = CONFIG_DIR, hub_link=None) -> Desktop:
-    """The desktop luoke-mail runs on: inside 螺壳邮件助手.app with 螺壳主控, or from a terminal (no login item: background
-    sorting while it is open)."""
+    """The desktop luoke-mail runs on: inside 螺壳.app, inside 螺壳邮件助手.app with 螺壳主控, or from a terminal (no login
+    item: background sorting while it is open)."""
+    if _body or in_luoke():
+        return BodyDesktop(home, _body)
     launcher = launcher_path()
     return AppDesktop(launcher, home, hub_link=hub_link) if launcher and sys.platform == "darwin" else Desktop(home)

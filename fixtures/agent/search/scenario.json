@@ -1,0 +1,105 @@
+{
+  "id": "search",
+  "normalised": {
+    "$TMPDIR": "录的时候的临时目录",
+    "$VERSION": "邮件助手的版本号（server/discover、manifest.json）：每次发版都变，比对时不看",
+    "000000000001…": "方案编号（new-mail-…、suspicious-…、auto-done-… 后面的 16 位十六进制），按在本场景里出现的先后编号",
+    "resources/read": "contents[0].text 解开成了 JSON 值；线上是 JSON 文字",
+    "~/.luoke-mail": "LUOKE_MAIL_HOME（临时目录）"
+  },
+  "produced": {
+    "changes": [],
+    "fixture": [
+      "LUOKE_MAIL_HOME 指到新建的临时目录；假邮箱是 tests/fakes.py 的 FakeIMAP（gmail），假模型是 FakeChat，分拣和草稿的答复写在 scripts/record_agent_fixtures.py 的 `MAILS` 里",
+      "连上了假邮箱 me@example.com（Gmail，处理模式开着）",
+      "收件箱里放了：答辩时间确认、项目周会、账户已冻结",
+      "2026-10-20T01:30:00Z 同步了一次（App.sync_mailbox：真的读信、分拣、做习惯里的事）"
+    ],
+    "mcp": "真的 App 和 agent.sock（luoke_mail/agent.py），一个常驻的服务；时钟由录制脚本的 `Clock` 停住",
+    "tz": "Asia/Shanghai",
+    "user_action_at": "点按时的 at 是那一步的时钟，按 Asia/Shanghai 写"
+  },
+  "situation": "收件箱里有几封信，用户在问螺壳里搜「答辩」。",
+  "steps": [
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "server/discover",
+      "file": "server-discover.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "列工具（agent 认 readOnlyHint）",
+      "file": "tools-list.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "列资源",
+      "file": "resources-list.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读 outbox（每分钟一次）",
+      "file": "read-outbox.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读概览（侧栏的计数和一句话）",
+      "file": "read-summary.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读权限的状态",
+      "file": "read-permissions.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/today",
+      "file": "read-page-today.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/inbox",
+      "file": "read-page-inbox.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/clean",
+      "file": "read-page-clean.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/digest",
+      "file": "read-page-digest.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/subs",
+      "file": "read-page-subs.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/rules",
+      "file": "read-page-rules.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/activity",
+      "file": "read-page-activity.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/settings",
+      "file": "read-page-settings.json"
+    },
+    {
+      "clock": "2026-10-20T01:33:00Z",
+      "do": "用户问螺壳「答辩」：搜索框调 mail_search（只读，参数照 agent 的 `search`）",
+      "file": "call-mail_search.json"
+    }
+  ],
+  "title": "问螺壳搜邮件",
+  "window": [
+    "`mail_search` 答 `hits`（工具协议 §1b），`card` 是空的：窗口的 `HitsList` 做好之前，agent 的 `_search_one` 不画这个来源，见下面「要对齐的」。",
+    "每条的 `actions` 是 `mail_show`（打开这封），`source` 是邮箱地址。"
+  ]
+}

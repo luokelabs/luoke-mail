@@ -1,0 +1,91 @@
+{
+  "reply": {
+    "id": 15,
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "找到 1 封邮件。",
+          "type": "text"
+        }
+      ],
+      "isError": false,
+      "resultType": "complete",
+      "structuredContent": {
+        "card": [],
+        "hits": [
+          {
+            "actions": [
+              {
+                "args": {
+                  "id": "me@example.com|<m1@x.example>"
+                },
+                "name": "mail_show",
+                "primary": true,
+                "title": "打开"
+              }
+            ],
+            "date": "2026-10-20",
+            "id": "me@example.com|<m1@x.example>",
+            "kind": "mail",
+            "line": "王老师",
+            "snippet": "王老师问答辩时间，周五前回",
+            "source": "me@example.com",
+            "strong": true,
+            "title": "答辩时间确认"
+          }
+        ]
+      }
+    }
+  },
+  "request": {
+    "id": 15,
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "arguments": {
+        "limit": 10,
+        "query": "答辩"
+      },
+      "name": "mail_search"
+    }
+  }
+}

@@ -1,0 +1,343 @@
+{
+  "reply": {
+    "id": 19,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "inbox"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g10-r3",
+                      "g10-t4",
+                      "g10-k15",
+                      "g10-r20",
+                      "g10-t21"
+                    ],
+                    "component": "Column",
+                    "id": "root"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-t1",
+                    "text": "回复 1、删除 1",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-b2-t",
+                    "text": "同步新邮件"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g10-b2",
+                          "page": "inbox"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g10-b2-t",
+                    "component": "Button",
+                    "id": "g10-b2",
+                    "variant": "primary"
+                  },
+                  {
+                    "children": [
+                      "g10-t1",
+                      "g10-b2"
+                    ],
+                    "component": "Row",
+                    "id": "g10-r3"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-t4",
+                    "text": "快到期",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-t5",
+                    "text": "答辩时间确认",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-t6",
+                    "text": "王老师 · 10-20 01:18 · 回复（高优先级）",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-t7",
+                    "text": "王老师问答辩时间，周五前回",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-t8",
+                    "text": "截止 2026-10-23",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-b9-t",
+                    "text": "写草稿"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g10-b9",
+                          "page": "inbox"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g10-b9-t",
+                    "component": "Button",
+                    "id": "g10-b9",
+                    "variant": "primary"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-b10-t",
+                    "text": "查看原文"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "args": {
+                            "id": "1"
+                          },
+                          "page": "inbox"
+                        },
+                        "name": "agent.open_page"
+                      }
+                    },
+                    "child": "g10-b10-t",
+                    "component": "Button",
+                    "id": "g10-b10",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-b11-t",
+                    "text": "改为…"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g10-b11",
+                          "page": "inbox"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g10-b11-t",
+                    "component": "Button",
+                    "id": "g10-b11",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-b12-t",
+                    "text": "跳过"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g10-b12",
+                          "page": "inbox"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g10-b12-t",
+                    "component": "Button",
+                    "id": "g10-b12",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g10-b9",
+                      "g10-b10",
+                      "g10-b11",
+                      "g10-b12"
+                    ],
+                    "component": "Row",
+                    "id": "g10-r13"
+                  },
+                  {
+                    "children": [
+                      "g10-t5",
+                      "g10-t6",
+                      "g10-t7",
+                      "g10-t8",
+                      "g10-r13"
+                    ],
+                    "component": "Column",
+                    "id": "g10-c14"
+                  },
+                  {
+                    "child": "g10-c14",
+                    "component": "Card",
+                    "id": "g10-k15"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-t16",
+                    "text": "需要你处理",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-b17-t",
+                    "text": "可以直接处理"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g10-b17",
+                          "page": "inbox"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g10-b17-t",
+                    "component": "Button",
+                    "id": "g10-b17",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-b18-t",
+                    "text": "判为可疑"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g10-b18",
+                          "page": "inbox"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g10-b18-t",
+                    "component": "Button",
+                    "id": "g10-b18",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-b19-t",
+                    "text": "全部"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g10-b19",
+                          "page": "inbox"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g10-b19-t",
+                    "component": "Button",
+                    "id": "g10-b19",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g10-t16",
+                      "g10-b17",
+                      "g10-b18",
+                      "g10-b19"
+                    ],
+                    "component": "Row",
+                    "id": "g10-r20"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g10-t21",
+                    "text": "这里没有邮件。",
+                    "variant": "caption"
+                  }
+                ],
+                "surfaceId": "inbox"
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/inbox"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 19,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/inbox"
+    }
+  }
+}

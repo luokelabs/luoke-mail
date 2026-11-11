@@ -1,0 +1,180 @@
+{
+  "id": "auto-done",
+  "normalised": {
+    "$TMPDIR": "录的时候的临时目录",
+    "$VERSION": "邮件助手的版本号（server/discover、manifest.json）：每次发版都变，比对时不看",
+    "000000000001…": "方案编号（new-mail-…、suspicious-…、auto-done-… 后面的 16 位十六进制），按在本场景里出现的先后编号",
+    "resources/read": "contents[0].text 解开成了 JSON 值；线上是 JSON 文字",
+    "~/.luoke-mail": "LUOKE_MAIL_HOME（临时目录）"
+  },
+  "produced": {
+    "changes": [],
+    "fixture": [
+      "LUOKE_MAIL_HOME 指到新建的临时目录；假邮箱是 tests/fakes.py 的 FakeIMAP（gmail），假模型是 FakeChat，分拣和草稿的答复写在 scripts/record_agent_fixtures.py 的 `MAILS` 里",
+      "连上了假邮箱 me@example.com（Gmail，处理模式开着）",
+      "记忆里有一条用户确认过的习惯：「某某商城的推广邮件都归档」",
+      "记忆里有一条用户确认过的习惯：「某某书店的推广邮件都归档」",
+      "有一条规则：sender news@weekly.example → archive",
+      "收件箱里放了：周末促销、新品上架、答辩时间确认",
+      "2026-10-20T01:30:00Z 同步了一次（App.sync_mailbox：真的读信、分拣、做习惯里的事）"
+    ],
+    "mcp": "真的 App 和 agent.sock（luoke_mail/agent.py），一个常驻的服务；时钟由录制脚本的 `Clock` 停住",
+    "tz": "Asia/Shanghai",
+    "user_action_at": "点按时的 at 是那一步的时钟，按 Asia/Shanghai 写"
+  },
+  "situation": "用户确认过两条处理习惯（两家店的推广邮件都归档），另有一条规则。同步时两家各来一封推广，邮件助手自己归档了，又来了一封要回的信。",
+  "steps": [
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "server/discover",
+      "file": "server-discover.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "列工具（agent 认 readOnlyHint）",
+      "file": "tools-list.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "列资源",
+      "file": "resources-list.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读 outbox（每分钟一次）",
+      "file": "read-outbox.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读概览（侧栏的计数和一句话）",
+      "file": "read-summary.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读权限的状态",
+      "file": "read-permissions.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/today",
+      "file": "read-page-today.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/inbox",
+      "file": "read-page-inbox.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/clean",
+      "file": "read-page-clean.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/digest",
+      "file": "read-page-digest.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/subs",
+      "file": "read-page-subs.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/rules",
+      "file": "read-page-rules.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/activity",
+      "file": "read-page-activity.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/settings",
+      "file": "read-page-settings.json"
+    },
+    {
+      "clock": "2026-10-20T01:40:00Z",
+      "do": "用户在自动处理的卡片上点第一组的「撤销」",
+      "file": "call-mail_undo-card.json"
+    },
+    {
+      "clock": "2026-10-20T01:40:00Z",
+      "do": "点完再读 outbox（还剩一组）",
+      "file": "read-outbox-after-undo-card.json"
+    },
+    {
+      "clock": "2026-10-20T01:40:00Z",
+      "do": "点完再读概览",
+      "file": "read-summary-after-undo-card.json"
+    },
+    {
+      "clock": "2026-10-20T01:40:00Z",
+      "do": "读基础页 page/today",
+      "file": "read-page-today-after-undo-card.json"
+    },
+    {
+      "clock": "2026-10-20T01:40:00Z",
+      "do": "读基础页 page/inbox",
+      "file": "read-page-inbox-after-undo-card.json"
+    },
+    {
+      "clock": "2026-10-20T01:40:00Z",
+      "do": "读基础页 page/clean",
+      "file": "read-page-clean-after-undo-card.json"
+    },
+    {
+      "clock": "2026-10-20T01:40:00Z",
+      "do": "读基础页 page/digest",
+      "file": "read-page-digest-after-undo-card.json"
+    },
+    {
+      "clock": "2026-10-20T01:40:00Z",
+      "do": "读基础页 page/subs",
+      "file": "read-page-subs-after-undo-card.json"
+    },
+    {
+      "clock": "2026-10-20T01:40:00Z",
+      "do": "读基础页 page/rules",
+      "file": "read-page-rules-after-undo-card.json"
+    },
+    {
+      "clock": "2026-10-20T01:40:00Z",
+      "do": "读基础页 page/activity",
+      "file": "read-page-activity-after-undo-card.json"
+    },
+    {
+      "clock": "2026-10-20T01:40:00Z",
+      "do": "读基础页 page/settings",
+      "file": "read-page-settings-after-undo-card.json"
+    },
+    {
+      "clock": "2026-10-20T01:41:00Z",
+      "do": "用户在「处理记录」页上点另一组的「撤销」",
+      "file": "call-mail_do-page.json"
+    },
+    {
+      "clock": "2026-10-20T01:41:00Z",
+      "do": "点完窗口重新读这一页",
+      "file": "read-page-activity-after-undo-page.json"
+    },
+    {
+      "clock": "2026-10-20T01:41:00Z",
+      "do": "点完再读 outbox（都撤了，这件撤下）",
+      "file": "read-outbox-after-undo-page.json"
+    },
+    {
+      "clock": "2026-10-20T01:41:00Z",
+      "do": "点完再读概览",
+      "file": "read-summary-after-undo-page.json"
+    }
+  ],
+  "title": "按习惯自动处理了",
+  "window": [
+    "一件 `auto-done`、`normal`，在「已经替你做了」：每组一行说明和 [撤销]（`mail_undo`，参数 `auto:<记录>`）。",
+    "卡片上撤一组：答复换上只剩另一组的卡片（`done: false`）；这件还在 outbox 里，标题的数字减一。",
+    "「处理记录」页上撤（`mail_undo`，参数 `log:<记录>`，`surfaceId` 是页 id `activity`）：答复里的卡片不画，窗口重新读这一页，那一行写「已撤销」，按钮没了；两组都撤了，这件从 outbox 撤下。",
+    "「规则」页列着两条习惯和一条规则，「编辑规则」打开邮件助手自己的页面。"
+  ]
+}

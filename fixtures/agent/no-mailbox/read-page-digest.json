@@ -1,0 +1,98 @@
+{
+  "reply": {
+    "id": 10,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "digest"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g4-t1",
+                      "g4-t2"
+                    ],
+                    "component": "Column",
+                    "id": "root"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g4-t1",
+                    "text": "还没有连接邮箱。",
+                    "variant": "h4"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g4-t2",
+                    "text": "在「设置」里添加邮箱以后，这里会列出订阅邮件中值得一读的内容。",
+                    "variant": "caption"
+                  }
+                ],
+                "surfaceId": "digest"
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/digest"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 10,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/digest"
+    }
+  }
+}

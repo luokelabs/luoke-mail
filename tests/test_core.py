@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import isolate  # noqa: F401,E402 -- first: never the user's real data (tests/isolate.py)
 from luoke_mail import engines, mailbox, providers, samples, triage  # noqa: E402
 from luoke_mail.credstore import FileStore  # noqa: E402
-from fakes import GOOD, FakeChat, FakeIMAP  # noqa: E402
+from fakes import GOOD, FakeChat, FakeIMAP, suggestion  # noqa: E402
 
 
 def make_mail(subject="测试", body="正文", html=None, charset="utf-8", attach=False, sender="李婷 <liting@corp.example>",
@@ -118,6 +118,18 @@ class ParseTests(unittest.TestCase):
         self.assertNotIn("color:red", r["body"])
         self.assertNotIn("x()", r["body"])
 
+    def test_gb2312_mail_with_characters_only_gb18030_has(self):
+        """A bank's notice says gb2312 but its shop names use characters gb2312 lacks: they came out as U+FFFD."""
+        from email.message import EmailMessage
+        m = EmailMessage()
+        m["From"], m["To"], m["Subject"] = "银行 <notice@bank.example>", "me@example.com", "消费提醒"
+        m.set_content("您在 鑫華餐廳 消费 128.00 元。", charset="gb18030")
+        raw = m.as_bytes().replace(b'charset="gb18030"', b'charset="gb2312"')
+        self.assertIn(b'charset="gb2312"', raw)
+        body = mailbox.parse_message(raw)["body"]
+        self.assertIn("鑫華餐廳", body)
+        self.assertNotIn("\ufffd", body)
+
     def test_quoted_history_removed(self):
         body = "已经解决了，不用管了。\n\n在 2026年10月11日 21:03，王磊 写道：\n> 测试环境一直报 403\n> 急"
         r = mailbox.parse_message(make_mail("Re: 测试环境", body))
@@ -175,6 +187,19 @@ class DraftTests(unittest.TestCase):
         named = self.Link(['{"body": "好"}'])
         triage.draft_reply({"subject": "Q3", "body": "x"}, [], named, signature="小周")
         self.assertIn("结尾署名「小周」", named.seen[0][0]["content"])
+
+    def test_contact_details_the_mail_never_had(self):
+        mail = {"from_addr": "li@corp.example", "to": ["me@x.example"], "cc": ["wang@corp.example"],
+                "subject": "订单 20261104001 的发票", "body": "有问题打 010-6123 4567 找我。"}
+        # everything the mail has, the user's own signature, dates and times: nothing to check
+        ok = ("李老师好，发票已开，单号 20261104001。抄送王老师 wang@corp.example，我的邮箱 me@x.example。"
+              "有事打 010 61234567，或我的手机 +86 138 0000 1234。2026-11-05 14:00 见。")
+        self.assertEqual(triage.draft_strangers(mail, ok, "me@x.example", "小周 13800001234"), [])
+        self.assertIsNone(triage.draft_note(mail, ok, "me@x.example", "小周 13800001234"))
+        odd = "请把材料寄到 zhang@other.example，或打 021-5555 6666。"
+        self.assertEqual(triage.draft_strangers(mail, odd), ["zhang@other.example", "021-5555 6666"])
+        self.assertEqual(triage.draft_note(mail, odd),
+                         "草稿里有原信没有的联系方式（zhang@other.example、021-5555 6666），发出前请核对。")
 
 
 class UnsubscribeFinderTests(unittest.TestCase):
@@ -371,7 +396,7 @@ class SecureDeleteTests(unittest.TestCase):
         db.commit()
         db.close()
         st = store.Store(path)
-        self.assertEqual(st.db.execute("PRAGMA user_version").fetchone()[0], 1)
+        self.assertGreaterEqual(st.db.execute("PRAGMA user_version").fetchone()[0], 1)     # 2: the verdicts read again too
         st.close()
         with open(path, "rb") as f:
             self.assertNotIn("旧的删除-2b8d".encode(), f.read())
@@ -430,6 +455,23 @@ class TriageTests(unittest.TestCase):
         self.assertIsNone(r["due_date"])
         self.assertEqual(len(r["reply_points"]), 3)
 
+    def test_a_return_trip_is_two_events(self):
+        back = {"title": "回程", "date": "2026-12-22", "start": "15:30", "end": "21:15", "location": "香港"}
+        r = triage.parse_output(suggestion("schedule", due_date=None, event_title="去程", event_date="2026-12-15", event_start="10:10",
+                                           event_end="14:05", more_events=[back, {"date": "不是日期"}, {"date": "2026-12-15", "start": "10:10"}]))
+        self.assertEqual(r["event"]["more"], [back])     # no date, or the first one again: dropped
+        self.assertEqual([e["date"] for e in triage.events_of(r)], ["2026-12-15", "2026-12-22"])
+        self.assertNotIn("more", triage.events_of(r)[0])
+        self.assertIsNone(triage.parse_output(suggestion("archive", due_date=None, more_events=[back]))["event"])
+        self.assertEqual(triage.events_of({"event": None}), [])
+
+    def test_settled_years_reach_every_event(self):
+        res = {"due_date": None, "event": {"date": "2027-08-08", "more": [{"date": "2027-08-10"}]}}
+        was = res["event"]["more"]
+        triage.settle_dates(res, {"date": "2026-08-03 10:00", "subject": "x", "body": "8月8日、8月10日"})
+        self.assertEqual(res["event"]["more"], [{"date": "2026-08-10"}])
+        self.assertEqual(was, [{"date": "2027-08-10"}])  # store.resettle compares with the list it read
+
     def test_event_only_for_schedule(self):
         from fakes import suggestion
         r = triage.parse_output(suggestion("schedule", due_date=None, event_title="评审会", event_date="2026-10-14",
@@ -439,6 +481,91 @@ class TriageTests(unittest.TestCase):
         self.assertIsNone(r["event"])                    # a date on a non-calendar mail is not an event
         r = triage.parse_output(suggestion("reply", suspicious=True))
         self.assertEqual((r["action"], r["category"]), ("ignore", "phishing"))
+
+    def test_the_registered_domain(self):
+        for host, base in (("mail.wirex.example", "wirex.example"), ("wirex.example", "wirex.example"),
+                           ("a.b.example.co.jp", "example.co.jp"), ("news.bank.com.cn", "bank.com.cn"),
+                           ("x.example.io", "example.io"), ("Mail.Example.COM.", "example.com"), ("", "")):
+            self.assertEqual(triage.base_domain(host), base, host)
+
+    def test_a_shared_domain_is_matched_by_the_whole_address(self):
+        self.assertEqual(triage.seen_as("Noreply@Mail.Wirex.example"), "wirex.example")
+        for addr in ("user+bank@gmail.com", "x@qq.com", "a@corp.onmicrosoft.com", "me@someone.github.io", "y@yahoo.co.jp"):
+            self.assertEqual(triage.seen_as(addr), addr.lower(), addr)
+        self.assertEqual(triage.seen_as(""), "")
+
+    def test_a_vouched_sender_is_not_held_for_impersonation(self):
+        # luoke-mail#43: only impersonation is cleared, and only with the provider's word that the model was not
+        # told (luoke-mail#53)
+        from fakes import suggestion
+
+        def sorted_as(risks, untold, action="follow_up", category="notification", seen=True):
+            r = triage.parse_output(suggestion(action, category=category, suspicious=True, risks=risks, priority="high",
+                                               reason="发件人域名与官方不符", summary="疑似诈骗邮件，冒充 Wirex 要求点击链接"))
+            return triage.settle_risks(r, {"from_addr": "noreply@mail.wirex.example", "auth": None, "sender_seen": seen,
+                                           "subject": "Your October statement is ready"}, untold)
+        r = sorted_as(["冒充"], "pass")
+        self.assertFalse(r["suspicious"])
+        self.assertEqual((r["action"], r["category"], r["risks"], r["cleared"]), ("follow_up", "notification", ["冒充"], True))
+        self.assertEqual(r["reason"], "这封邮件确实从 mail.wirex.example 发出（邮箱服务商已验证），以前也收到过这个域名的邮件；"
+                                      "请确认是你认识的发件方。")
+        self.assertNotIn("unflagged", r)
+        # what it said while it took the mail for a fake goes too (luoke-mail#50 review)
+        self.assertEqual((r["priority"], r["summary"]), ("low", "Your October statement is ready"))
+        r = sorted_as(["冒充"], "pass", action="ignore", category="phishing")      # what the model was told to say
+        self.assertEqual((r["suspicious"], r["action"], r["category"]), (False, "archive", "notification"))
+        # a verdict the model was told (none kept from it: platform always, pass on 128 GB) it has weighed itself
+        # nor a doubtful link (luoke-mail#53: a look-alike that only links to a sign-in page)
+        for risks, untold in ((["冒充", "可疑链接"], "pass"), (["可疑链接"], "pass"),
+                              (["冒充", "索要个人信息"], "pass"), (["催促转账"], "pass"), (["冒充"], None),
+                              (["冒充"], "platform"), (["冒充"], "none"), (["冒充"], "fail"), ([], "pass")):
+            r = sorted_as(risks, untold)
+            self.assertTrue(r["suspicious"], (risks, untold))
+            self.assertEqual((r["action"], r["category"]), ("ignore", "phishing"))
+            self.assertNotIn("unflagged", r)
+            self.assertNotIn("cleared", r)
+            self.assertEqual((r["priority"], r["summary"]), ("high", "疑似诈骗邮件，冒充 Wirex 要求点击链接"))
+        # a sender new to the mailbox stays flagged: a look-alike domain passes the provider's check for itself
+        r = sorted_as(["冒充"], "pass", seen=False)
+        self.assertTrue(r["suspicious"])
+        self.assertNotIn("cleared", r)
+        r = triage.parse_output(suggestion("follow_up", category="notification", suspicious=True, risks=["冒充"],
+                                           summary="十月账单已出，请到 App 查看"))
+        r = triage.settle_risks(r, {"from_addr": "noreply@mail.wirex.example", "subject": "Statement", "sender_seen": True}, "pass")
+        self.assertEqual(r["summary"], "十月账单已出，请到 App 查看")          # a summary of the content stays
+        r = triage.parse_output(suggestion("archive", risks=["冒充", "乱写", "冒充"]))
+        self.assertEqual(r["risks"], ["冒充"])                              # unknown ones dropped, each once
+
+    def test_the_code_weighs_a_pass_the_model_is_not_told(self):
+        from fakes import suggestion
+
+        class Link:
+            def __init__(self, told=False):
+                self.seen, self.told = [], told
+
+            def limits(self, task):
+                return {"sender_verdict": None if self.told else False}
+
+            def fit(self, task, build, n):
+                return n
+
+            def chat(self, task, messages, schema):
+                self.seen.append(messages)
+                return suggestion("ignore", category="phishing", suspicious=True, risks=["冒充"]), {}, 0.1
+        link = Link()
+        mail = {"from_addr": "noreply@service.lark.example", "subject": "验证码", "body": "你的验证码是 123456", "auth": "pass"}
+        r = triage.analyze(mail, link, today=samples.TODAY)
+        self.assertTrue(r["suspicious"])                                     # a sender new to the mailbox: as answered
+        r = triage.analyze({**mail, "sender_seen": True}, link, today=samples.TODAY)
+        self.assertNotIn("确实来自", link.seen[-1][1]["content"])             # not told
+        self.assertNotIn("sender_seen", json.dumps(link.seen[-1], ensure_ascii=False))
+        self.assertFalse(r["suspicious"])                                    # still weighed
+        # told, and flagged all the same (luoke-mail#53, 128 GB: a look-alike that passes): the answer stands
+        link = Link(told=True)
+        r = triage.analyze({**mail, "sender_seen": True}, link, today=samples.TODAY)
+        self.assertIn("确实来自", link.seen[0][1]["content"])
+        self.assertTrue(r["suspicious"])
+        self.assertNotIn("cleared", r)
 
     def test_bad_action_rejected(self):
         with self.assertRaises(ValueError):
@@ -558,6 +685,38 @@ class SentDateTests(unittest.TestCase):
         self.assertEqual(triage.settle_dates({"due_date": "2027-08-08", "event": None}, said)["due_date"], "2027-08-08")
         self.assertEqual(triage.settle_dates({"due_date": "2027-08-08", "event": None}, {"subject": "x"})["due_date"],
                          "2027-08-08")                                             # no sent date: nothing to count from
+
+    def test_only_whole_dates_come_through(self):
+        """A second `_DATE` (drafts' contact check, 0.19.12) once replaced the one checking the model's dates, and
+        「2026-11-5」 or 「2026-11-05T09:00」 were kept: the calendar could not read them, nor could the agent's outbox."""
+        for bad in ("2026-11-5", "2026-11-05T09:00", "2026-11-05 extra", "11/05"):
+            out = triage.parse_output(json.dumps({"action": "schedule", "due_date": bad, "event_date": bad}))
+            self.assertIsNone(out["due_date"], bad)
+            self.assertIsNone(out["event"], bad)
+        out = triage.parse_output(json.dumps({"action": "schedule", "due_date": "2026-11-05", "event_date": "2026-11-06"}))
+        self.assertEqual((out["due_date"], out["event"]["date"]), ("2026-11-05", "2026-11-06"))
+        self.assertTrue(triage.draft_strangers({}, "2026-11-05 14:00 见") == [])      # the drafts' own date still read
+
+    def test_dates_kept_while_the_check_was_off_are_dropped(self):
+        out = triage.settle_dates({"due_date": "2026-11-5", "event": {"date": "2026-11-05T09:00", "start": "09:00"}},
+                                  {"subject": "x"})
+        self.assertEqual(out, {"due_date": None, "event": None})
+        out = triage.settle_dates({"due_date": None, "event": {"date": "2026-11-05", "more": [{"date": "2026-11-6"}]}},
+                                  {"subject": "x"})
+        self.assertEqual(out["event"], {"date": "2026-11-05"})
+
+    def test_a_thread_answer_that_is_no_object_is_asked_again(self):
+        from luoke_mail import threads
+        for bad in ("[1, 2]", '"waiting"', "3"):
+            with self.assertRaises(ValueError):
+                threads.parse(bad)
+        self.assertEqual(threads.parse('[{"state": "done"}]')["state"], "done")
+
+    def test_a_calendar_date_it_cannot_read_is_said_not_raised(self):
+        from luoke_mail import actions
+        for ev in ({"date": "2026-11-5"}, {"date": "2026-11-05", "start": "9点"}, {}):
+            with self.assertRaises(actions.ActionError):
+                actions.google_calendar_url({"subject": "x"}, ev)
 
     def test_mail_sorted_before_is_set_right_once(self):
         from luoke_mail.store import Store

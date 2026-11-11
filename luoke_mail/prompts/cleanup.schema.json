@@ -1,0 +1,87 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "items"
+  ],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "n",
+          "kind"
+        ],
+        "properties": {
+          "n": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "promotion",
+              "newsletter",
+              "notification",
+              "todo",
+              "receipt",
+              "document",
+              "travel",
+              "account",
+              "personal",
+              "work",
+              "other"
+            ],
+            "x-describe": [
+              [
+                "promotion",
+                "广告、促销、优惠券、营销活动"
+              ],
+              [
+                "newsletter",
+                "新闻简报、订阅的文章或内容摘要、定期推送"
+              ],
+              [
+                "notification",
+                "过后就没用的通知：验证码、登录提醒、密码重置、发货和物流进度、活动或会议提醒、系统和服务通知、社交平台和论坛的提醒"
+              ],
+              [
+                "todo",
+                "看起来还没了结、用户可能还要处理的：没付的账单、没回复的问题、还没办完的手续——只有主题明显像这类事情时才选"
+              ],
+              [
+                "receipt",
+                "账单、收据、发票、付款或交易记录、对账单、订单确认——以后可能要查账的"
+              ],
+              [
+                "document",
+                "合同、协议、证书、录取或官方文件、报税、保险单"
+              ],
+              [
+                "travel",
+                "机票、火车票、酒店、行程、预订确认"
+              ],
+              [
+                "account",
+                "账号开通、重要的账号或安全变更——以后可能要查的"
+              ],
+              [
+                "personal",
+                "亲友之间的个人往来"
+              ],
+              [
+                "work",
+                "工作或学业往来"
+              ],
+              [
+                "other",
+                "都不像"
+              ]
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -10,7 +10,7 @@ let pollTimer = null;
 let view = null;
 const METHOD = { one_click: "支持一键退订", web: "通过网页退订", mailto: "通过邮件退订",
   body_link: "正文中有退订链接", reply: "回复关键词退订" };
-const DONE = { unsubscribed: "已退订", keep: "已保留", archive_rule: "以后都归档", trash_rule: "以后都移到垃圾箱",
+const DONE = { unsubscribed: "已退订", keep: "已保留", archive_rule: "以后都归档", trash_rule: "以后都删除",
   spam_rule: "以后都移到垃圾邮件", junk_rule: "以后都移到垃圾邮件", unsubscribe_opened: "已打开退订页面", digest: "已加入精选" };
 const RULE_STATES = ["archive_rule", "trash_rule", "spam_rule", "junk_rule"];
 const canWrite = () => S.source === "demo" || !!S.state.mode.write;
@@ -27,7 +27,7 @@ export function initSubs() {
 }
 
 export async function showSubs() {
-  renderModeHint($("subs-mode-hint"), () => view && render(view));
+  renderModeHint($("subs-mode-hint"), () => view && render(view), true);
   $("subs").textContent = "";
   try {
     const r = await api(`/api/subscriptions?source=${S.source}`);
@@ -79,12 +79,12 @@ async function cleanHistory(s, btn) {
   try { p = await withBusy(btn, "正在查找…", () => api("/api/senders/act", { source: S.source, key: s.key, op: "history_preview" })); }
   catch (err) { toast(err.message); return; }
   if (!p.count) { toast(`邮箱中没有「${s.name || s.from_addr}」的邮件。`); return; }
-  const when = p.purge_days ? `垃圾箱中的邮件会在 ${p.purge_days} 天后被邮箱自动清空。` : "垃圾箱中的邮件会被邮箱定期清空。";
+  const when = p.purge_days ? `邮箱会在 ${p.purge_days} 天后自动清空。` : "邮箱会定期清空。";
   const ok = await confirmDialog("清理历史邮件", [
-    el("p", null, `将「${s.name || s.from_addr}」的 ${p.count} 封邮件（约 ${human(p.bytes)}，含已归档邮件）移到垃圾箱。`),
+    el("p", null, `将「${s.name || s.from_addr}」的 ${p.count} 封邮件（约 ${human(p.bytes)}，含已归档邮件）移到「已删除」。`),
     el("p", { class: "hint" }, `${when}在此之前可以在「操作记录」中撤销。`),
-  ], `移到垃圾箱（${p.count} 封）`);
-  if (ok) await withBusy(btn, `正在移到垃圾箱（${p.count} 封）…`, () => act(s, "trash_history"));
+  ], `删除（${p.count} 封）`);
+  if (ok) await withBusy(btn, `正在删除（${p.count} 封）…`, () => act(s, "trash_history"));
 }
 
 async function blockGuide(s) {
@@ -151,7 +151,7 @@ function card(s, justUnsubscribed = false) {
   if (!st && s.method === "body_link") c.append(el("p", { class: "hint" }, "链接来自邮件正文，打开后请确认网址属于该发件人。"));
   if (st === "unsubscribe_opened" && !s.still_sending) c.append(el("p", { class: "hint" },
     "如果之后仍收到此发件人的邮件，下次体检时会提示你。"));
-  if (s.still_sending) c.append(el("p", { class: "err" }, "退订后仍在发信。可以将之后的邮件移到垃圾箱，或在邮箱中拉黑。"));
+  if (s.still_sending) c.append(el("p", { class: "err" }, "退订后仍在发信。可以将之后的邮件删除，或在邮箱中拉黑。"));
   if (justUnsubscribed) c.append(el("p", { class: "hint" }, "已退订。是否同时清理此发件人的历史邮件？"));
   if (gmailRule && !s.rule.exported_at) c.append(el("p", { class: "hint" },
     "导出到 Gmail 后，由 Gmail 自动处理此发件人之后的邮件。"));
@@ -160,7 +160,7 @@ function card(s, justUnsubscribed = false) {
   // every button answers at once; the slow ones (they wait on the mailbox or the sender's server) say what they do
   // the sender's main step is an outlined button, the rest quiet (one main action per screen: luoke-brand DESIGN.md 1)
   const btn = (label, onclick, opts = {}) => el("button", { type: "button", class: opts.primary ? "btn small" : "btn small ghost",
-    title: opts.write && !canWrite() ? "移到垃圾箱前需要先开启处理模式，点击时会说明" : null,
+    title: opts.write && !canWrite() ? "删除前需要先开启处理模式，点击时会说明" : null,
     onclick: async (e) => {
       const b = e.currentTarget;
       if (opts.write && !canWrite() && !(await needWrite())) return;          // luoke-mail#18: say why, then go on
@@ -182,12 +182,12 @@ function card(s, justUnsubscribed = false) {
     } else {
       const u = unsubLabel(s);
       if (u) row.append(btn(u, () => act(s, "unsubscribe", { followUp: true }), { primary: s.verdict === "unsubscribe", pending: "正在退订…" }));
-      row.append(btn("以后都移到垃圾箱", () => act(s, "trash_rule"), { primary: s.verdict === "filter" }), btn("加入精选", () => act(s, "digest")));
+      row.append(btn("以后都删除", () => act(s, "trash_rule"), { primary: s.verdict === "filter" }), btn("加入精选", () => act(s, "digest")));
       if (!quiet(s)) row.append(btn("保留", () => act(s, "keep")));
       row.append(more(history(), block()));
     }
   } else {
-    if (s.still_sending) row.append(btn("以后都移到垃圾箱", () => act(s, "trash_rule"), { primary: true }), block());
+    if (s.still_sending) row.append(btn("以后都删除", () => act(s, "trash_rule"), { primary: true }), block());
     if (st === "unsubscribe_opened") row.append(btn(s.method === "reply" || s.method === "mailto" ? "再次发送" : "再次打开", () => act(s, "unsubscribe"), { pending: "正在退订…" }));
     if (gmailRule) row.append(btn(s.rule.exported_at ? "重新导出" : "导出到 Gmail",
       () => exportGmailFilters([s.rule], { ids: [s.rule.id], onDone: showSubs }), { primary: !s.rule.exported_at, self: true }));

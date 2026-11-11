@@ -14,7 +14,7 @@ import re
 import time
 
 from . import desktop, digest, editor, engines, memory, providers, samples, triage
-from .mailbox import MailError
+from .mailbox import MailError, real_mid
 from .subscriptions import sender_key
 
 DEMO = "demo"
@@ -142,7 +142,7 @@ class Curator:
 
     def public_item(self, acct: str, it: dict) -> dict:
         mid = it.get("message_id") or ""
-        gmail = acct != DEMO and self.app.provider(acct) == "gmail" and mid and not mid.strip("<>").startswith("uid-")
+        gmail = acct != DEMO and self.app.provider(acct) == "gmail" and real_mid(mid)
         return {**{k: it.get(k) for k in ("id", "title", "summary", "url", "host", "topics", "lasting", "score", "why",
                                           "date", "source", "feedback", "opened", "message_id", "also", "pick_why")},
                 "archived": bool(it.get("archived_at")),
@@ -171,9 +171,10 @@ class Curator:
 
     @staticmethod
     def _text_of(it: dict) -> dict:
-        """What the piece says, for the memory to read (ADR 0015): its title and the reader's summary of it."""
+        """What the piece says, for the memory to read (ADR 0015): its title and the reader's summary of it --
+        the sender's words, not the user's (`text_by`, agreed with luoke-mem)."""
         text = " ".join(x for x in (it.get("title") or "", " ".join((it.get("summary") or "").split())) if x)
-        return {"text": memory.mask(text)} if text else {}
+        return {"text": memory.mask(text), "text_by": "sender"} if text else {}
 
     def archive(self, body: dict) -> dict:
         """归档: read, put aside -- off the lists, found again under 已归档. Not a judgement (that is 没兴趣), so
@@ -569,7 +570,7 @@ class Curator:
         try:
             return {"url": ui.ensure(self.app.mem.path)}
         except (RuntimeError, OSError) as ex:
-            print(f"luoke-mail: luoke-mem ui did not start: {ex!r}", flush=True)
+            print(f"luoke-mail: luoke-mem ui did not start: {type(ex).__name__}", flush=True)
             raise ValueError("螺壳记忆的页面没能打开，请稍后再试。") from None
 
     def memory_change(self, body: dict) -> dict:

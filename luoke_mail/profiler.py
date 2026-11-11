@@ -11,15 +11,18 @@ import re
 import time
 
 from . import memory, profile, samples
-from .mailbox import SPECIAL_NAMES, SPECIAL_USE, MailError
+from .mailbox import NOREPLY, SPECIAL_NAMES, SPECIAL_USE, MailError
 
 DEMO = "demo"
 WEEK = 7 * 86400
 SITE_EVERY = 30 * 86400
 RETRY = 300
 SITE_POSTS, LABELS, SENT_SUBJECTS = 30, 40, 60
-RECORDS_V = 2                    # 2: labels and site posts dated by when they happened (2026-10-19)
+RECORDS_V = 3                    # 2: labels and site posts dated by when they happened (2026-10-19); 3: mail-contact
+SENT_DAYS, SENT_LIMIT = 730, 2000   # the user's own Sent: subjects (the newest SENT_SUBJECTS) and who was written to
 REPLY = re.compile(r"^\s*(re|fw|fwd|回复|答复|转发)\s*[:：]", re.I)
+AUTO_REPLY = re.compile(r"^\s*(自动回复|自动答复|auto(matic)?[- ]?reply|out of (the )?office|外出|休假)", re.I)
+CONTACT_SUBJECTS = 5               # a mail-contact record's subjects: the user's own, newest first
 
 
 def _shared(acct: str) -> str:
@@ -65,7 +68,7 @@ class Profiler:
             except ValueError:
                 raise
             except Exception as ex:  # noqa: BLE001 - unreachable, refused, not found: said in plain words
-                print(f"luoke-mail: reading {url} failed: {ex!r}", flush=True)
+                print(f"luoke-mail: reading a site failed: {type(ex).__name__}", flush=True)
                 raise ValueError("无法打开这个网址，请检查后重试。") from None
             mem.state("fact", f"我的网站：{url}", topic="site", record_text=f"填写了自己的网站：{url}")
             self._keep_site(acct, url, info)
@@ -151,7 +154,7 @@ class Profiler:
             try:
                 self._keep_site(acct, s["url"], self.fetch(s["url"]))
             except Exception as ex:  # noqa: BLE001 - kept from last time; the page says it could not be read
-                print(f"luoke-mail: reading {s['url']} failed: {ex!r}", flush=True)
+                print(f"luoke-mail: reading a site failed: {type(ex).__name__}", flush=True)
                 self._keep_site(acct, s["url"], None, problem="无法打开")
 
     # ---- the records: the user's own things only -------------------------------------------------------------
@@ -187,7 +190,8 @@ class Profiler:
 
     def _mailbox(self, acct: str) -> tuple[list[tuple[str, int, list[str], str, str]], list[dict]]:
         """(the user's labels with counts and examples, subjects the user wrote); on the way, how each newsletter
-        was read month by month (`mail-read`, Learner._reading: no model, so not waiting for 了解你's turn). Read-only."""
+        was read month by month (`mail-read`, Learner._reading: no model, so not waiting for 了解你's turn) and who
+        the user wrote to (`mail-contact`, `_contacts`). Read-only."""
         rows = self.store.old_rows(acct, "archive") + self.store.old_rows(acct, "inbox")
         if acct == DEMO:
             rows = rows or samples.demo_archive()
@@ -197,10 +201,57 @@ class Profiler:
             self.app.learner._reading(acct, mb.everywhere_headers(days=365, limit=3000), mb)
             folders = [] if any(r.get("labels") for r in rows) else mb.folders()
             try:
-                sent = mb.fetch_headers(days=365, limit=300, folder=mb.folder_for("sent"))
+                sent = mb.fetch_headers(days=SENT_DAYS, limit=SENT_LIMIT, folder=mb.folder_for("sent"), recipients=True)
             except MailError:
                 sent = []
+        self._contacts(acct, sent)
         return self._labels(rows, folders), self._own_subjects(sent)
+
+    def _contacts(self, acct: str, sent: list[dict]) -> int:
+        """Who the user writes to, month by month (`mail-contact`, agreed with luoke-mem 2026-11-09: people's names
+        for the voice input's hot words). One record per address the user wrote to (To or Cc) and finished month:
+        the display name last written for it, how many as To and as Cc, and up to CONTACT_SUBJECTS subjects the user
+        wrote to them that month, newest first (`subjects`, for the memory's 常谈的话题: not a reply's or a forward's,
+        which are someone else's words, nor an auto-reply's; masked). A month whose counts changed is written
+        again under the same ref (the memory reads the newest). What was written is kept here (cache `contacts`), so
+        a person the user told the memory to forget -- their records deleted there -- is not written back from the
+        same old months; only mail the user sends them afterwards brings them back. The user's own addresses,
+        no-reply addresses and whoever wrote to the user are not kept. No model, no mailbox change. How many written."""
+        if acct == DEMO or not sent:
+            return 0
+        own = {a.lower() for a in self.app.mail_accounts()} | {acct} | {(h.get("from_addr") or "").lower() for h in sent}
+        this_month, groups = time.strftime("%Y-%m"), {}
+        for h in sorted(sent, key=lambda h: h.get("date") or ""):
+            month = (h.get("date") or "")[:7]
+            if not month or month >= this_month:
+                continue
+            for r in h.get("recipients") or []:
+                addr = r["addr"]
+                if addr in own or NOREPLY.search(addr.split("@")[0] + "@"):
+                    continue
+                g = groups.setdefault((addr, month), {"to": 0, "cc": 0, "name": "", "when": "", "subjects": []})
+                g[r["as"]] += 1
+                subject = " ".join((h.get("subject") or "").split())[:40]
+                if subject and subject != "（无主题）" and not REPLY.match(subject) and not AUTO_REPLY.match(subject):
+                    g["subjects"] = [subject] + [x for x in g["subjects"] if x != subject]
+                g["name"] = r["name"] or g["name"]
+                g["when"] = h["date"]
+        mem, made = self.app.memory_for(acct), 0
+        written = self.store.cache_get(acct, "contacts")[0] or {}
+        for (addr, month), g in sorted(groups.items()):
+            ref, count = f"{addr}@{month}", g["to"] + g["cc"]
+            if written.get(ref) == [g["to"], g["cc"]]:
+                continue                                    # written already (and maybe forgotten since): not again
+            name = memory.mask(g["name"])
+            memory.happened(mem, acct, "mail-contact", f"写信给 {f'{name} <{addr}>' if name else addr}：{month} 共 {count} 封",
+                            sender=addr, ref=ref, when=g["when"],
+                            data={"name": name, "month": month, "count": count, "to": g["to"], "cc": g["cc"],
+                                  **({"subjects": [memory.mask(x) for x in g["subjects"][:CONTACT_SUBJECTS]]} if g["subjects"] else {})})
+            written[ref] = [g["to"], g["cc"]]
+            made += 1
+        if made:
+            self.store.cache_set(acct, "contacts", written)
+        return made
 
     @staticmethod
     def _labels(rows: list[dict], folders: list[dict]) -> list[tuple[str, int, list[str], str, str]]:

@@ -14,11 +14,13 @@ import base64
 import datetime as dt
 import email
 import email.policy
+import hashlib
 import imaplib
 import re
 import socket
 import ssl
 import sys
+import time
 from email.header import decode_header, make_header
 from email.utils import getaddresses, parseaddr, parsedate_to_datetime
 from html.parser import HTMLParser
@@ -43,7 +45,7 @@ class KeychainLocked(MailError):
 
 
 def _refused(what: str, data) -> MailError:
-    print(f"[luoke-mail] IMAP refused {what}: {data!r}", file=sys.stderr)
+    print(f"[luoke-mail] IMAP refused {what}", file=sys.stderr)      # not its reply: servers quote names and addresses
     return MailError(f"邮箱未能完成{what}，请稍后重试。")
 
 
@@ -76,10 +78,10 @@ def friendly_error(exc: Exception, provider: str) -> MailError:
     if isinstance(exc, (socket.timeout, TimeoutError)):
         return MailError("连接邮箱服务器超时，请检查网络后重试。")
     if handshake_failed(exc):
-        print(f"[luoke-mail] TLS handshake failed: {msg}", file=sys.stderr)
+        print(f"[luoke-mail] TLS handshake failed: {type(exc).__name__}", file=sys.stderr)
         return MailError("无法和邮箱服务器建立加密连接：服务器的加密方式不受支持。请确认服务器地址和端口，或换用邮箱提供的其他 IMAP 地址。")
     if isinstance(exc, (socket.gaierror, ConnectionRefusedError, OSError)) and not isinstance(exc, imaplib.IMAP4.error):
-        print(f"[luoke-mail] IMAP connection failed: {msg}", file=sys.stderr)
+        print(f"[luoke-mail] IMAP connection failed: {type(exc).__name__}", file=sys.stderr)
         return MailError("无法连接邮箱服务器，请检查网络或服务器地址。")
     if "unsafe login" in low:
         return MailError("网易邮箱拒绝登录。请确认已在网页版设置中开启 IMAP，并使用授权码登录。")
@@ -87,11 +89,11 @@ def friendly_error(exc: Exception, provider: str) -> MailError:
         return MailError("Google 拦下了这次登录：请在浏览器里打开这个 Gmail，按提示确认是你本人，再回来重试。")
     if any(k in low for k in ("authenticationfailed", "invalid credentials", "login fail", "authenticate failed",
                               "password error", "login error", "user name or password", "application-specific password")):
-        print(f"[luoke-mail] IMAP login refused: {msg}", file=sys.stderr)
+        print(f"[luoke-mail] IMAP login refused: {type(exc).__name__}", file=sys.stderr)
         return MailError(PROVIDERS.get(provider, PROVIDERS["custom"])["refused"])
     if "imap" in low and ("disabled" in low or "not enabled" in low or "service is not open" in low):
         return MailError("此邮箱未开启 IMAP 服务，请先在网页版设置中开启。")
-    print(f"[luoke-mail] IMAP error: {msg}", file=sys.stderr)
+    print(f"[luoke-mail] IMAP error: {type(exc).__name__}", file=sys.stderr)
     return MailError("邮箱暂时无响应，请稍后重试。如果问题持续，请检查网络，或在邮箱网页版中确认 IMAP 已开启。")
 
 
@@ -150,11 +152,50 @@ def same_mid(found: str | None, wanted: str | None) -> bool:
     return bool(found and wanted) and found.strip() == wanted.strip()
 
 
-ROLE_LABEL = {"archive": "归档", "trash": "垃圾箱", "junk": "垃圾邮件", "drafts": "草稿箱", "sent": "已发送"}
+# a provider delivering mail itself, as the top Received header it adds says: (pattern, the sender's main domain it
+# must come from, or None for any). NetEase passes its own notices inside its network (`trans-mta`, a private
+# address) with no Authentication-Results; a user's mail to another may go that way too, so only netease.com counts.
+PLATFORM_139 = (r"\(RichMail\).*with ODA", None)
+PLATFORM_NETEASE = (r"\[(?:10|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.[\d.]+\]\) by [\w.-]*trans-mta[\w.-]* \(Coremail\)", "netease.com")
+
+
+def derived_mid(raw: bytes) -> str:
+    """The identity of a message with no Message-ID (139's mail nearly never has one): a hash
+    of its header block. A message's bytes never change, so it stays the same when the message moves and its UID
+    changes -- finding, undoing and not doing a thing twice work as they do for any other message."""
+    block = re.split(rb"\r?\n\r?\n", raw, 1)[0].strip()
+    return f"<nomid-{hashlib.sha256(block).hexdigest()[:32]}@luoke.local>"
+
+
+def real_mid(message_id: str | None) -> bool:
+    """A Message-ID the message itself has: one the mail assistant made up means nothing to anyone else."""
+    return bool(message_id) and not message_id.startswith(("<nomid-", "<uid-"))
+
+
+def _fetched(data) -> list[tuple[str, bytes]]:
+    """A FETCH answer as (everything but the literal, the literal) per message: imaplib splits a response around
+    its literal, and a server may put FLAGS or INTERNALDATE on either side of it."""
+    out: list[tuple[str, bytes]] = []
+    for part in data or []:
+        if isinstance(part, tuple) and len(part) > 1:
+            out.append((part[0].decode("utf-8", "replace"), part[1]))
+        elif isinstance(part, bytes) and out:
+            out[-1] = (out[-1][0] + " " + part.decode("utf-8", "replace"), out[-1][1])
+    return out
+
+
+def internal_date(meta: str) -> str | None:
+    """When the server received the message, in the form dates are kept: what a message with no Date header has."""
+    meta = re.sub(r'(INTERNALDATE ")\s*(\d)-', r"\g<1>0\2-", " ".join(meta.split()))    # 139 writes "5-Nov-2025"
+    parsed = imaplib.Internaldate2tuple(meta.encode())
+    return time.strftime("%Y-%m-%d %H:%M", parsed) if parsed else None
+
+
+ROLE_LABEL = {"archive": "归档", "trash": "已删除", "junk": "垃圾邮件", "drafts": "草稿箱", "sent": "已发送"}
 SPECIAL_USE = {"archive": ("\\all", "\\archive"), "trash": ("\\trash",), "junk": ("\\junk",), "drafts": ("\\drafts",),
                "sent": ("\\sent",)}
 SPECIAL_NAMES = {
-    "archive": ("archive", "archives", "归档", "已归档", "all mail", "所有邮件"),
+    "archive": ("archive", "archives", "归档", "已归档", "邮件归档", "all mail", "所有邮件"),
     "trash": ("trash", "deleted messages", "deleted items", "deleted", "已删除", "垃圾箱", "废纸篓", "已删除邮件"),
     "junk": ("junk", "spam", "junk e-mail", "junk email", "垃圾邮件", "广告邮件"),
     "drafts": ("drafts", "draft", "草稿箱", "草稿"),
@@ -179,11 +220,10 @@ def pick_folder(folders: list[dict], role: str) -> str | None:
     for f in folders:
         if any(flag in f["flags"] for flag in SPECIAL_USE[role]):
             return f["name"]
-    for f in folders:
-        leaf = f["name"].split(f["delim"])[-1] if f["delim"] else f["name"]
-        if leaf.strip().lower() in SPECIAL_NAMES[role] and "\\noselect" not in f["flags"]:
-            return f["name"]
-    return None
+    names = SPECIAL_NAMES[role]
+    leaf = lambda f: (f["name"].split(f["delim"])[-1] if f["delim"] else f["name"]).strip().lower()     # noqa: E731
+    hits = [f for f in folders if leaf(f) in names and "\\noselect" not in f["flags"]]
+    return min(hits, key=lambda f: names.index(leaf(f)))["name"] if hits else None      # the likeliest name first
 
 
 def _guarded(fn):
@@ -198,6 +238,7 @@ def _guarded(fn):
 
 
 class Mailbox:
+    REFETCH = (50, 10)        # batch sizes for what a server left out of a reply (_fetch)
     def __init__(self, provider: str, address: str, secret: str, host: str | None = None,
                  port: int | None = None, ssl: bool = True, timeout: float = 30):
         p = PROVIDERS.get(provider, PROVIDERS["custom"])
@@ -207,13 +248,18 @@ class Mailbox:
         # from a web page can carry a full-width or non-breaking space
         self.secret = "".join(secret.split()) if provider != "custom" else secret
         self.host = host or p["host"]
+        host = (self.host or "").lower()
+        self.platform = PLATFORM_139 if host.endswith(".139.com") else \
+            PLATFORM_NETEASE if host.endswith((".163.com", ".126.com")) else None
         self.port = int(port or p["port"])
         self.needs_id = p["needs_id"]
         self.ssl = ssl
-        self.timeout = timeout
+        # 139 can take more than 30 seconds over a FETCH of headers on a slow day, and a timeout fails the whole round
+        self.timeout = max(timeout, 90) if self.platform is PLATFORM_139 else timeout
         self.conn: imaplib.IMAP4 | None = None
         self.selected: tuple[str, bool] | None = None
         self._scanned: dict[str, dict[str, list[str]]] = {}     # folder -> Message-ID -> UIDs (_by_message_id)
+        self.unreturned: set[str] = set()                       # asked for, and the server never gave them (_fetch)
         self._folders: list[dict] | None = None
 
     def __enter__(self):
@@ -328,6 +374,17 @@ class Mailbox:
             return len(self._uid_search(["UNDELETED", "BEFORE", _imap_date(days)]))
         return self._guard(run)
 
+    def wrote_to(self, addresses: list[str]) -> set[str]:
+        """Which of these the user has ever sent mail to. Without a sent folder to look in: all of them, so nobody
+        the user may know is taken for a mailing."""
+        def run():
+            try:
+                self.select(self.folder_for("sent"), readonly=True)
+            except MailError:
+                return set(addresses)
+            return {a for a in addresses if imap_quoted(a) and self._uid_search(["TO", imap_quoted(a)])}
+        return self._guard(run)
+
     def fetch_recent(self, limit: int = 20, unseen_only: bool = True, days: int | None = 7) -> list[dict]:
         return self.fetch_messages(self.recent_uids(days, unseen_only)[:int(limit)])
 
@@ -339,19 +396,21 @@ class Mailbox:
             gm = " X-GM-MSGID" if self.has("X-GM-EXT-1") else ""
             out = []
             for uid in uids:
-                typ, data = self.conn.uid("FETCH", uid, f"(FLAGS{gm} BODY.PEEK[]<0.{MAX_FETCH_BYTES}>)")
-                raw = next((part[1] for part in data if isinstance(part, tuple) and len(part) > 1), None)
-                if raw:
-                    meta = next((part[0] for part in data if isinstance(part, tuple)), b"")
+                typ, data = self.conn.uid("FETCH", uid, f"(FLAGS INTERNALDATE{gm} BODY.PEEK[]<0.{MAX_FETCH_BYTES}>)")
+                got = _fetched(data)
+                if got and got[0][1]:
+                    text, raw = got[0]
+                    meta = text.encode("utf-8", "replace")
                     authserv = PROVIDERS.get(self.provider, {}).get("authserv")
                     try:
-                        msg = parse_message(raw, authserv)
+                        msg = parse_message(raw, authserv, self.platform)
                     except Exception as ex:  # noqa: BLE001 -- one malformed message must not stop the others (#29)
-                        print(f"[luoke-mail] skipped a message that could not be read (UID {uid}): {type(ex).__name__}: {ex}", file=sys.stderr)
+                        print(f"[luoke-mail] skipped a message that could not be read (UID {uid}): {type(ex).__name__}", file=sys.stderr)
                         continue
                     if authserv and not msg["auth"]:
                         msg["auth"] = "none"                 # looked: the provider gave no verdict (never asked again)
                     msg["uid"] = uid
+                    msg["date"] = msg["date"] or internal_date(text)
                     msg["flagged"] = b"\\Flagged" in meta
                     hit = re.search(rb"X-GM-MSGID (\d+)", meta)
                     msg["gm_msgid"] = hit.group(1).decode() if hit else None
@@ -414,11 +473,34 @@ class Mailbox:
                     out.append({**h, "folder": folder})       # where to read its text (Learner._reading)
         return out
 
+    def _fetch(self, uids: list, what: str) -> list:
+        """A FETCH of headers, however few the server brings back. 139 answers OK to a batch of 200 with 63-96 of
+        them and a different number each time, all of them at 100, so what is missing is asked for again in smaller
+        batches; what still doesn't come is in `unreturned`, because it is not mail that has gone."""
+        uids = [u.decode() if isinstance(u, bytes) else u for u in uids]
+        data = list(self.conn.uid("FETCH", ",".join(uids), what)[1] or [])
+
+        def missing() -> list[str]:
+            parts = _fetched(data)
+            got = {m.group(1) for meta, _ in parts for m in [re.search(r"UID (\d+)", meta)] if m}
+            return [] if len(parts) >= len(uids) or (parts and not got) else [u for u in uids if u not in got]
+        for size in self.REFETCH:
+            if len(uids) > size:
+                left = missing()
+                for i in range(0, len(left), size):
+                    data += self.conn.uid("FETCH", ",".join(left[i:i + size]), what)[1] or []
+        left = missing()
+        if left:
+            self.unreturned.update(left)
+            print(f"[mailbox] {len(left)} of {len(uids)} messages not returned by the server", file=sys.stderr)
+        return data
+
     def fetch_headers(self, days: int = 60, limit: int = 3000, before: bool = False, progress=None,
-                      folder: str = "INBOX") -> list[dict]:
+                      folder: str = "INBOX", recipients: bool = False) -> list[dict]:
         """Headers + flags of a folder's mail (no bodies), the inbox unless told: the last `days` days for
         subscription stats, or with `before` everything older, for 清理旧邮件. `progress(done, total)` after
-        each batch."""
+        each batch. With `recipients`, To and Cc as well (`recipients`: who the user wrote to, from Sent)."""
+        fields = HEADER_FIELDS + (" TO CC" if recipients else "")
         def run():
             self.select(folder, readonly=True)
             uids = sorted(self._uid_search(["UNDELETED", "BEFORE" if before else "SINCE", _imap_date(days)]), key=int)[-int(limit):]
@@ -426,16 +508,16 @@ class Mailbox:
             for i in range(0, len(uids), 200):
                 if progress:
                     progress(i, len(uids))
-                chunk = b",".join(uids[i:i + 200]).decode()
-                typ, data = self.conn.uid("FETCH", chunk, f"(FLAGS RFC822.SIZE BODY.PEEK[HEADER.FIELDS ({HEADER_FIELDS})])")
-                for part in data:
-                    if not (isinstance(part, tuple) and len(part) > 1):
-                        continue
-                    meta = part[0].decode("utf-8", "replace")
+                data = self._fetch(uids[i:i + 200], f"(FLAGS RFC822.SIZE INTERNALDATE BODY.PEEK[HEADER.FIELDS ({fields})])")
+                for meta, header in _fetched(data):
                     try:
-                        info = header_info(email.message_from_bytes(part[1], policy=email.policy.default))
+                        msg = email.message_from_bytes(header, policy=email.policy.default)
+                        info = header_info(msg)
+                        if recipients:
+                            info["recipients"] = recipients_of(msg)
                     except Exception:  # noqa: BLE001 -- one malformed message must not stop the scan (#29)
                         continue
+                    info["date"] = info["date"] or internal_date(meta)
                     info["seen"] = "\\Seen" in meta
                     info["flagged"] = "\\Flagged" in meta
                     m = re.search(r"UID (\d+)", meta)
@@ -443,7 +525,7 @@ class Mailbox:
                     size = re.search(r"RFC822\.SIZE (\d+)", meta)
                     info["size"] = int(size.group(1)) if size else 0
                     out.append(info)
-            return out
+            return self._named(out)
         return self._guard(run)
 
     GMAIL_ARCHIVED = "-in:inbox -in:sent -in:drafts -in:chats"
@@ -472,20 +554,18 @@ class Mailbox:
                 for name in self.GMAIL_CATEGORIES:
                     for u in self._uid_search(["X-GM-RAW", imap_quoted(f"{where} category:{name}")]):
                         cats[u.decode()] = name
-            what = "FLAGS RFC822.SIZE" + (" X-GM-LABELS X-GM-MSGID" if gmail else "") + f" BODY.PEEK[HEADER.FIELDS ({HEADER_FIELDS})]"
+            what = "FLAGS RFC822.SIZE INTERNALDATE" + (" X-GM-LABELS X-GM-MSGID" if gmail else "") + f" BODY.PEEK[HEADER.FIELDS ({HEADER_FIELDS})]"
             out = []
             for i in range(0, len(uids), 500):
                 if progress:
                     progress(i, len(uids))
-                typ, data = self.conn.uid("FETCH", b",".join(uids[i:i + 500]).decode(), f"({what})")
-                for part in data:
-                    if not (isinstance(part, tuple) and len(part) > 1):
-                        continue
-                    meta = part[0].decode("utf-8", "replace")
+                data = self._fetch(uids[i:i + 500], f"({what})")
+                for meta, header in _fetched(data):
                     try:
-                        info = header_info(email.message_from_bytes(part[1], policy=email.policy.default))
+                        info = header_info(email.message_from_bytes(header, policy=email.policy.default))
                     except Exception:  # noqa: BLE001 -- one malformed message must not stop the scan (#29)
                         continue
+                    info["date"] = info["date"] or internal_date(meta)
                     uid = re.search(r"UID (\d+)", meta)
                     size = re.search(r"RFC822\.SIZE (\d+)", meta)
                     gm = re.search(r"X-GM-MSGID (\d+)", meta)
@@ -494,7 +574,7 @@ class Mailbox:
                                 seen="\\Seen" in meta, flagged="\\Flagged" in meta, labels=gmail_labels(meta),
                                 category=cats.get(uid.group(1)) if uid else None)
                     out.append(info)
-            return folder, out
+            return folder, self._named(out)
         return self._guard(run)
 
     def archived_recent(self, days: int) -> tuple[str | None, list[tuple[str, str]]]:
@@ -511,7 +591,7 @@ class Mailbox:
             uids = self._uid_search(["SINCE", _imap_date(days), "X-GM-RAW", imap_quoted(self.GMAIL_ARCHIVED)])
             out = []
             for i in range(0, len(uids), 500):
-                typ, data = self.conn.uid("FETCH", b",".join(uids[i:i + 500]).decode(), "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
+                data = self._fetch(uids[i:i + 500], "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
                 for part in data:
                     if isinstance(part, tuple) and len(part) > 1:
                         uid = re.search(r"UID (\d+)", part[0].decode("utf-8", "replace"))
@@ -535,10 +615,15 @@ class Mailbox:
         if name:
             return name
         if create and role == "archive":
-            typ, _ = self.conn.create(quote_mailbox("Archive"))
+            self.conn.create(quote_mailbox("Archive"))
             self._folders = None
-            if typ == "OK":
-                return "Archive"
+            name = pick_folder(self.folders(), role)
+            if name:                                   # listed, so mail moved there can be found again
+                self.select(name, readonly=True)
+                return name
+            # QQ keeps a client's folders under 「我的文件夹」, and until that is opened to IMAP they exist and can't
+            # be seen: mail moved there couldn't be brought back. Nothing is moved.
+            raise MailError(PROVIDERS.get(self.provider, {}).get("archive_hidden") or "邮箱没有开放新建的归档文件夹，邮件没有移动。")
         raise MailError(f"邮箱中没有{ROLE_LABEL[role]}文件夹。")
 
     def search_sender(self, list_id: str | None, from_addr: str | None) -> list[str]:
@@ -560,8 +645,7 @@ class Mailbox:
         out = []
         gm = " X-GM-LABELS" if self.has("X-GM-EXT-1") else ""
         for i in range(0, len(uids), 200):
-            typ, data = self.conn.uid("FETCH", ",".join(uids[i:i + 200]),
-                                      f"(FLAGS RFC822.SIZE{gm} BODY.PEEK[HEADER.FIELDS ({fields})])")
+            data = self._fetch(uids[i:i + 200], f"(FLAGS RFC822.SIZE{gm} BODY.PEEK[HEADER.FIELDS ({fields})])")
             for part in data or []:
                 if isinstance(part, tuple) and len(part) > 1:
                     meta = part[0].decode("utf-8", "replace")
@@ -578,7 +662,7 @@ class Mailbox:
                     out.append({**info, "uid": uid.group(1), "size": int(size.group(1)) if size else 0,
                                 "message_id": info["message_id"] or None, "seen": "\\Seen" in meta,
                                 "flagged": "\\Flagged" in meta, "labels": gmail_labels(meta), "inbox": _in_inbox(meta)})
-        return out
+        return self._named(out)
 
     def state_of(self, uids: list[str]) -> dict[str, dict]:
         """In the selected folder, what each UID holds now: its Message-ID, starred or not, its Gmail labels and
@@ -587,7 +671,7 @@ class Mailbox:
         gm = " X-GM-LABELS" if self.has("X-GM-EXT-1") else ""
         out: dict[str, dict] = {}
         for i in range(0, len(uids), 200):
-            typ, data = self.conn.uid("FETCH", ",".join(uids[i:i + 200]), f"(FLAGS{gm} BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
+            data = self._fetch(uids[i:i + 200], f"(FLAGS{gm} BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
             for part in data or []:
                 if isinstance(part, tuple) and len(part) > 1:
                     meta = part[0].decode("utf-8", "replace")
@@ -597,6 +681,9 @@ class Mailbox:
                         out[m.group(1)] = {"message_id": mid.group(1).decode("utf-8", "replace") if mid else None,
                                            "flagged": "\\Flagged" in meta, "labels": gmail_labels(meta),
                                            "inbox": _in_inbox(meta)}
+        names = self._derived([u for u, s in out.items() if not s["message_id"]])
+        for u, name in names.items():
+            out[u]["message_id"] = name
         return out
 
     def sender_messages(self, folder: str, list_id: str | None, from_addr: str | None) -> list[dict]:
@@ -641,7 +728,7 @@ class Mailbox:
         hits = self._with_mid([str(u) for u in uids if u], message_id) if uids else []
         if hits:
             return hits
-        q = imap_quoted(message_id)
+        q = imap_quoted(message_id) if real_mid(message_id) else None
         if q:
             hits = self._with_mid([u.decode() for u in self._uid_search(["HEADER", "Message-ID", q])], message_id)
             if hits or self.provider == "gmail":
@@ -668,7 +755,7 @@ class Mailbox:
         flags may come before or after the header literal, so both are read."""
         out: dict[str, tuple[str, str]] = {}
         for i in range(0, len(uids), 200):
-            typ, data = self.conn.uid("FETCH", ",".join(uids[i:i + 200]), "(FLAGS BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
+            data = self._fetch(uids[i:i + 200], "(FLAGS BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
             uid = None
             for part in data or []:
                 meta = part[0] if isinstance(part, tuple) else part
@@ -687,21 +774,21 @@ class Mailbox:
                     if hit:
                         mid = hit.group(1).decode("utf-8", "replace")
                 out[uid] = (mid, flags)
-        return {u: v for u, v in out.items() if v[0]}
+        names = self._derived([u for u, v in out.items() if not v[0]])
+        return {u: (v[0] or names.get(u, ""), v[1]) for u, v in out.items() if v[0] or u in names}
 
     def sender_checks(self, uids: list[str]) -> dict[str, tuple[str, str | None]]:
         """Inbox UID -> (Message-ID, the provider's verdict on the From domain) for mail read before that verdict
         was kept (sender_check). Headers only; nothing is marked read."""
-        authserv = PROVIDERS.get(self.provider, {}).get("authserv")
-        if not (authserv and uids):
+        authserv, platform = PROVIDERS.get(self.provider, {}).get("authserv"), self.platform
+        if not ((authserv or platform) and uids):
             return {}
 
         def run():
             self.select("INBOX", readonly=True)
             out = {}
             for i in range(0, len(uids), 200):
-                typ, data = self.conn.uid("FETCH", ",".join(uids[i:i + 200]),
-                                          "(BODY.PEEK[HEADER.FIELDS (FROM MESSAGE-ID AUTHENTICATION-RESULTS)])")
+                data = self._fetch(uids[i:i + 200], "(BODY.PEEK[HEADER.FIELDS (FROM MESSAGE-ID AUTHENTICATION-RESULTS RECEIVED)])")
                 for part in data or []:
                     if isinstance(part, tuple) and len(part) > 1:
                         uid = re.search(r"UID (\d+)", part[0].decode("utf-8", "replace"))
@@ -709,24 +796,62 @@ class Mailbox:
                             try:
                                 msg = email.message_from_bytes(part[1], policy=email.policy.default)
                                 info = header_info(msg)
-                                out[uid.group(1)] = (info["message_id"], sender_check(msg, authserv, info["from_domain"]))
+                                out[uid.group(1)] = (info["message_id"], _delivered_by_platform(msg, platform, info["from_domain"])
+                                                     or sender_check(msg, authserv, info["from_domain"]))
                             except Exception:  # noqa: BLE001 -- one malformed message must not stop the others (#29)
                                 continue
             return out
         return self._guard(run)
 
     @_guarded
+    def _headers(self, uids: list[str], what: str = "") -> list[tuple[str, bytes]]:
+        out = []
+        for i in range(0, len(uids), 200):
+            data = self._fetch(uids[i:i + 200], f"({what}BODY.PEEK[HEADER])")
+            out += _fetched(data)
+        return out
+
+    def _derived(self, uids: list[str]) -> dict[str, str]:
+        """UID -> the identity of each of these messages with no Message-ID, in the selected folder."""
+        out = {}
+        for meta, header in self._headers(uids) if uids else []:
+            m = re.search(r"UID (\d+)", meta)
+            if m:
+                out[m.group(1)] = derived_mid(header)
+        return out
+
+    def _named(self, rows: list[dict]) -> list[dict]:
+        """Rows from a header scan of the selected folder, each with its identity."""
+        names = self._derived([r["uid"] for r in rows if r.get("uid") and not r.get("message_id")])
+        for r in rows:
+            r["message_id"] = r.get("message_id") or names.get(r.get("uid"))
+        return rows
+
+    def identities(self, uids: list[str]) -> dict[str, dict]:
+        """Inbox UID -> {message_id, date}: what mail read before these were worked out for itself gets now."""
+        def run():
+            self.select("INBOX", readonly=True)
+            out = {}
+            for meta, header in self._headers(uids, "INTERNALDATE "):
+                m = re.search(r"UID (\d+)", meta)
+                msg = email.message_from_bytes(header, policy=email.policy.default)
+                if m:
+                    out[m.group(1)] = {"message_id": hdr(msg, "Message-ID").strip() or derived_mid(header),
+                                       "date": header_info(msg)["date"] or internal_date(meta)}
+            return out
+        return self._guard(run)
+
     def message_ids(self, uids: list[str]) -> dict[str, str]:
         out = {}
         for i in range(0, len(uids), 200):
-            typ, data = self.conn.uid("FETCH", ",".join(uids[i:i + 200]), "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
+            data = self._fetch(uids[i:i + 200], "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
             for part in data or []:
                 if isinstance(part, tuple) and len(part) > 1:
                     m = re.search(r"UID (\d+)", part[0].decode("utf-8", "replace"))
                     mid = re.search(rb"Message-ID:\s*(\S+)", part[1], re.I)
                     if m and mid:
                         out[m.group(1)] = mid.group(1).decode("utf-8", "replace")
-        return out
+        return {**self._derived([u for u in uids if u not in out]), **out}
 
     # ---- writing (only called from actions.py after the user confirms) ----------------------
     @_guarded
@@ -888,28 +1013,95 @@ class _TextExtractor(HTMLParser):
     BLOCK = {"p", "div", "br", "tr", "li", "h1", "h2", "h3", "h4", "table", "section"}
     SKIP = {"script", "style", "head", "title"}
 
+    VOID = {"img", "br", "hr", "meta", "link", "input", "area", "base", "col", "wbr"}
+    UNSEEN = re.compile(r"display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0(?![.\d])", re.I)
+    # what a start tag closes when it is left open, as a browser reads it: an unclosed <p> or <td> in a hidden
+    # element must not hide the rest of the mail
+    ENDS_P = {"p", "div", "table", "ul", "ol", "dl", "h1", "h2", "h3", "h4", "h5", "h6", "section", "blockquote",
+              "pre", "form", "address", "article", "aside", "header", "footer", "nav", "figure"}
+    IMPLIED = {"p": ENDS_P, "li": {"li"}, "dt": {"dt", "dd"}, "dd": {"dt", "dd"}, "td": {"td", "th", "tr"},
+               "th": {"td", "th", "tr"}, "tr": {"tr"}, "option": {"option"}}
+
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
-        self.skip = 0
+        self.open: list[str] = []         # elements open now
+        self.hidden_at = 0                # how many were open with the one the reader doesn't see (#42: filler,
+        self.unseen: list[str] = []       # hidden links), and what is written there
+        self.images = 0
+
+    @property
+    def hidden(self) -> bool:
+        return bool(self.hidden_at)
+
+    @property
+    def skip(self) -> bool:
+        return any(t in self.SKIP for t in self.open)
+
+    def _image(self, attrs: dict) -> None:
+        if str(attrs.get("width")) in ("0", "1") or str(attrs.get("height")) in ("0", "1"):
+            return                        # a tracking pixel
+        self.images += 1
+        if attrs.get("alt"):
+            self.parts.append(attrs["alt"] + " ")
+
+    def _close(self) -> None:
+        self.open.pop()
+        if len(self.open) < self.hidden_at:
+            self.hidden_at = 0
+
+    def _implied_end(self, tag: str) -> None:
+        """Close what `tag` ends, with whatever is still open inside it, not reaching out of a table or cell."""
+        for i in range(len(self.open) - 1, -1, -1):
+            t = self.open[i]
+            if tag in self.IMPLIED.get(t, ()):
+                while len(self.open) > i:
+                    self._close()
+                return
+            if t in ("table",) or t in ("td", "th") and tag not in ("td", "th", "tr"):
+                return
 
     def handle_starttag(self, tag, attrs):
-        if tag == "body":
-            self.skip = 0                 # a <head> never closed: the body is text all the same (luoke-mail#28)
-        elif tag in self.SKIP:
-            self.skip += 1
+        a = dict(attrs)
+        if tag not in self.VOID:
+            self._implied_end(tag)
+            if tag == "body":             # a <head> never closed: the body is text all the same (luoke-mail#28)
+                self.open = [t for t in self.open if t not in self.SKIP]
+                self.hidden_at = self.hidden_at if self.hidden_at <= len(self.open) else 0
+            self.open.append(tag)
+            if not self.hidden and ("hidden" in a or self.UNSEEN.search(a.get("style") or "")):
+                self.hidden_at = len(self.open)
+        if self.hidden:
+            return
+        if tag == "img":
+            self._image(a)
         elif tag in self.BLOCK:
             self.parts.append("\n")
 
     def handle_endtag(self, tag):
-        if tag in self.SKIP and self.skip:
-            self.skip -= 1
-        elif tag in self.BLOCK:
+        hidden = self.hidden
+        if tag in self.open:
+            while self.open and self.open[-1] != tag:
+                self._close()
+            self._close()
+        if not hidden and tag in self.BLOCK:
             self.parts.append("\n")
 
     def handle_data(self, data):
-        if not self.skip:
-            self.parts.append(data)
+        if self.skip:
+            return
+        (self.unseen if self.hidden else self.parts).append(data)
+
+
+UNSEEN_NOTE = "[以下文字在邮件里设为不显示，读邮件的人看不到]"
+UNSEEN_MIN = 20                   # shorter, once repeats are folded: filler (「隐藏文字隐藏文字…」), not something said
+
+
+def _unseen(parts: list[str]) -> str:
+    """What a mail hides from its reader, apart from the text, when there is something to it: words written to an AI
+    assistant are hidden too, and leaving them out hid exactly what makes such a mail suspicious."""
+    text = re.sub(r"(.{2,20}?)\1{2,}", r"\1…", " ".join(" ".join(parts).split()))
+    return text[:300] if len(text) >= UNSEEN_MIN else ""
 
 
 def html_to_text(html: str) -> str:
@@ -919,7 +1111,19 @@ def html_to_text(html: str) -> str:
         p.close()
     except Exception:  # noqa: BLE001 - malformed HTML: fall back to tag stripping
         return re.sub(r"<[^>]+>", " ", html)
-    return "".join(p.parts)
+    hidden = _unseen(p.unseen)
+    return "".join(p.parts) + (f"\n\n{UNSEEN_NOTE}\n{hidden}" if hidden else "")
+
+
+def image_count(html: str | None) -> int:
+    """Pictures a reader sees in this HTML, tracking pixels aside: their words are out of the model's reach."""
+    p = _TextExtractor()
+    try:
+        p.feed(html or "")
+        p.close()
+    except Exception:  # noqa: BLE001 - malformed HTML: as if there were none
+        pass
+    return p.images
 
 
 _QUOTE_HEADERS = [
@@ -967,21 +1171,39 @@ def clean_body(text: str, limit: int = BODY_CHAR_LIMIT) -> str:
     # preheader padding: zero-width marks, soft hyphens; a figure space is a space (luoke-mail#28: &#8199; and
     # &shy; were left, 600 invisible characters ahead of the text)
     text = re.sub("[\u034f\u200b-\u200f\u2060\ufeff\u00ad]+", "", text).replace("\u2007", " ")
-    cut = len(text)
+    # what the mail hides (html_to_text puts it last) is kept whatever is cut from what it shows: a quoted
+    # history or a long body took it away with them, and with it what makes a mail suspicious
+    seen, hidden = _hidden_apart(text)
+    cut = len(seen)
     for pat in _QUOTE_HEADERS:
-        m = pat.search(text)
+        m = pat.search(seen)
         if m and m.start() > 40:
             cut = min(cut, m.start())
-    text = text[:cut]
+    text = seen[:cut] + ("\n\n" + hidden if hidden and cut < len(seen) else hidden)
     lines = [ln.rstrip() for ln in text.split("\n") if not ln.lstrip().startswith(">")]
     text = re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
     text = re.sub(r"[ \t]{2,}", " ", _LINK.sub(_short_link, text)).strip()
-    if len(text) > limit:
-        text = text[:limit] + "\n…（正文过长，已截断）"
+    seen, hidden = _hidden_apart(text)
+    if len(seen) > limit:
+        text = seen[:limit] + "\n…（正文过长，已截断）" + ("\n\n" + hidden if hidden else "")
     return text
 
 
+def _hidden_apart(text: str) -> tuple[str, str]:
+    """The text a reader sees, and the note on what is hidden with what follows it ("" when nothing is)."""
+    i = text.find(UNSEEN_NOTE)
+    return (text, "") if i < 0 else (text[:i], text[i:])
+
+
+# Mail that says gb2312 or gbk often carries characters only gb18030 has (「廳」 in a shop's name). get_content()
+# does not fail on them, it puts U+FFFD in their place, so the retries below never ran. gb18030 reads all of gb2312
+# and gbk the same way.
+GB_FAMILY = {"gb2312", "gb_2312-80", "euc-cn", "gbk", "x-gbk", "cp936", "ms936"}
+
+
 def _decode_part(part) -> str:
+    if (part.get_content_charset() or "").lower() in GB_FAMILY:
+        return (part.get_payload(decode=True) or b"").decode("gb18030", errors="replace")
     try:
         return part.get_content()
     except Exception:  # noqa: BLE001 - bad charset declarations are common in the wild
@@ -1061,6 +1283,10 @@ def find_unsubscribe(raw: bytes) -> dict | None:
 NOREPLY = re.compile(r"(^|[._-])(no-?reply|do-?not-?reply|notifications?|newsletter|news|promo|marketing|mailer|updates?)([._@-]|$)", re.I)
 
 
+# the legally required mark on Chinese advertising mail: [AD] in front, or (AD) at the end as some banks write it
+AD_SUBJECT = re.compile(r"^\s*[\[［(（]\s*AD\s*[\]］)）]|[\[［(（]\s*AD\s*[\]］)）]\s*$", re.I)
+
+
 def hdr(msg, name: str) -> str:
     """A header's text on one line. The strict parser refuses some real mail -- a display name whose encoded word
     decodes to a line break (「优惠中心\\n客服」) raises ValueError -- and one such message failed every sync and every
@@ -1092,7 +1318,8 @@ def header_info(msg) -> dict:
     mailto = next((t for t in targets if t.lower().startswith("mailto:")), None)
     one_click = "one-click" in hdr(msg, "List-Unsubscribe-Post").lower() and bool(http and http.lower().startswith("https://"))
     precedence = hdr(msg, "Precedence").lower()
-    bulk = bool(list_id or targets or precedence in ("bulk", "list", "junk") or NOREPLY.search(addr.split("@")[0] + "@"))
+    bulk = bool(list_id or targets or precedence in ("bulk", "list", "junk") or NOREPLY.search(addr.split("@")[0] + "@")
+                or AD_SUBJECT.search(hdr(msg, "Subject")))
     date_iso = None
     try:
         d = parsedate_to_datetime(hdr(msg, "Date"))
@@ -1108,6 +1335,18 @@ def header_info(msg) -> dict:
     }
 
 
+def recipients_of(msg) -> list[dict]:
+    """Who a message went to: [{"name", "addr" (lower case), "as": "to" | "cc"}], each address once (To first)."""
+    out, seen = [], set()
+    for field, role in (("To", "to"), ("Cc", "cc")):
+        for name, addr in getaddresses([hdr(msg, field)]):
+            addr = (addr or "").strip().lower()
+            if "@" in addr and addr not in seen:
+                seen.add(addr)
+                out.append({"name": " ".join((name or "").split()), "addr": addr, "as": role})
+    return out[:30]
+
+
 def group_key(info: dict) -> str | None:
     """Bulk mail from the same list or sender is judged once and shown as one group."""
     if not info.get("bulk"):
@@ -1115,29 +1354,69 @@ def group_key(info: dict) -> str | None:
     return ("list:" + info["list_id"]) if info.get("list_id") else ("from:" + (info.get("from_addr") or ""))
 
 
-def sender_check(msg, authserv: str | None, from_domain: str) -> str | None:
-    """The receiving provider's own verdict on the From domain (DMARC): "pass" (the mail really comes from that
-    domain -- which says nothing about whether the domain is the organisation it names), "fail", or None (not
-    there, not this provider's, or no clear verdict). Only the topmost Authentication-Results with the provider's
-    own id counts: the provider adds it on receipt, above anything the sender wrote into the message."""
-    if not (authserv and from_domain):
+def _delivered_by_platform(msg, platform: tuple | None, from_domain: str) -> str | None:
+    """139 delivers its partners' advertising itself, NetEase its own notices: the top Received header says so, and
+    no outside mail gets it (PLATFORM_139, PLATFORM_NETEASE)."""
+    if not platform:
         return None
-    for h in msg.get_all("Authentication-Results") or []:
-        h = " ".join(str(h).split())
-        if h.split(";", 1)[0].strip().lower() != authserv:
-            continue
-        m = re.search(r"\bdmarc=([a-z]+)", h, re.I)
-        if not m:
-            return None
-        frm = re.search(r"header\.from=([\w.-]+)", h[m.end():], re.I)
-        if frm and frm.group(1).lower().rstrip(".") != from_domain.lower():
-            return None
-        return {"pass": "pass", "fail": "fail"}.get(m.group(1).lower())
+    pattern, own = platform
+    top = (msg.get_all("Received") or [""])[0]
+    if own and main_domain(from_domain or "") != own:
+        return None
+    return "platform" if re.search(pattern, " ".join(str(top).split())) else None
+
+
+_TWO_PART_TLDS = ("com.cn", "net.cn", "org.cn", "co.uk", "co.jp", "com.hk", "com.tw", "com.au")
+
+
+def main_domain(domain: str) -> str:
+    """example.com for mail.example.com: enough to tell whether a signature is the sender's own organisation's."""
+    parts = domain.lower().rstrip(".").split(".")
+    return ".".join(parts[-3:] if ".".join(parts[-2:]) in _TWO_PART_TLDS else parts[-2:])
+
+
+def _dmarc(m: re.Match, h: str, from_domain: str) -> str | None:
+    frm = re.search(r"header\.from=([\w.-]+)", h[m.end():], re.I)
+    f, d = (frm.group(1).lower().rstrip(".") if frm else ""), from_domain.lower()
+    if frm and d != f and not d.endswith("." + f):        # Gmail names the organisation: wirex.example for mail.wirex.example
+        return None
+    if m.group(1).lower() == "fail":
+        # the domain's owner asks nothing of a failure under p=none, and ordinary list mail fails that way
+        policy = re.search(r"\(([^)]*)\)", h[m.end():m.end() + 80])
+        told = re.findall(r"\b(?:p|dis)=(\w+)", policy.group(1), re.I) if policy else []
+        return "fail" if not told or any(x.lower() in ("quarantine", "reject") for x in told) else None
+    return {"pass": "pass"}.get(m.group(1).lower())
+
+
+def sender_check(msg, authserv: str | None, from_domain: str) -> str | None:
+    """The receiving provider's own verdict on the From domain: "pass" (the mail really comes from that domain --
+    which says nothing about whether the domain is the organisation it names), "fail", or None (not there, not this
+    provider's, or no clear verdict). Only the topmost Authentication-Results counts, and only with the provider's
+    own id: the provider adds it on receipt, above anything the sender wrote into the message.
+
+    DMARC where there is one. NetEase and QQ give only DKIM and SPF (#41): a DKIM signature of the sender's own
+    organisation is a pass, both failing is a fail, the rest says nothing."""
+    tops = msg.get_all("Authentication-Results") or []
+    if not (authserv and from_domain and tops):
+        return None
+    h = " ".join(str(tops[0]).split())
+    if not re.fullmatch(authserv, h.split(";", 1)[0].strip().lower()):
+        return None
+    m = re.search(r"\bdmarc=([a-z]+)", h, re.I)
+    if m:
+        return _dmarc(m, h, from_domain)
+    dkim, spf = (re.search(rf"\b{k}=([a-z]+)", h, re.I) for k in ("dkim", "spf"))
+    signer = re.search(r"header\.(?:d|i)=@?([\w.-]+)", h, re.I)
+    if dkim and dkim.group(1).lower() == "pass" and signer and main_domain(signer.group(1)) == main_domain(from_domain):
+        return "pass"
+    if dkim and spf and dkim.group(1).lower() == "fail" and spf.group(1).lower() == "fail":
+        return "fail"
     return None
 
 
-def parse_message(raw: bytes, authserv: str | None = None) -> dict:
-    """`authserv`: the provider's id on the Authentication-Results it adds (providers.PROVIDERS[...]["authserv"])."""
+def parse_message(raw: bytes, authserv: str | None = None, platform: tuple | None = None) -> dict:
+    """`authserv`: the provider's id on the Authentication-Results it adds (providers.PROVIDERS[...]["authserv"]).
+    `platform`: how its top Received header reads when the provider delivered the mail itself (PLATFORM_139 …)."""
     msg = email.message_from_bytes(raw, policy=email.policy.default)
     plain, html, attachments = None, None, []
     for part in msg.walk():
@@ -1162,7 +1441,9 @@ def parse_message(raw: bytes, authserv: str | None = None) -> dict:
         "references": hdr(msg, "References").strip(),
         "attachments": attachments[:20],
         "body": clean_body(body or ""),
-        "auth": sender_check(msg, authserv, info["from_domain"]),
+        "auth": _delivered_by_platform(msg, platform, info["from_domain"]) or sender_check(msg, authserv, info["from_domain"]),
     })
+    info["message_id"] = info["message_id"] or derived_mid(raw)
+    info["images"] = image_count(html)
     info["group_key"] = group_key(info)
     return info

@@ -1,0 +1,419 @@
+{
+  "reply": {
+    "id": 4,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "items": [
+              {
+                "card": [
+                  {
+                    "createSurface": {
+                      "catalogId": "ai.luoke/a2ui/agent/1",
+                      "surfaceId": "new-mail-000000000001"
+                    },
+                    "version": "v0.9"
+                  },
+                  {
+                    "updateComponents": {
+                      "components": [
+                        {
+                          "children": [
+                            "r3",
+                            "l4",
+                            "r12"
+                          ],
+                          "component": "Column",
+                          "id": "root",
+                          "subtitle": "me@example.com"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "h1",
+                          "text": "1 封要处理",
+                          "variant": "h4"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t2",
+                          "text": "me@example.com",
+                          "variant": "badge"
+                        },
+                        {
+                          "children": [
+                            "h1",
+                            "t2"
+                          ],
+                          "component": "Row",
+                          "id": "r3"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t5",
+                          "text": "王老师",
+                          "variant": "strong"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t6",
+                          "maxLines": 1,
+                          "text": "答辩时间确认"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t7",
+                          "text": "10-23 截止",
+                          "variant": "badge"
+                        },
+                        {
+                          "children": [
+                            "t5",
+                            "t6",
+                            "t7"
+                          ],
+                          "component": "Row",
+                          "id": "r8"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t9",
+                          "maxLines": 1,
+                          "text": "王老师问答辩时间，周五前回",
+                          "variant": "caption"
+                        },
+                        {
+                          "children": [
+                            "r8",
+                            "t9"
+                          ],
+                          "component": "Column",
+                          "id": "c10"
+                        },
+                        {
+                          "component": "ChoicePicker",
+                          "id": "c-m1",
+                          "label": "王老师：答辩时间确认",
+                          "options": [
+                            {
+                              "icon": "pencil-line",
+                              "label": "写草稿",
+                              "value": "draft"
+                            },
+                            {
+                              "icon": "star",
+                              "label": "加星标",
+                              "value": "flag"
+                            },
+                            {
+                              "icon": "archive",
+                              "label": "归档",
+                              "value": "archive"
+                            },
+                            {
+                              "icon": "circle-minus",
+                              "label": "先不动",
+                              "value": "keep"
+                            }
+                          ],
+                          "value": {
+                            "path": "/choices/m1"
+                          }
+                        },
+                        {
+                          "children": [
+                            "c10",
+                            "c-m1"
+                          ],
+                          "component": "Row",
+                          "id": "r11",
+                          "justify": "spaceBetween"
+                        },
+                        {
+                          "children": [
+                            "r11"
+                          ],
+                          "component": "List",
+                          "id": "l4"
+                        },
+                        {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "choices": {
+                                  "path": "/choices"
+                                },
+                                "plan_id": "new-mail-000000000001"
+                              },
+                              "name": "mail_apply_plan"
+                            }
+                          },
+                          "child": "b13-row",
+                          "component": "Button",
+                          "id": "b13",
+                          "variant": "primary"
+                        },
+                        {
+                          "component": "Icon",
+                          "id": "b13-icon",
+                          "name": "check"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b13-text",
+                          "text": "写草稿 1"
+                        },
+                        {
+                          "children": [
+                            "b13-icon",
+                            "b13-text"
+                          ],
+                          "component": "Row",
+                          "id": "b13-row"
+                        },
+                        {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "args": {
+                                  "id": "1"
+                                },
+                                "page": "inbox"
+                              },
+                              "name": "agent.open_page"
+                            }
+                          },
+                          "child": "b14-row",
+                          "component": "Button",
+                          "id": "b14"
+                        },
+                        {
+                          "component": "Icon",
+                          "id": "b14-icon",
+                          "name": "inbox"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b14-text",
+                          "text": "在邮件助手里看"
+                        },
+                        {
+                          "children": [
+                            "b14-icon",
+                            "b14-text"
+                          ],
+                          "component": "Row",
+                          "id": "b14-row"
+                        },
+                        {
+                          "children": [
+                            "b13",
+                            "b14"
+                          ],
+                          "component": "Row",
+                          "id": "r12"
+                        }
+                      ],
+                      "surfaceId": "new-mail-000000000001"
+                    },
+                    "version": "v0.9"
+                  },
+                  {
+                    "updateDataModel": {
+                      "path": "/",
+                      "surfaceId": "new-mail-000000000001",
+                      "value": {
+                        "choices": {
+                          "m1": [
+                            "draft"
+                          ]
+                        }
+                      }
+                    },
+                    "version": "v0.9"
+                  }
+                ],
+                "created": "2026-10-20T01:18:00",
+                "deadline": "2026-10-23T23:59:00",
+                "id": "new-mail/new-mail-000000000001",
+                "kind": "new-mail",
+                "summary": "王老师：王老师问答辩时间，周五前回。",
+                "title": "1 封邮件要你处理",
+                "urgency": "normal",
+                "why_now": "分拣好了，1 封要你先处理，最早的要在 2026-10-23 前回"
+              },
+              {
+                "card": [
+                  {
+                    "createSurface": {
+                      "catalogId": "ai.luoke/a2ui/agent/1",
+                      "surfaceId": "auto-done-000000000002"
+                    },
+                    "version": "v0.9"
+                  },
+                  {
+                    "updateComponents": {
+                      "components": [
+                        {
+                          "children": [
+                            "h1",
+                            "t2",
+                            "t3",
+                            "r4",
+                            "t6",
+                            "t7",
+                            "r8"
+                          ],
+                          "component": "Column",
+                          "id": "root"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "h1",
+                          "text": "已自动处理 2 封",
+                          "variant": "h4"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t2",
+                          "text": "按你的习惯自动归档 1 封"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t3",
+                          "text": "周末促销",
+                          "variant": "caption"
+                        },
+                        {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "execution_id": "auto:3"
+                              },
+                              "name": "mail_undo"
+                            }
+                          },
+                          "child": "b5-text",
+                          "component": "Button",
+                          "id": "b5"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b5-text",
+                          "text": "撤销"
+                        },
+                        {
+                          "children": [
+                            "b5"
+                          ],
+                          "component": "Row",
+                          "id": "r4"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t6",
+                          "text": "按你的习惯自动归档 1 封"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t7",
+                          "text": "新品上架",
+                          "variant": "caption"
+                        },
+                        {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "execution_id": "auto:2"
+                              },
+                              "name": "mail_undo"
+                            }
+                          },
+                          "child": "b9-text",
+                          "component": "Button",
+                          "id": "b9"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b9-text",
+                          "text": "撤销"
+                        },
+                        {
+                          "children": [
+                            "b9"
+                          ],
+                          "component": "Row",
+                          "id": "r8"
+                        }
+                      ],
+                      "surfaceId": "auto-done-000000000002"
+                    },
+                    "version": "v0.9"
+                  }
+                ],
+                "created": "2026-10-20T09:31:00",
+                "deadline": null,
+                "id": "auto-done/auto-done-000000000002",
+                "kind": "auto-done",
+                "summary": "按你的习惯自动归档 1 封；按你的习惯自动归档 1 封",
+                "title": "已自动处理 2 封",
+                "urgency": "normal",
+                "why_now": "这些是自动做的，不对可以撤销"
+              }
+            ]
+          },
+          "uri": "luoke://luoke-mail/outbox"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 4,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "luoke://luoke-mail/outbox"
+    }
+  }
+}

@@ -42,7 +42,8 @@ def _method(hs: list[dict]) -> tuple[str | None, dict]:
     return None, {}
 
 
-def summarize(headers: list[dict], suspicious_senders: set[str], days: int) -> list[dict]:
+def summarize(headers: list[dict], suspicious_senders: set[str], days: int, ours: set[str] = frozenset()) -> list[dict]:
+    """`ours`: Message-IDs the mail assistant marked read once sorted, so their \\Seen is no sign of the user reading."""
     groups: dict[str, list[dict]] = {}
     for h in headers:
         groups.setdefault(sender_key(h), []).append(h)
@@ -53,7 +54,7 @@ def summarize(headers: list[dict], suspicious_senders: set[str], days: int) -> l
         if not bulk and len(hs) < MIN_COUNT:
             continue
         count = len(hs)
-        read = sum(1 for h in hs if h.get("seen"))
+        read = sum(1 for h in hs if h.get("seen") and h.get("message_id") not in ours)
         method, how = _method(hs)
         addrs = {h.get("from_addr") for h in hs}
         sus = any(a in suspicious_senders for a in addrs)

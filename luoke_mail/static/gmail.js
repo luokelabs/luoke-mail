@@ -23,7 +23,7 @@ export async function exportGmailFilters(rules, { ids = null, includeExported = 
     el("p", null, `将导出 ${ok.length} 个过滤器，导入后由 Gmail 自动处理之后的邮件：`),
     el("ul", null, ok.map((r) => el("li", null, `${kinds[r.kind]}「${r.value}」→ ${labels[r.action]}`))),
     ok.some((r) => r.action === "spam")
-      ? el("p", { class: "hint" }, "Gmail 过滤器不支持移到垃圾邮件，这类规则会改为移到垃圾箱。") : null,
+      ? el("p", { class: "hint" }, "Gmail 过滤器不支持移到垃圾邮件，这类规则会改为删除。") : null,
     skipped.length ? el("p", { class: "hint" }, `另有 ${skipped.length} 条「回复」「加入日程」类规则不会导出。`) : null,
     el("ol", null, STEPS.map((x) => el("li", null, x))),
     el("p", { class: "hint" }, demo ? "示例数据，无需导入。"

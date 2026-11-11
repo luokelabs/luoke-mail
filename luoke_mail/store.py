@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS items (
   draft_text TEXT, flagged INTEGER DEFAULT 0,
   state TEXT NOT NULL DEFAULT 'pending',
   done_action TEXT, done_at TEXT,
-  fetched_at TEXT, analyzed_at TEXT, read_by_us TEXT, older INTEGER DEFAULT 0,
+  fetched_at TEXT, analyzed_at TEXT, read_by_us TEXT, older INTEGER DEFAULT 0, images INTEGER DEFAULT 0,
   UNIQUE(account, message_id)
 );
 CREATE INDEX IF NOT EXISTS items_state ON items(account, state);
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS agent_plans (
 """
 
 MESSAGE_FIELDS = ("uid", "from_name", "from_addr", "from_domain", "reply_to", "list_id", "unsub_http",
-                  "unsub_mailto", "unsub_one_click", "bulk", "subject", "date", "body", "group_key", "auth")
+                  "unsub_mailto", "unsub_one_click", "bulk", "subject", "date", "body", "group_key", "auth", "images")
 RULE_KINDS = {"sender": "发件人", "domain": "域名", "list": "邮件列表"}
 SUGGESTION_FIELDS = ("action", "priority", "category", "summary", "reason", "due_date", "event_json", "reply_points_json",
                      "suspicious", "suggested_by", "model", "seconds", "analyzed_at")
@@ -122,6 +122,7 @@ class Store:
             self._migrate_items()
             self.db.commit()
             self._scrub_once()
+            self._reread_verdicts_once()
 
     def _scrub_once(self) -> None:
         """Before 0.13.3 deletes left their text in free pages: the first start with secure_delete rebuilds the file
@@ -131,9 +132,18 @@ class Store:
         try:
             self.db.execute("VACUUM")
         except sqlite3.OperationalError as ex:            # another process has it open (螺壳主控's idle job): next start
-            print(f"[luoke-mail] store: rebuilding the file postponed: {ex}", file=sys.stderr)
+            print(f"[luoke-mail] store: rebuilding the file postponed: {type(ex).__name__}", file=sys.stderr)
             return
         self.db.execute("PRAGMA user_version=1")
+
+    def _reread_verdicts_once(self) -> None:
+        """Before 0.19.10 a Gmail verdict on a subdomain sender (header.from names the organisation) and NetEase's
+        own delivery were kept as "none": waiting mail has its verdict read again (App._recheck_senders). user_version 2."""
+        if self.db.execute("PRAGMA user_version").fetchone()[0] != 1:
+            return
+        self.db.execute("UPDATE items SET auth=NULL WHERE auth='none' AND place='inbox' AND state='pending'")
+        self.db.execute("PRAGMA user_version=2")
+        self.db.commit()
 
     def _migrate_rules(self) -> None:
         """v0.2 rules had no account, so rules made on the demo inbox also matched the real mailbox.
@@ -181,6 +191,8 @@ class Store:
             self.db.execute("ALTER TABLE items ADD COLUMN read_by_us TEXT")
         if "older" not in cols:             # 0.16: unread mail from before the range, sorted as idle work (App._older_slice)
             self.db.execute("ALTER TABLE items ADD COLUMN older INTEGER DEFAULT 0")
+        if "images" not in cols:            # 0.19: pictures in the body, whose words the model can't read (#42)
+            self.db.execute("ALTER TABLE items ADD COLUMN images INTEGER DEFAULT 0")
 
     # ---- items -----------------------------------------------------------------------------
     def settle_dates(self, settle) -> int:
@@ -207,6 +219,8 @@ class Store:
         """Insert a fetched message, or refresh its location/headers. Returns (id, is_new)."""
         mid = m.get("message_id") or f"<uid-{m.get('uid')}@{account}>"
         with self.lock:
+            self.db.execute("UPDATE OR IGNORE items SET message_id=? WHERE account=? AND message_id=?",
+                            (mid, account, f"<uid-{m.get('uid')}@{account}>"))     # read before messages had their own identity
             row = self.db.execute("SELECT id, place FROM items WHERE account=? AND message_id=?", (account, mid)).fetchone()
             vals = {k: m.get(k) for k in MESSAGE_FIELDS}
             vals["place"] = m.get("place") or "inbox"          # seen in the inbox now: it is an inbox item
@@ -319,6 +333,26 @@ class Store:
                             "AND state='pending' AND date < ?", (now(), account, older_than))
             self.db.commit()
 
+    def sender_seen(self, account: str, key: str, message_id: str | None) -> bool:
+        """Other mail from this sender in this mailbox, never flagged: in the inbox and sorted, or among the older and
+        archived mail read for 清理. `key` (`triage.seen_as`) is a registered domain -- mail from it or a host
+        under it -- or a whole address, for a domain anyone can send from."""
+        if not key or "." not in key:
+            return False
+        esc = key.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        if "@" in key:
+            match, args = "lower(from_addr) LIKE ? ESCAPE '\\'", (esc,)
+        else:
+            match, args = "(lower(from_addr) LIKE ? ESCAPE '\\' OR lower(from_addr) LIKE ? ESCAPE '\\')", (f"%@{esc}", f"%.{esc}")
+        flagged = "SELECT message_id FROM items WHERE account=? AND suspicious=1 AND message_id IS NOT NULL"
+        with self.lock:
+            row = self.db.execute(
+                f"SELECT 1 FROM items WHERE account=? AND message_id IS NOT ? AND suspicious=0 AND action IS NOT NULL AND {match} "
+                f"UNION ALL SELECT 1 FROM old_mail WHERE account=? AND message_id IS NOT ? AND {match} "
+                f"AND message_id NOT IN ({flagged}) LIMIT 1",          # read for 清理 once, flagged in the inbox before
+                (account, message_id, *args, account, message_id, *args, account)).fetchone()
+        return row is not None
+
     def auth_unchecked(self, account: str) -> list[dict]:
         """Inbox mail waiting for the user that was sorted without the provider's verdict on the sender (sorted
         before 0.13, or the verdict was not read): id, uid, message_id, suspicious."""
@@ -395,6 +429,81 @@ class Store:
         with self.lock:
             rows = self.db.execute(q + " ORDER BY date DESC", args).fetchall()
         return [self._item(r) for r in rows]
+
+    def unnamed(self, account: str, present: set[str]) -> list[dict]:
+        """Mail in the inbox read before a message with no Date or Message-ID was given them (#41)."""
+        with self.lock:
+            rows = self.db.execute("SELECT id, uid, message_id, date FROM items WHERE account=? AND place='inbox' "
+                                   "AND (date IS NULL OR message_id LIKE '<uid-%')", (account,)).fetchall()
+        return [dict(r) for r in rows if r["uid"] in present]
+
+    def renamed(self, item_id: int, message_id: str, date: str | None) -> None:
+        """Its identity and date, worked out now. Still waiting for the user, it is sorted again: it was sorted not
+        knowing when it was sent, and old bills were taken for fraud."""
+        with self.lock:
+            self.db.execute("UPDATE OR IGNORE items SET message_id=?, date=COALESCE(date, ?) WHERE id=?", (message_id, date, item_id))
+            if date:
+                self.db.execute("UPDATE items SET action=NULL, suggested_by=NULL, error=NULL, suspicious=0 "
+                                "WHERE id=? AND state='pending' AND analyzed_at IS NOT NULL", (item_id,))
+            self.db.commit()
+
+    def mail_by_id(self, account: str, message_id: str) -> dict | None:
+        """One message kept here: the sorted one with its body, or an old one with only its headers."""
+        with self.lock:
+            row = self.db.execute("SELECT * FROM items WHERE account=? AND message_id=?", (account, message_id)).fetchone()
+            old = None if row else self.db.execute("SELECT * FROM old_mail WHERE account=? AND message_id=? AND state='here'",
+                                                   (account, message_id)).fetchone()
+        return self._item(row) if row else dict(old) if old else None
+
+    def frequent_senders(self, account: str, since: str, least: int) -> list[str]:
+        """Senders of at least `least` messages since then, not known to be bulk mail."""
+        with self.lock:
+            rows = self.db.execute("SELECT from_addr FROM items WHERE account=? AND date >= ? AND group_key IS NULL "
+                                   "AND from_addr != '' GROUP BY from_addr HAVING COUNT(*) >= ?", (account, since, least)).fetchall()
+        return [r[0] for r in rows]
+
+    def group_known_senders(self, account: str) -> None:
+        """New mail from a sender grouped before joins the group (it would otherwise wait for five more)."""
+        with self.lock:
+            self.db.execute("UPDATE items SET bulk=1, group_key='from:' || from_addr WHERE account=? AND group_key IS NULL "
+                            "AND from_addr != '' AND from_addr IN (SELECT from_addr FROM items WHERE account=? "
+                            "AND group_key = 'from:' || from_addr)", (account, account))
+            self.db.commit()
+
+    def group_sender(self, account: str, address: str) -> None:
+        with self.lock:
+            self.db.execute("UPDATE items SET bulk=1, group_key=? WHERE account=? AND from_addr=? AND group_key IS NULL",
+                            ("from:" + address, account, address))
+            self.db.commit()
+
+    def search(self, account: str, words: list[str], since: str = "", until: str = "", limit: int = 20) -> list[dict]:
+        """Mail kept here that has every word, newest first: recent mail by subject, sender and body, older mail
+        by subject and sender (only its headers are here). Not what went to the trash or junk. `since` and `until`
+        are in the stored form, "2026-10-03" or "2026-10-03 09:00"."""
+        def has(fields: tuple[str, ...]) -> tuple[str, list[str]]:
+            sql, args = "", []
+            for w in words:
+                like = "%" + w.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+                sql += " AND (" + " OR ".join(f"{f} LIKE ? ESCAPE '\\'" for f in fields) + ")"
+                args += [like] * len(fields)
+            if since:
+                sql, args = sql + " AND date >= ?", args + [since]
+            if until:
+                sql, args = sql + " AND date <= ?", args + [until + " 99" if len(until) == 10 else until]
+            return sql, args
+        recent, a = has(("subject", "from_name", "from_addr", "body"))
+        older, b = has(("subject", "from_name", "from_addr"))
+        with self.lock:
+            found = self.db.execute("SELECT message_id, from_name, from_addr, subject, date, body, summary, suspicious "
+                                    "FROM items WHERE account=? AND COALESCE(done_action, '') NOT IN ('trash', 'spam')"
+                                    + recent + " ORDER BY date DESC LIMIT ?", [account, *a, limit]).fetchall()
+            old = self.db.execute("SELECT message_id, from_name, from_addr, subject, date FROM old_mail "
+                                  "WHERE account=? AND state='here'" + older + " ORDER BY date DESC LIMIT ?",
+                                  [account, *b, limit]).fetchall()
+        out = [dict(r) for r in found]
+        known = {r["message_id"] for r in out}
+        out += [dict(r) for r in old if r["message_id"] not in known]
+        return sorted(out, key=lambda r: r["date"] or "", reverse=True)[:limit]
 
     def count_unanalyzed(self, account: str) -> int:
         with self.lock:
@@ -571,13 +680,16 @@ class Store:
     OLD_FIELDS = ("uid", "folder", "from_name", "from_addr", "list_id", "bulk", "subject", "date", "size", "seen",
                   "flagged", "category")
 
-    def old_sync(self, account: str, scope: str, rows: list[dict]) -> None:
+    def old_sync(self, account: str, scope: str, rows: list[dict], partial: bool = False) -> None:
         """Make one scope match a fresh scan: new mail is added unjudged, known mail keeps its verdict (headers,
-        flags and location refreshed), mail no longer there is dropped."""
+        flags and location refreshed), mail no longer there is dropped. `partial`: the server left some out, so
+        what isn't in the scan may still be there, and nothing is dropped."""
         with self.lock:
             seen = set()
             for r in rows:
                 mid = r.get("message_id") or f"<uid-{r.get('uid')}@{account}>"
+                self.db.execute("UPDATE OR IGNORE old_mail SET message_id=? WHERE account=? AND message_id=?",
+                                (mid, account, f"<uid-{r.get('uid')}@{account}>"))    # keeps its verdict
                 seen.add(mid)
                 vals = {k: r.get(k) for k in self.OLD_FIELDS}
                 vals["bulk"], vals["seen"], vals["flagged"] = int(bool(vals["bulk"])), int(bool(vals["seen"])), int(bool(vals["flagged"]))
@@ -588,7 +700,7 @@ class Store:
                                     ON CONFLICT(account, message_id) DO UPDATE SET {sets}, scope=excluded.scope, state='here'""",
                                 (account, mid, scope, *vals.values()))
             stale = [r[0] for r in self.db.execute("SELECT message_id FROM old_mail WHERE account=? AND scope=?", (account, scope))
-                     if r[0] not in seen]
+                     if r[0] not in seen and not partial]
             self.db.executemany("DELETE FROM old_mail WHERE account=? AND message_id=?", [(account, m) for m in stale])
             self.db.commit()
 

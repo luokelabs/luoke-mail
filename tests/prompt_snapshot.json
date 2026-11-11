@@ -1,0 +1,38 @@
+{
+ "cleanup": {
+  "requests": 34,
+  "sha256": "baad6a43560073c3bfe90e900029783f646ce05bd894fa5fc4ad6c3a20e4f2c3"
+ },
+ "digest-pick": {
+  "requests": 16,
+  "sha256": "0e0401cfe77bf682cbb1ae209a83becac89fd5372db0db94aacca8241c58229e"
+ },
+ "digest-read": {
+  "requests": 72,
+  "sha256": "a31e0ae30e0474f2dcb8a13e1d75bae69a35ef40a8385e776d23a5c42746d7c4"
+ },
+ "draft": {
+  "requests": 576,
+  "sha256": "35b1045e9152ae821e42f1dbac3fde5515238a24d9a6e6a08dd872e46e29b88d"
+ },
+ "learn-orgs": {
+  "requests": 8,
+  "sha256": "32271586f1685574b1157a51dac3c5eeafbc3554f0245fc0c83f045e2226655f"
+ },
+ "learn-sent": {
+  "requests": 16,
+  "sha256": "0827f92ed98a8165c8e1eb462ef2a090080c4a1b5b4ceb0050ef9470b97bf7ef"
+ },
+ "senders": {
+  "requests": 12,
+  "sha256": "51bf8ba43289923a87f53551b6b66a4fef69efe66e4b647cef435bb32a765c8b"
+ },
+ "thread": {
+  "requests": 64,
+  "sha256": "195158a276f82be613afe1d06a57e1e60c71a1654a20526e86fbe6e00b0d0440"
+ },
+ "triage": {
+  "requests": 288,
+  "sha256": "6d5e8ada2d046e19b17a06ddf6cb3fdf34bfb48200c60ecf2574b83eb45e6a25"
+ }
+}

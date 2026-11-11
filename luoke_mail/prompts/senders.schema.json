@@ -1,0 +1,67 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "items"
+  ],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "n",
+          "kind"
+        ],
+        "properties": {
+          "n": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "marketing",
+              "newsletter",
+              "notification",
+              "transactional",
+              "security",
+              "personal",
+              "other"
+            ],
+            "x-describe": [
+              [
+                "marketing",
+                "广告、促销、优惠活动"
+              ],
+              [
+                "newsletter",
+                "新闻简报、文章推送、定期内容"
+              ],
+              [
+                "notification",
+                "可有可无的通知：社交平台和论坛提醒、活动推荐、产品动态"
+              ],
+              [
+                "transactional",
+                "账单、对账单、订单、付款或交易记录——平时不打开也该留着"
+              ],
+              [
+                "security",
+                "登录提醒、密码和安全变更、验证——平时不打开也该留着"
+              ],
+              [
+                "personal",
+                "个人或工作往来"
+              ],
+              [
+                "other",
+                "都不像"
+              ]
+            ]
+          }
+        }
+      }
+    }
+  }
+}

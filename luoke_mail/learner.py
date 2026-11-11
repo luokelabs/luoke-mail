@@ -25,6 +25,7 @@ RECEIVED_EVERY, SENT_CHECK_EVERY = 7 * 86400, 86400    # weekly: NetEase empties
 RECEIVED_SENDERS = 30
 TEXT_CHARS = 800             # of a message's text in a record: the memory reads the original (ADR 0015)
 AGREE = 2                    # messages that must agree before a fact from the user's own mail takes effect
+MISS_LIMIT = 3               # tries, each after the usual wait, before a mail or organisation with no usable answer is let be
 
 
 # the evidence of guesses already waiting is looked at again once when this goes up (0.13.15: counts kept;
@@ -183,7 +184,7 @@ class Learner:
         st = self.state(acct)
         todo = st["sent_todo"]
         link = self.app.link("background", job=job)
-        batch = todo[:link.batch("learn-sent", learn.SENT_BATCH)]
+        batch = todo[:link.batch("learn-sent", st.get("sent_cap") or learn.SENT_BATCH)]
         job.update(done=st.get("sent_done") or 0, total=st.get("sent_total") or 0)
         if acct == DEMO:
             mails = [m for m in samples.demo_sent() if m["uid"] in batch]
@@ -195,6 +196,14 @@ class Learner:
         if mails and count < len(mails):          # one request could not carry them all: the rest comes next time
             batch = [u for u in batch if str(u) not in {str(m["uid"]) for m in mails[count:]}]
             mails = mails[:count]
+        if facts is None:                         # no usable answer: these mails are not read yet
+            if len(mails) > 1:
+                self.store.cache_update(acct, "learn", sent_cap=len(mails) // 2)    # fewer at a time
+                return
+            self._unanswered(acct, "sent", str(mails[0]["uid"]))
+            facts = []
+        elif st.get("sent_cap"):
+            self.store.cache_update(acct, "learn", sent_cap=None)
         touched = set()
         for f in facts:
             ev = [{"ref": mails[n - 1].get("message_id") or f"uid-{mails[n - 1]['uid']}", "subject": mails[n - 1].get("subject") or "（无主题）",
@@ -249,6 +258,8 @@ class Learner:
             if not archived:
                 _, archived = mb.old_headers("archive", self.app.cfg["fetch"]["days"])
             headers += archived
+            ours = self.store.read_by_us(acct)          # marked read once sorted: not the user opening it
+            headers = [{**h, "seen": False} if h.get("seen") and h.get("message_id") in ours else h for h in headers]
         self._refresh_evidence(acct, headers)
         self.store.cache_update(acct, "learn", evidence_at=time.time(), evidence_v=EVIDENCE_V)
         seen = set(self.state(acct).get("received_seen") or [])
@@ -258,14 +269,21 @@ class Learner:
         self.store.cache_update(acct, "learn", received_at=time.time())
 
     def _learn_orgs(self, acct: str, senders: list[dict], seen: set, job: dict, link) -> bool:
-        """Ask about these organisations, a batch at a time; each batch done is kept (received_seen). False when
+        """Ask about these organisations, a batch at a time; each batch answered is kept (received_seen). False when
         cancelled before the end."""
-        i = 0
+        i, size = 0, len(senders)
         while i < len(senders):
             if job["cancel"]:
                 return False
-            found, count = learn.from_received(senders[i:], link)   # 螺壳主控 may say not now: what is done stays done
-            batch, i = senders[i:i + count], i + count
+            found, count = learn.from_received(senders[i:i + size], link)   # 螺壳主控 may say not now: what is done stays done
+            batch = senders[i:i + count]
+            if found is None:           # no usable answer is not 「nothing to learn」: kept as seen, they were never asked again
+                if count > 1:
+                    size = count // 2   # a shorter answer may come out whole
+                    continue
+                self._unanswered(acct, "received", batch[0]["key"])
+                found = []
+            size, i = len(senders), i + count
             for f in found:
                 ev = [{"ref": batch[n - 1]["key"], "subject": batch[n - 1]["subjects"][0], "name": batch[n - 1]["name"],
                        "count": batch[n - 1]["count"], "date": batch[n - 1]["last"],
@@ -279,13 +297,24 @@ class Learner:
             self.store.cache_update(acct, "learn", received_seen=sorted(seen)[-5000:])
         return True
 
+    def _unanswered(self, acct: str, kind: str, key: str) -> None:
+        """No usable answer about one mail or organisation on its own. The model may be at fault now rather than
+        the item: it is asked again after the usual wait (the error), and let be after MISS_LIMIT tries (returns)."""
+        missed = dict(self.state(acct).get(f"{kind}_missed") or {})
+        missed[key] = missed.get(key, 0) + 1
+        if missed[key] >= MISS_LIMIT:
+            del missed[key]
+        self.store.cache_update(acct, "learn", **{f"{kind}_missed": missed})
+        if key in missed:
+            raise engines.EngineError("本机模型暂时没有给出可用的结果。")
+
     # ---- before the trash: learn first, and the clean-up itself as a record (2026-10-16) -----------
     def before_clean(self, acct: str, headers: list[dict], job: dict | None = None) -> int:
         """Whatever goes wrong here, the clean-up the user asked for goes ahead (the review of 2026-10-17)."""
         try:
             return self._before_clean(acct, headers, job)
         except Exception as ex:  # noqa: BLE001 - learning is a side matter of a clean-up
-            print(f"luoke-mail: learning before the clean-up skipped: {type(ex).__name__}: {ex}", file=sys.stderr)
+            print(f"luoke-mail: learning before the clean-up skipped: {type(ex).__name__}", file=sys.stderr)
             return 0
 
     def _before_clean(self, acct: str, headers: list[dict], job: dict | None = None) -> int:
@@ -308,7 +337,7 @@ class Learner:
         try:
             self._learn_orgs(acct, senders, seen, job, link)
         except (engines.EngineError, MailError) as ex:
-            print(f"luoke-mail: learning before the clean-up skipped: {ex}", file=sys.stderr)
+            print(f"luoke-mail: learning before the clean-up skipped: {type(ex).__name__}", file=sys.stderr)
             return 0
         finally:
             self.refill(acct)
@@ -320,7 +349,7 @@ class Learner:
         try:
             return self._cleared(acct, groups)
         except Exception as ex:  # noqa: BLE001
-            print(f"luoke-mail: recording the clean-up skipped: {type(ex).__name__}: {ex}", file=sys.stderr)
+            print(f"luoke-mail: recording the clean-up skipped: {type(ex).__name__}", file=sys.stderr)
             return 0
 
     def _cleared(self, acct: str, groups: list[dict]) -> int:
@@ -486,7 +515,7 @@ class Learner:
             if raw:
                 body = " ".join((parse_message(raw).get("body") or "").split())[:TEXT_CHARS]
                 out.append({"subject": memory.mask(h.get("subject") or ""), "date": (h.get("date") or "")[:16],
-                            "text": memory.mask(body)})
+                            "text": memory.mask(body), "text_by": "sender"})    # the sender's words, not the user's
         return out
 
     def _kinds(self, acct: str) -> dict[str, str]:

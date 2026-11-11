@@ -1,0 +1,10 @@
+螺壳邮件助手（luoke-mail）
+Copyright 2026 螺壳实验室 Luoke Labs
+
+以 Apache License 2.0 发布，见 LICENSE。「螺壳」「Luoke」的名称、图标、吉祥物和品牌素材（packaging/AppIcon.icns、luoke_mail/static/img/ 里的 app-*.png、favicon.png、k-peek.webp）不随许可授予（Apache-2.0 第 6 条），用它们发布改版要另经同意。
+
+0.19.8 及以前发出的版本按 MIT 许可发布，仍按 MIT。
+
+仓库里带的第三方内容各按自己的许可：
+- luoke_mail/static/icons.js：图标取自 Lucide（ISC，其中源自 Feather 的部分为 MIT），许可原文在该文件开头。
+- luoke_mail/static/img/guide/：各邮箱设置页面的截图，用来说明怎样生成授权码，页面的权利归各邮箱服务商。

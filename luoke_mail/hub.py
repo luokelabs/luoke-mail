@@ -70,9 +70,9 @@ class Refused(EngineError):
 
 
 def _refusal(code: str, data: dict) -> EngineError:
-    """A reason code as luoke-mail tells it: in a sentence for the page, the hub's own words to stderr."""
+    """A reason code as luoke-mail tells it: in a sentence for the page, only the code to stderr."""
     detail = str(data.get("message") or "")
-    print(f"[luoke-mail] hub refused: {code}: {detail}", file=sys.stderr)
+    print(f"[luoke-mail] hub refused: {code}", file=sys.stderr)
     retry = data.get("retry_after")
     retry = float(retry) if isinstance(retry, (int, float)) else None
     if code in ("busy", "paused", "interrupted", "not_ready"):
@@ -184,7 +184,7 @@ class Hub(Link):
         except EngineError:
             raise
         except (OSError, http.client.HTTPException) as ex:
-            print(f"[luoke-mail] hub unreachable: {type(ex).__name__}: {ex}", file=sys.stderr)
+            print(f"[luoke-mail] hub unreachable: {type(ex).__name__}", file=sys.stderr)
             raise EngineError(NOT_RUNNING) from ex
         try:
             data = json.loads(raw.decode("utf-8")) if raw else {}
@@ -275,7 +275,7 @@ class Hub(Link):
                           body=json.dumps(body, ensure_ascii=False).encode("utf-8"), headers=self._headers(headers))
                 r = c.getresponse()
             except (OSError, http.client.HTTPException) as ex:
-                print(f"[luoke-mail] hub unreachable: {type(ex).__name__}: {ex}", file=sys.stderr)
+                print(f"[luoke-mail] hub unreachable: {type(ex).__name__}", file=sys.stderr)
                 raise EngineError(NOT_RUNNING) from ex
             _note_version(self.path, r)
             if r.status != 200:
@@ -316,7 +316,7 @@ class Hub(Link):
                     elif not line:
                         event = None
             except (OSError, http.client.HTTPException, ValueError) as ex:
-                print(f"[luoke-mail] hub stream broke: {type(ex).__name__}: {ex}", file=sys.stderr)
+                print(f"[luoke-mail] hub stream broke: {type(ex).__name__}", file=sys.stderr)
                 if isinstance(ex, socket.timeout):
                     raise EngineError("模型响应超时，请稍后重试。") from ex
                 raise EngineError("模型的回答没有完整传回，请稍后重试。") from ex

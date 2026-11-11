@@ -16,10 +16,10 @@ from email.utils import formatdate, make_msgid
 from typing import Callable
 
 from . import subscriptions, triage
-from .mailbox import Mailbox, MailError, same_mid
+from .mailbox import Mailbox, MailError, real_mid, same_mid
 from .store import Store
 
-OPS = {"archive": "归档", "trash": "移到垃圾箱", "spam": "移到垃圾邮件", "flag": "加星标", "read": "标为已读",
+OPS = {"archive": "归档", "trash": "删除", "spam": "移到垃圾邮件", "flag": "加星标", "read": "标为已读",
        "skip": "跳过", "complete": "完成并归档", "label": "加标签"}
 FOLDER_OPS = {"archive": "archive", "complete": "archive", "trash": "trash", "spam": "junk"}
 DEMO = "demo"
@@ -110,6 +110,7 @@ class Actions:
             return self._execute_demo(items, op)
 
         undo, done, gone, stuck, found, sent = [], [], [], [], [], {}
+        lost, unfound = [], []
         try:
             with self.open_mailbox() as mb:
                 for it in items:
@@ -117,7 +118,11 @@ class Actions:
                     if uid:
                         found.append((uid, it["message_id"], it["id"]))
                     else:
-                        gone.append(it["id"])
+                        lost.append(it)
+                # gone only if its UID has left the inbox; otherwise it was not found, and nothing was done to it
+                here = mb.remaining("INBOX", [it["uid"] for it in lost if it.get("uid")]) if lost else set()
+                for it in lost:
+                    (unfound if it.get("uid") in here else gone).append(it["id"])
                 if found:
                     undo, left = self._mailbox_op(mb, op, [(u, mid) for u, mid, _ in found], sent, label)
                     done = [i for u, _, i in found if u not in left]
@@ -138,12 +143,14 @@ class Actions:
         what = f"加上标签「{label}」" if op == "label" else OPS[op]
         parts = [f"已{what} {len(done)} 封" if done else None,
                  f"{len(stuck)} 封未能{OPS[op]}，请稍后重试" if stuck else None,
+                 f"{len(unfound)} 封没有找到，未作处理" if unfound else None,
                  f"{len(gone)} 封已不在收件箱中，已从列表移除" if gone else None]
         msg = "；".join(p for p in parts if p) or f"没有邮件被{OPS[op]}"
         if by == "rule":
             msg = "按你的习惯自动" + msg.removeprefix("已")
         elif by == "own":                         # 螺壳's own mailbox: all of it done unasked (ADR 0016)
             msg = "在螺壳的邮箱中自动" + msg.removeprefix("已")
+        stuck += unfound
         log_id = self.store.log(self.account, "auto" if by in ("rule", "own") else op, done, not stuck, msg, undo or None)
         return {"ok": not stuck, "done": done, "gone": gone, "stuck": stuck, "log_id": log_id if undo else None, "message": msg}
 
@@ -230,10 +237,10 @@ class Actions:
         mine = [it for it in self.store.items(self.account, "pending")
                 if (sub.get("list_id") and it.get("list_id") == sub["list_id"]) or
                 (not sub.get("list_id") and it.get("from_addr") == sub.get("from_addr"))]
-        when = f"垃圾箱将在 {purge_days} 天后自动清空，" if purge_days else "垃圾箱会被邮箱定期清空，"
+        when = f"邮箱会在 {purge_days} 天后自动清空，" if purge_days else "邮箱会定期清空，"
         if self.demo:
             self.store.set_state([it["id"] for it in mine], "done", "trash")
-            msg = f"已将「{label}」的 {sub.get('count', 0)} 封邮件移到垃圾箱（示例）"
+            msg = f"已将「{label}」的 {sub.get('count', 0)} 封邮件移到「已删除」（示例）"
             return {"ok": True, "message": msg, "count": sub.get("count", 0),
                     "log_id": self.store.log(self.account, "trash", [it["id"] for it in mine], True, msg, [{"kind": "demo"}])}
         with self.open_mailbox() as mb:
@@ -271,13 +278,13 @@ class Actions:
                 raise
             self.store.set_state([it["id"] for it in mine if it["message_id"] in gone_mids], "done", "trash")
             print(f"[luoke-mail] trash history: connection lost after {total} message(s) moved", file=sys.stderr)
-            msg = f"邮箱连接中断：已将「{label}」的 {total} 封移到垃圾箱，另有一批结果未能确认。可以撤销，也可以再执行一次，已完成的会自动跳过。"
+            msg = f"邮箱连接中断：已将「{label}」的 {total} 封移到「已删除」，另有一批结果未能确认。可以撤销，也可以再执行一次，已完成的会自动跳过。"
             log_id = self.store.log(self.account, "trash", [it["id"] for it in mine], False, msg, undo + pending)
             return {"ok": False, "interrupted": True, "message": msg, "count": total, "log_id": log_id}
         self.store.set_state([it["id"] for it in mine if it["message_id"] not in stuck_mids], "done", "trash")
         if not total and not stuck_mids:
             return {"ok": True, "message": f"邮箱中没有「{label}」可以清理的邮件。", "count": 0, "log_id": None}
-        msg = (f"已将「{label}」的 {total} 封邮件（约 {human_size(size)}）移到垃圾箱。{when}在此之前可以撤销。" if total else "")
+        msg = (f"已将「{label}」的 {total} 封邮件（约 {human_size(size)}）移到「已删除」。{when}在此之前可以撤销。" if total else "")
         if stuck_mids:
             msg += f"{len(stuck_mids)} 封未能移动，请稍后重试。"
         log_id = self.store.log(self.account, "trash", [it["id"] for it in mine], not stuck_mids, msg, undo or None)
@@ -287,7 +294,7 @@ class Actions:
     @staticmethod
     def _still(mb: Mailbox, folder: str, rows: list[dict]) -> list[dict]:
         """The rows (from a scan) whose message is still in `folder` under the same UID: the UID now holds the
-        same Message-ID (a message without one was scanned as <uid-N@...> and has none now). A UID that holds
+        same Message-ID (a message without one scanned before 0.18.26 is <uid-N@...> until it is scanned again). A UID that holds
         another message -- the folder was rebuilt, or the rows are not this mailbox's -- is left alone."""
         present = mb.remaining(folder, [r["uid"] for r in rows])
         rows = [r for r in rows if r["uid"] in present]
@@ -297,13 +304,13 @@ class Actions:
         ok = []
         for r in rows:
             st = now.get(r["uid"]) or {}
-            same = same_mid(st.get("message_id"), r["message_id"]) or \
-                not st.get("message_id") and str(r["message_id"] or "").startswith("<uid-")
+            same = same_mid(st.get("message_id"), r["message_id"]) or (
+                str(r["message_id"] or "").startswith("<uid-") and str(st.get("message_id") or "").startswith("<nomid-"))
             # starred or filed under a keep label since the scan, or put back in the inbox: the user wants it
             if same and not triage.held(st) and not (folder != "INBOX" and st.get("inbox")):
                 ok.append(r)
         if len(ok) < len(rows):
-            print(f"[luoke-mail] {len(rows) - len(ok)} message(s) in {folder!r} are not as scanned (another message, "
+            print(f"[luoke-mail] {len(rows) - len(ok)} message(s) are not as scanned (another message, "
                   "starred, kept or back in the inbox); left alone", file=sys.stderr)
         return ok
 
@@ -433,7 +440,7 @@ class Actions:
     def _old_message(self, archived: int, trashed: int, stuck: int, size: int, starred: int = 0) -> str:
         where = "「所有邮件」" if self.provider == "gmail" or self.demo else "归档文件夹"
         parts = [f"已归档 {archived} 封（可在{where}中找到）" if archived else None,
-                 f"已将 {trashed} 封（约 {human_size(size)}）移到垃圾箱" if trashed else None,
+                 f"已将 {trashed} 封（约 {human_size(size)}）移到「已删除」" if trashed else None,
                  f"{starred} 封含精选内容，已保留并加星标" if starred else None,
                  f"{stuck} 封未能处理，请稍后重试" if stuck else None]
         return "；".join(p for p in parts if p) or "没有邮件需要处理"
@@ -505,7 +512,7 @@ class Actions:
             try:
                 mb.copy(folder, uids, label)
             except MailError as ex:                  # the label may have been deleted since: the mail is back anyway
-                print(f"[luoke-mail] could not restore label {label!r}: {ex}", file=sys.stderr)
+                print(f"[luoke-mail] could not restore a label: {type(ex).__name__}", file=sys.stderr)
 
     @staticmethod
     def _undo_batched(mb: Mailbox, steps: list[dict]) -> list[dict]:
@@ -620,19 +627,28 @@ class Actions:
         return {"ok": True, "message": msg, "log_id": log_id}
 
     # ---- calendar --------------------------------------------------------------------------
-    def calendar(self, item_id: int) -> dict:
+    def calendar(self, item_id: int, index: int | None = None, adding: bool = True) -> dict:
+        """One appointment of the mail (Google 日历 takes one at a time), or all of them in one calendar file.
+        `adding=False`: only the link, for a button the user has not pressed yet."""
         it = self._item(item_id)
-        ev = it.get("event")
-        if not ev or not ev.get("date"):
+        events = triage.events_of(it)
+        if not events:
             raise ActionError("未识别到具体日期。")
-        out = {"ics": event_ics(it, ev), "filename": f"luoke-{item_id}.ics"}
+        if index is not None and not 0 <= index < len(events):
+            raise ActionError("未找到这个日程。")
+        chosen = events if index is None else [events[index]]
+        out = {"ics": event_ics(it, chosen), "filename": f"luoke-{item_id}.ics"}
         if self.provider == "gmail" and not self.demo:
-            out["google_url"] = google_calendar_url(it, ev)
+            out["google_url"] = google_calendar_url(it, chosen[0])
+        if not adding:
+            return out
         # what was put in the calendar, so a later reminder of the same appointment says so instead of offering it
         # again (10-22; until 主控 reads the calendar itself, top-level ADR 0014 amended)
-        added = [x for x in (self.store.cache_get(self.account, "calendar_added")[0] or []) if x.get("message_id") != it.get("message_id")]
-        added.append({"date": ev.get("date"), "start": ev.get("start"), "domain": (it.get("from_domain") or "").lower(),
-                      "title": ev.get("title"), "message_id": it.get("message_id")})
+        fresh = {(e.get("date"), e.get("start")) for e in chosen}
+        added = [x for x in (self.store.cache_get(self.account, "calendar_added")[0] or [])
+                 if x.get("message_id") != it.get("message_id") or (x.get("date"), x.get("start")) not in fresh]
+        added += [{"date": e.get("date"), "start": e.get("start"), "domain": (it.get("from_domain") or "").lower(),
+                   "title": e.get("title"), "message_id": it.get("message_id")} for e in chosen]
         self.store.cache_set(self.account, "calendar_added", added[-200:])
         return out
 
@@ -651,7 +667,7 @@ class Actions:
                 return {"ok": True, "message": msg, "status": "unsubscribed"}
             # the sender's server refused the one-click request: fall back to its unsubscribe page
             import sys
-            print(f"[luoke-mail] one-click unsubscribe refused for {label}: {detail}", file=sys.stderr)
+            print(f"[luoke-mail] one-click unsubscribe refused: {detail}", file=sys.stderr)
             self.store.set_sender(self.account, key, "unsubscribe_opened", label, "web")
             msg = f"「{label}」不支持一键退订，已打开退订网页，请按页面提示完成。"
             self.store.log(self.account, "unsubscribe", [], True, msg)
@@ -700,7 +716,7 @@ def build_draft(it: dict, text: str, user_address: str, display_name: str, messa
     m["Subject"] = subject if subject.lower().startswith(("re:", "回复：", "回复:")) else f"Re: {subject}"
     m["Date"] = formatdate(localtime=True)
     m["Message-ID"] = message_id
-    if it.get("message_id") and not it["message_id"].startswith("<uid-"):
+    if real_mid(it.get("message_id")):
         m["In-Reply-To"] = it["message_id"]
         m["References"] = it["message_id"]
     m.set_content(text)
@@ -708,10 +724,14 @@ def build_draft(it: dict, text: str, user_address: str, display_name: str, messa
 
 
 def _event_bounds(ev: dict) -> tuple[str, str, bool]:
-    day = dt.date.fromisoformat(ev["date"])
-    if ev.get("start"):
-        start = dt.datetime.combine(day, dt.time.fromisoformat(ev["start"]))
-        end = dt.datetime.combine(day, dt.time.fromisoformat(ev["end"])) if ev.get("end") else start + dt.timedelta(hours=1)
+    try:
+        day = dt.date.fromisoformat(ev["date"])
+        start = dt.datetime.combine(day, dt.time.fromisoformat(ev["start"])) if ev.get("start") else None
+        end = dt.datetime.combine(day, dt.time.fromisoformat(ev["end"])) if start and ev.get("end") else None
+    except (KeyError, TypeError, ValueError):
+        raise ActionError("无法识别这个日程的日期或时间，未能加入日历。")
+    if start:
+        end = end or start + dt.timedelta(hours=1)
         if end <= start:
             end = start + dt.timedelta(hours=1)
         return start.strftime("%Y%m%dT%H%M%S"), end.strftime("%Y%m%dT%H%M%S"), False
@@ -728,7 +748,8 @@ def google_calendar_url(it: dict, ev: dict) -> str:
 
 
 def _ics_text(s: str) -> str:
-    return (s or "").replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+    s = (s or "").replace("\r\n", "\n").replace("\r", "\n")      # a bare CR would end the line: another property
+    return s.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
 
 
 def _fold(line: str) -> list[str]:
@@ -744,20 +765,25 @@ def _fold(line: str) -> list[str]:
     return [out[0]] + [" " + x for x in out[1:]]
 
 
-def event_ics(it: dict, ev: dict) -> str:
-    start, end, all_day = _event_bounds(ev)
+def event_ics(it: dict, events: list[dict]) -> str:
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    # the same mail's event keeps one UID: imported twice it is updated, not added twice (luoke-mail#27)
-    uid = hashlib.sha256(str(it.get("message_id") or it["id"]).encode()).hexdigest()[:24]
-    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//luoke-mail//CN", "CALSCALE:GREGORIAN", "BEGIN:VEVENT",
-             f"UID:{uid}@luoke-mail.local", f"DTSTAMP:{stamp}",
-             f"DTSTART;VALUE=DATE:{start}" if all_day else f"DTSTART:{start}",
-             f"DTEND;VALUE=DATE:{end}" if all_day else f"DTEND:{end}",
-             f"SUMMARY:{_ics_text(ev.get('title') or it.get('subject') or '日程')}",
-             f"DESCRIPTION:{_ics_text((it.get('summary') or '') + chr(10) + '来自邮件：' + (it.get('subject') or ''))}"]
-    if ev.get("location"):
-        lines.append(f"LOCATION:{_ics_text(ev['location'])}")
-    lines += ["END:VEVENT", "END:VCALENDAR"]
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//luoke-mail//CN", "CALSCALE:GREGORIAN"]
+    for ev in events:
+        start, end, all_day = _event_bounds(ev)
+        # the same appointment keeps one UID: imported twice it is updated, not added twice (luoke-mail#27). The
+        # mail's first one keeps the UID it had while a mail had just one
+        first = ev.get("date") == (it.get("event") or {}).get("date") and ev.get("start") == (it.get("event") or {}).get("start")
+        seed = str(it.get("message_id") or it["id"]) + ("" if first else f"|{ev.get('date')}|{ev.get('start')}")
+        uid = hashlib.sha256(seed.encode()).hexdigest()[:24]
+        lines += ["BEGIN:VEVENT", f"UID:{uid}@luoke-mail.local", f"DTSTAMP:{stamp}",
+                  f"DTSTART;VALUE=DATE:{start}" if all_day else f"DTSTART:{start}",
+                  f"DTEND;VALUE=DATE:{end}" if all_day else f"DTEND:{end}",
+                  f"SUMMARY:{_ics_text(ev.get('title') or it.get('subject') or '日程')}",
+                  f"DESCRIPTION:{_ics_text((it.get('summary') or '') + chr(10) + '来自邮件：' + (it.get('subject') or ''))}"]
+        if ev.get("location"):
+            lines.append(f"LOCATION:{_ics_text(ev['location'])}")
+        lines.append("END:VEVENT")
+    lines.append("END:VCALENDAR")
     return "\r\n".join(x for line in lines for x in _fold(line)) + "\r\n"
 
 

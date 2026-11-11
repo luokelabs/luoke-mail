@@ -34,9 +34,9 @@ FLAVOURS = {
 def _msg_date(m: dict) -> dt.date | None:
     hit = re.search(rb"^Date:\s*(.+?)\r?$", m["raw"], re.M | re.I)
     try:
-        return parsedate_to_datetime(hit.group(1).decode()).date() if hit else None
+        return parsedate_to_datetime(hit.group(1).decode()).date() if hit else dt.date(2026, 3, 7)     # no Date: when it arrived
     except (TypeError, ValueError):
-        return None
+        return dt.date(2026, 3, 7)
 
 
 TOKEN = re.compile(r'"(?:[^"\\]|\\.)*"|\([^)]*\)|\[[^\]]*\]|\{\d+\}|\S+')
@@ -57,8 +57,12 @@ class FakeIMAP:
         self.folders: dict[str, list[dict]] = {name: [] for name, _ in f["folders"]}
         self.uidnext: dict[str, int] = {name: 1 for name in self.folders}
         self.commands: list[str] = []
+        self.internal = "07-Mar-2019 10:00:00 +0800"
+        self.unseen_folders: set | None = None
         self.violations: list[str] = []
         self.ignore_moves = ignore_moves          # answer OK to MOVE / COPY and do nothing (a lying server)
+        self.short_reply = 0                      # a header FETCH of more than 100 brings back only this many, and says OK
+        self.silent: set[int] = set()             # UIDs a header FETCH never brings back
         self.drop_after_move = 0                  # carry out the next N MOVE / COPY, then drop the connection unanswered
         self.drop_at_move = 0                     # let N-1 MOVE / COPY through, carry out the Nth and drop unanswered
         self.drop_body_at: set[int] = set()       # the Nth whole-message fetch (counting from 1) drops the connection
@@ -173,6 +177,11 @@ class FakeIMAP:
             return h.send(f"{tag} OK LIST completed")
         if cmd == "CREATE":
             fname = _unquote(args[0])
+            if self.unseen_folders is not None:             # QQ without 「收取"我的文件夹"」: it exists, unlisted
+                if fname in self.unseen_folders:
+                    return h.send(f"{tag} NO [ALREADYEXISTS] Folder exist with the same name!")
+                self.unseen_folders.add(fname)
+                return h.send(f"{tag} OK CREATE completed")
             self.folders.setdefault(fname, [])
             self.uidnext.setdefault(fname, 1)
             return h.send(f"{tag} OK CREATE completed")
@@ -251,7 +260,12 @@ class FakeIMAP:
                     raise _Bye()
             assert not re.search(r"BODY\[|\bRFC822\b(?!\.)", what.replace("BODY.PEEK[", "")), "must not set \\Seen while reading"
             gmail = "X-GM-EXT-1" in self.caps
-            for m in self._msgs(folder, rest[0]):
+            found = self._msgs(folder, rest[0])
+            if "BODY.PEEK" in what:
+                found = [m for m in found if m["uid"] not in self.silent]
+                if self.short_reply and len(found) > 100:
+                    found = found[:self.short_reply]
+            for m in found:
                 flags = " ".join(sorted(m["flags"]))
                 extra = ""
                 if "X-GM-LABELS" in what and gmail:
@@ -261,8 +275,9 @@ class FakeIMAP:
                 if "BODY.PEEK" not in what:
                     h.send(f"* {m['uid']} FETCH (UID {m['uid']}{extra})")
                     continue
+                after = f' INTERNALDATE "{m.get("internal") or self.internal}"' if "INTERNALDATE" in what else ""
                 h.wfile.write(f"* {m['uid']} FETCH (UID {m['uid']} RFC822.SIZE {len(m['raw'])} FLAGS ({flags}){extra} BODY[] {{{len(m['raw'])}}}\r\n".encode()
-                              + m["raw"] + b")\r\n")
+                              + m["raw"] + after.encode() + b")\r\n")
             return h.send(f"{tag} OK FETCH completed")
         if st.get("ro"):
             return h.send(f"{tag} NO mailbox is read-only")
@@ -407,7 +422,7 @@ class FakeChat:
 def suggestion(action="reply", **kw) -> str:
     base = {"category": "work", "priority": "high", "action": action, "summary": "同事要 Q3 数据", "reason": "明早汇报要用",
             "due_date": (dt.date.today() + dt.timedelta(days=30)).isoformat(), "event_title": None,   # not 快到期 "event_date": None, "event_start": None, "event_end": None,
-            "event_location": None, "reply_points": ["今天下班前发"], "suspicious": False}
+            "event_location": None, "more_events": [], "reply_points": ["今天下班前发"], "suspicious": False, "risks": []}
     base.update(kw)
     return json.dumps(base, ensure_ascii=False)
 

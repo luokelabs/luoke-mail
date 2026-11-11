@@ -1,0 +1,174 @@
+{
+  "reply": {
+    "id": 22,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "subs"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g13-r3",
+                      "g13-t4",
+                      "g13-t5"
+                    ],
+                    "component": "Column",
+                    "id": "root"
+                  },
+                  {
+                    "component": "ChoicePicker",
+                    "id": "g13-p1",
+                    "label": "体检范围",
+                    "options": [
+                      {
+                        "label": "最近 30 天",
+                        "value": "30"
+                      },
+                      {
+                        "label": "最近 60 天",
+                        "value": "60"
+                      },
+                      {
+                        "label": "最近 90 天",
+                        "value": "90"
+                      },
+                      {
+                        "label": "最近 180 天",
+                        "value": "180"
+                      },
+                      {
+                        "label": "最近 365 天",
+                        "value": "365"
+                      }
+                    ],
+                    "value": {
+                      "path": "/choices/days"
+                    }
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g13-b2-t",
+                    "text": "开始体检"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g13-b2",
+                          "choices": {
+                            "path": "/choices"
+                          },
+                          "page": "subs"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g13-b2-t",
+                    "component": "Button",
+                    "id": "g13-b2",
+                    "variant": "primary"
+                  },
+                  {
+                    "children": [
+                      "g13-p1",
+                      "g13-b2"
+                    ],
+                    "component": "Row",
+                    "id": "g13-r3"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g13-t4",
+                    "text": "还没体检过。",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g13-t5",
+                    "text": "设好天数，点「开始体检」。",
+                    "variant": "caption"
+                  }
+                ],
+                "surfaceId": "subs"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateDataModel": {
+                "path": "/",
+                "surfaceId": "subs",
+                "value": {
+                  "choices": {
+                    "days": [
+                      "60"
+                    ]
+                  }
+                }
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/subs"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 22,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/subs"
+    }
+  }
+}

@@ -22,7 +22,6 @@ import secrets
 import sys
 import threading
 import time
-import traceback
 import urllib.parse
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -36,12 +35,14 @@ from .profiler import Profiler
 from .review import Review
 from .credstore import SecretUnavailable, default_store
 from .desktop import Desktop, DesktopError
-from .mailbox import KeychainLocked, MailError, Mailbox, find_unsubscribe, group_key, same_mid
+from .mailbox import KeychainLocked, MailError, Mailbox, find_unsubscribe, group_key, real_mid, same_mid
 from .store import RULE_KINDS, Store
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
                  ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp"}
+WINDOW_DAYS = 31                # NetEase opens only the last 30 days to IMAP until the user changes it
+WINDOW_NOTE = "网易邮箱目前只开放最近 30 天的邮件。要整理更早的邮件，请在网页版「设置 → POP3/SMTP/IMAP → 收取选项」中选择「收取全部邮件」。"
 MAIL_SECRET = "imap"
 ENGINE_SECRET = "engine"
 # where a suggestion came from, shown only when it isn't the model's own ("rule-differs" has its own chip)
@@ -244,12 +245,13 @@ class App:
             raise ValueError("没有指明是哪个邮箱，请刷新页面后重试。")
         acct = self.account(source)
         if irreversible and not (acct == DEMO or self.cfg["mode"]["write"]):
-            raise ValueError("批量移到垃圾箱或垃圾邮件前，请先在「设置」中开启处理模式。")
+            raise ValueError("批量删除或移到垃圾邮件前，请先在「设置」中开启处理模式。")
         return Actions(self.store, acct, self.provider(acct), lambda: self.open_mailbox(acct), True)
 
     def accounts_view(self) -> list[dict]:
         return [{"key": m["address"].lower(), **{k: m.get(k) for k in ("provider", "address", "host", "port")}, "own": bool(m.get("own")),
-                 "has_secret": self._has_secret(m["address"]), "synced": self.store.has_items(m["address"].lower())}
+                 "has_secret": self._has_secret(m["address"]), "synced": self.store.has_items(m["address"].lower()),
+                 "window_note": WINDOW_NOTE if self.store.cache_get(m["address"].lower(), "window_only")[0] else None}
                 for m in self.cfg["accounts"]]
 
     def state(self) -> dict:
@@ -529,7 +531,10 @@ class App:
             p["signature"] = str(body["signature"])[:60]
         for k, hi in (("limit", 500), ("days", 365)):
             if body.get(k) is not None:
-                f[k] = max(1, min(int(body[k]), hi))
+                try:
+                    f[k] = max(1, min(int(str(body[k]).strip()), hi))
+                except ValueError:
+                    raise ValueError("请填写数字。") from None
         config.save(self.cfg)
         return {"profile": p, "fetch": f}
 
@@ -626,7 +631,7 @@ class App:
             except Exception as ex:  # noqa: BLE001
                 job["status"] = "error"
                 job["error"] = str(ex) if isinstance(ex, (MailError, ValueError, engines.EngineError)) else f"{type(ex).__name__}: {ex}"
-                traceback.print_exc()
+                desktop.log_crash(ex, f"job {kind}")
             finally:
                 job["stage"] = ""
                 if idle:
@@ -648,6 +653,8 @@ class App:
         sources = {s["key"] for s in self.store.digest_sources(acct)}
 
         def fn(item, rule):
+            if item.get("auth") == "pass":        # the code may weigh the pass; only for a sender seen before
+                item = {**item, "sender_seen": self.store.sender_seen(acct, triage.seen_as(item.get("from_addr")), item.get("message_id"))}
             return triage.analyze(item, link, about, p["language"], today, me, rule,
                                   digest_source=subscriptions.sender_key(item) in sources)
 
@@ -671,6 +678,10 @@ class App:
         mails: list[dict] = []
         with self.open_mailbox(acct) as mb:
             present = mb.inbox_uids()
+            self._name_unnamed(acct, mb, present)
+            self._group_mailings(acct, mb)
+            self.store.cache_set(acct, "window_only", self.provider(acct) in ("163", "126") and bool(present)
+                                 and not mb.count_before(WINDOW_DAYS))
             self._recheck_senders(acct, mb, present)
             gone = self.store.mark_missing(acct, present)
             self._handled_elsewhere(acct, mb, gone, present)
@@ -690,6 +701,31 @@ class App:
         self._threads(acct, job, user)
         return {**r, "gone": len(gone), "back": back, "in_range": len(recent), "old": old, "auto": auto,
                 **({"cut": cut} if cut else {})}
+
+    MAILING_DAYS, MAILING_LEAST, MAILING_ASKS = 90, 5, 20
+
+    def _group_mailings(self, acct: str, mb) -> None:
+        """Most mailboxes add no list headers (139 none at all): a sender of five messages in 90 days whom
+        the user never wrote to is a mailing, judged as one group. Who the user did write to is remembered."""
+        self.store.group_known_senders(acct)
+        since = (dt.datetime.now() - dt.timedelta(days=self.MAILING_DAYS)).strftime("%Y-%m-%d %H:%M")
+        known = set(self.store.cache_get(acct, "wrote_to")[0] or [])
+        ask = [a for a in self.store.frequent_senders(acct, since, self.MAILING_LEAST) if a not in known and a not in self._me(acct)]
+        if not ask:
+            return
+        ask = ask[:self.MAILING_ASKS]
+        wrote = mb.wrote_to(ask)
+        self.store.cache_set(acct, "wrote_to", sorted(known | wrote))
+        for address in ask:
+            if address not in wrote:
+                self.store.group_sender(acct, address)
+
+    def _name_unnamed(self, acct: str, mb, present: set[str]) -> None:
+        rows = self.store.unnamed(acct, present)
+        got = mb.identities([r["uid"] for r in rows]) if rows else {}
+        for r in rows:
+            if r["uid"] in got:
+                self.store.renamed(r["id"], got[r["uid"]]["message_id"], None if r["date"] else got[r["uid"]]["date"])
 
     FETCH_BATCH = 10
 
@@ -717,7 +753,7 @@ class App:
                         retried = False
                         job.update(done=i)
             except MailError as ex:
-                print(f"[luoke-mail] reading new mail, {i}/{len(uids)}: {ex}", file=sys.stderr)
+                print(f"[luoke-mail] reading new mail, {i}/{len(uids)}: {type(ex).__name__}", file=sys.stderr)
                 last = ex
                 if retried:
                     break
@@ -744,7 +780,7 @@ class App:
                 with self.open_mailbox(acct) as mb:
                     mb.store_flags("INBOX", [it["uid"] for it in items], "(\\Seen)")
             except MailError as ex:
-                print(f"[luoke-mail] marking sorted mail read: {ex}", file=sys.stderr)
+                print(f"[luoke-mail] marking sorted mail read: {type(ex).__name__}", file=sys.stderr)
                 return 0
             unseen = self.store.cache_get(acct, "unseen")[0]
             if unseen is not None:
@@ -913,7 +949,7 @@ class App:
                     folder = mb.folder_for("sent")
                     sent = mb.fetch_messages(mb.folder_uids(folder, self.THREAD_DAYS)[:60], folder)
         except (MailError, KeychainLocked) as ex:
-            print(f"[luoke-mail] threads: {ex}", file=sys.stderr)
+            print(f"[luoke-mail] threads: {type(ex).__name__}", file=sys.stderr)
             return
         me = {acct.lower(), (self.address(acct) if acct != DEMO else samples.ME).lower()}
         convs = threads.collect(received, sent, me, today, learn.own_text)
@@ -932,7 +968,7 @@ class App:
             except engines.Busy:
                 break
             except engines.EngineError as ex:
-                print(f"[luoke-mail] threads: {ex}", file=sys.stderr)
+                print(f"[luoke-mail] threads: {type(ex).__name__}", file=sys.stderr)
                 break
             asked += 1
             out[c["key"]] = {"last_mid": c["last_mid"], "last_date": c["last_date"], "with": c["with"], "name": c["name"],
@@ -989,7 +1025,7 @@ class App:
             try:
                 r = acts.execute([it["id"] for it in its], op, by="rule", label=label)
             except (MailError, ActionError) as ex:
-                print(f"[luoke-mail] habit {note_id}: {ex}", file=sys.stderr)
+                print(f"[luoke-mail] habit {note_id}: {type(ex).__name__}", file=sys.stderr)
                 continue
             if not r.get("done"):
                 continue
@@ -1040,7 +1076,7 @@ class App:
             try:
                 r = acts.execute(ids, op, by="own")
             except (MailError, ActionError) as ex:
-                print(f"[luoke-mail] own mailbox {op}: {ex}", file=sys.stderr)
+                print(f"[luoke-mail] own mailbox {op}: {type(ex).__name__}", file=sys.stderr)
                 continue
             if r.get("done"):
                 logs = self.store.cache_get(acct, "auto_logs")[0] or {}
@@ -1086,7 +1122,8 @@ class App:
             if not same_mid(mid, r["message_id"]):
                 continue                                  # not the message we know under that UID: leave it
             verdicts[r["id"]] = verdict or "none"
-            if verdict == "pass" and r["suspicious"] or verdict == "fail" and not r["suspicious"]:
+            # a pass bears on a flag: the model is told it, or the code weighs it (settle_risks)
+            if verdict in ("pass", "platform") and r["suspicious"] or verdict == "fail" and not r["suspicious"]:
                 again.append(r["id"])
         self.store.set_auth(verdicts, again)
 
@@ -1223,6 +1260,7 @@ class App:
     def _read_old(self, acct: str, scope: str, job: dict) -> None:
         """Read the headers of a scope's old mail into old_mail (headers only, the mailbox is only examined)."""
         days = self.cfg["fetch"]["days"]
+        partial = False
         if acct == DEMO:
             folder, rows = ("INBOX", samples.demo_old_mail(days)) if scope == "inbox" else ("[Gmail]/All Mail", samples.demo_archive())
         else:
@@ -1230,7 +1268,8 @@ class App:
             job["stage"] = stage
             with self.open_mailbox(acct) as mb:
                 folder, rows = mb.old_headers(scope, days, progress=lambda d, t: job.update(stage=stage, done=d, total=t))
-        self.store.old_sync(acct, scope, rows)
+                partial = bool(mb.unreturned)
+        self.store.old_sync(acct, scope, rows, partial)
         if acct != DEMO:
             self.store.gmail_ids_set(acct, {r["message_id"]: r["gm_msgid"] for r in rows if r.get("gm_msgid")})
         self.store.cache_set(acct, f"scan:{scope}", {"at": time.strftime("%Y-%m-%d %H:%M"), "ts": time.time(),
@@ -1288,7 +1327,7 @@ class App:
         if not s.get("judged"):
             return None
         parts = [f"建议归档 {s['archive']} 封" if s.get("archive") else None,
-                 f"移到垃圾箱 {s['trash']} 封" if s.get("trash") else None,
+                 f"删除 {s['trash']} 封" if s.get("trash") else None,
                  f"待你确认 {s['todo']} 封" if s.get("todo") else None]
         self.store.cache_set("", "open_page", {"page": "clean", "at": time.time()})
         return (f"超过 {s.get('days', 30)} 天的 {s['judged']} 封邮件已分析",
@@ -1584,7 +1623,7 @@ class App:
                 a["enabled"] = False
                 config.save(self.cfg)
                 if isinstance(ex, OSError):
-                    traceback.print_exc()
+                    desktop.log_crash(ex, "login item")
                     raise DesktopError("无法添加登录项。") from ex
                 raise
             handoff = True
@@ -1643,7 +1682,7 @@ class App:
                         raw = mb.fetch_raw(h["uid"]) if h.get("uid") else None
                         h["body_unsub"] = find_unsubscribe(raw) if raw else None
             headers = [h for h in headers if (h.get("from_addr") or "").lower() not in self._me(acct)]     # not a sender
-            rows = subscriptions.summarize(headers, self.store.suspicious_senders(acct), days)
+            rows = subscriptions.summarize(headers, self.store.suspicious_senders(acct), days, self.store.read_by_us(acct))
             note = self._check_senders(acct, headers, rows, job)
             result = {"days": days, "scanned": len(headers), "senders": rows, "at": time.strftime("%Y-%m-%d %H:%M"), "model_note": note}
             self.store.cache_set(acct, "subscriptions", result)
@@ -1677,12 +1716,27 @@ class App:
         self.store.cache_set(acct, "sender_kinds", known)
         for r in todo:
             kind = known.get(r["key"])
-            if kind in triage.KEEP_SENDER_KINDS:
+            if kind and kind not in triage.UNSUB_SENDER_KINDS:
                 r["verdict"] = "important"
-                r["why"] = f"已读 {r['read']}/{r['count']} 封，但内容是{triage.SENDER_KINDS[kind]}，建议保留。"
+                r["why"] = (f"已读 {r['read']}/{r['count']} 封，但内容" + ("不好归类" if kind == "other" else f"是{triage.SENDER_KINDS[kind]}")
+                            + "，建议保留。")
+        missed = sum(known.get(r["key"]) is None for r in todo)
+        if missed and not note:                   # the model answered, but not about these
+            note = f"有 {missed} 个发件人未能分析，它们的建议仅依据收信和阅读情况。"
         return note
 
     # ---- the workbench ----------------------------------------------------------------------
+    def draft(self, src: str, item_id: int) -> dict:
+        acct = self.account(src)
+        acts = self.actions(src, write=False)
+        text = acts.generate_draft(item_id, self.link("user-waiting"), memory.about(self.memory_for(acct)),
+                                   self.cfg["profile"].get("signature") or "")
+        return {"text": text, "note": self.draft_note(self.store.get(item_id), text)}
+
+    def draft_note(self, it: dict, text: str) -> str | None:
+        """Contact details the draft has and the mail never had (the user's own address and signature are theirs)."""
+        return triage.draft_note(it, text, self.address(it["account"]), self.cfg["profile"].get("signature") or "")
+
     def public_item(self, it: dict) -> dict:
         src = (it.get("suggested_by") or "").split(":")[0]
         out = {k: it.get(k) for k in ("id", "subject", "from_name", "from_addr", "date", "body", "attachments", "action",
@@ -1694,16 +1748,19 @@ class App:
         today = samples.TODAY if it["account"] == DEMO else dt.date.today()
         out["past_event"] = self._past_event(it, today)          # an appointment already over
         out["in_calendar"] = None if out["past_event"] else self._in_calendar(it)
+        out["events"] = self._events_view(it, today)
         out["overdue"] = bool(it.get("due_date") and it["due_date"][:10] < today.isoformat() and it.get("state") == "pending")
+        out["priority"] = triage.priority_now(it, today.isoformat())     # past its date: not high any more (#80)
         # following the user's junk rule: carried out as 移到垃圾邮件, without calling it a scam
         rid = (it.get("suggested_by") or "").split(":")[1] if src == "rule" and ":" in (it.get("suggested_by") or "") else None
         out["junk"] = bool(rid and it.get("action") == "ignore" and any(
             str(r["id"]) == rid and r["action"] == "spam" for r in self.store.rules(it["account"])))
         out["can_unsubscribe"] = bool(it.get("unsub_http") or it.get("unsub_mailto"))
+        out["draft_note"] = self.draft_note(it, it["draft_text"]) if it.get("draft_text") else None
         mid = it.get("message_id") or ""
         out["open_url"] = (providers.gmail_message_url(self.address(it["account"]), mid, self.store.gmail_id(it["account"], mid))
                            if it["account"] != DEMO and self.provider(it["account"]) == "gmail" and mid
-                           and not mid.strip("<>").startswith("uid-") else None)
+                           and real_mid(mid) else None)
         return out
 
     DUE_AHEAD, DUE_BEHIND = 3, 7          # days: what is due soon, or was and still waits, comes first
@@ -1716,7 +1773,8 @@ class App:
         lo, hi = (today - dt.timedelta(days=self.DUE_BEHIND)).isoformat(), (today + dt.timedelta(days=self.DUE_AHEAD)).isoformat()
         out = []
         for it in self.store.items(acct, "pending"):
-            when = it.get("due_date") or ((it.get("event") or {}).get("date") if it.get("action") == "schedule" else None)
+            coming = [e["date"] for e in triage.events_of(it) if e["date"][:10] >= today.isoformat()]     # the next leg
+            when = it.get("due_date") or (coming[0] if coming and it.get("action") == "schedule" else None)
             if self._past_event(it, today) or self._in_calendar(it):
                 continue                         # an appointment that has been, or is in the calendar already (10-22)
             if when and lo <= when[:10] <= hi and it.get("action") in background.NEEDS_YOU and not it.get("suspicious"):
@@ -1729,21 +1787,31 @@ class App:
         None: such mail is shown as over, archived rather than put in the calendar."""
         if it.get("action") != "schedule":
             return None
-        day = ((it.get("event") or {}).get("date") or it.get("due_date") or "")[:10]
+        days = [e["date"][:10] for e in triage.events_of(it)] or [(it.get("due_date") or "")[:10]]
+        day = max(days)                          # a return trip is not over until its last leg
         return day if day and day < today.isoformat() else None
 
     def _in_calendar(self, it: dict) -> dict | None:
         """The appointment a 加入日程 mail is about, when the user already put the same one in the calendar from
-        another mail (same day, same start, same sender's domain): a reminder, or the booking confirmed twice."""
-        ev = it.get("event") or {}
-        if it.get("action") != "schedule" or not ev.get("date"):
+        another mail (same day, same start, same sender's domain): a reminder, or the booking confirmed twice.
+        With several appointments: only when every one of them is there."""
+        events = triage.events_of(it)
+        if it.get("action") != "schedule" or not events:
             return None
+        done = [self._added(it, ev) for ev in events]
+        return done[0] if all(x and x.get("message_id") != it.get("message_id") for x in done) else None
+
+    def _added(self, it: dict, ev: dict) -> dict | None:
         domain = (it.get("from_domain") or "").lower()
         for x in self.store.cache_get(it["account"], "calendar_added")[0] or []:
-            if x.get("message_id") != it.get("message_id") and x.get("date") == ev.get("date") \
-                    and (x.get("start") or "") == (ev.get("start") or "") and x.get("domain") == domain and domain:
-                return {"date": x["date"], "start": x.get("start")}
+            if x.get("date") == ev.get("date") and (x.get("start") or "") == (ev.get("start") or "") and x.get("domain") == domain and domain:
+                return {"date": x["date"], "start": x.get("start"), "message_id": x.get("message_id")}
         return None
+
+    def _events_view(self, it: dict, today: dt.date) -> list[dict]:
+        """A mail's appointments for its card: each with its own over / already-added state."""
+        return [{**ev, "index": i, "past": ev["date"][:10] < today.isoformat(), "added": bool(self._added(it, ev))}
+                for i, ev in enumerate(triage.events_of(it))]
 
     def list_items(self, source: str) -> dict:
         acct = self.account(source)
@@ -1898,7 +1966,7 @@ class App:
                                                                     "category": it.get("category")})
         return {"ok": True, "rule": rule, "message": msg, "log_id": log_id}
 
-    OPS_WORDS = {"archive": "归档", "trash": "移到垃圾箱", "spam": "移到垃圾邮件", "read": "标为已读"}
+    OPS_WORDS = {"archive": "归档", "trash": "删除", "spam": "移到垃圾邮件", "read": "标为已读"}
     # a suggestion in the memory's words for what is done with mail (luoke-mem ACTION_NAMES): what the sorting calls
     # "ignore" is moving it to the trash; reply, schedule and follow up keep it in the inbox
     AS_HANDLING = {"archive": "archive", "ignore": "trash", "reply": "keep", "schedule": "keep", "follow_up": "keep"}
@@ -2265,7 +2333,7 @@ def make_handler(app: App):
                 # the page was closed or reloaded before the answer: one line, no traceback (luoke-mail#24)
                 print(f"[luoke-mail] the page left before the answer: {type(ex).__name__}", file=sys.stderr)
             except Exception as ex:  # noqa: BLE001
-                traceback.print_exc()
+                desktop.log_crash(ex, "a page request")
                 return self._send(500, {"error": f"{type(ex).__name__}: {ex}"})
 
         def do_GET(self):
@@ -2281,19 +2349,7 @@ def make_handler(app: App):
             if path.startswith("/api/jobs/"):
                 job = app.jobs.get(path.rsplit("/", 1)[-1])
                 return self._send(200, app.public_job(job)) if job else self._send(404, {"error": "任务不存在。"})
-            routes = {
-                "/api/state": app.state,
-                "/api/ping": app.ping,
-                "/api/activity": lambda: app.activity(q.get("seen") == "1"),
-                "/api/items": lambda: app.list_items(src),
-                "/api/review": lambda: app.review.view(src, q.get("day")),
-                "/api/log": lambda: {"entries": app.store.log_entries(app.account(src))},
-                "/api/rules": lambda: app.rules_view(src),
-                "/api/subscriptions": lambda: app.subscriptions_view(app.account(src)),
-                "/api/old": lambda: app.old_view(app.account(src), q.get("scope") if q.get("scope") in App.SCOPES else "inbox"),
-                "/api/digest": lambda: app.curator.view(app.account(src)),
-                "/api/memory": lambda: app.curator.memory_view(src),
-            }
+            routes = get_routes(app, q)
             fn = routes.get(path)
             return self._route(fn) if fn else self._send(404, {"error": "not found"})
 
@@ -2307,61 +2363,7 @@ def make_handler(app: App):
                 b = self._body()
             except ValueError as ex:
                 return self._send(400, {"error": str(ex)})
-            src = b.get("source")
-            routes = {
-                "/api/mail": lambda: app.save_mail(b),
-                "/api/mail/test": lambda: app.test_mail(b),
-                "/api/mail/remove": lambda: app.remove_mail(b),
-                "/api/engines/scan": lambda: app.scan_engines(b),
-                "/api/engine": lambda: app.save_engine(b),
-                "/api/engine/test": app.test_engine,
-                "/api/profile": lambda: app.save_profile(b),
-                "/api/mode": lambda: app.save_mode(b),
-                "/api/power": lambda: app.save_power(b),
-                "/api/threads": lambda: app.save_threads(b),
-                "/api/flow": lambda: app.save_flow(b),
-                "/api/auto/test-notify": lambda: app.test_notification(b),
-                "/api/auto/notify-settings": lambda: app.notification_settings(b),
-                "/api/auto": lambda: app.set_auto(b),
-                "/api/sync": lambda: app.start_sync(b),
-                "/api/subscriptions": lambda: app.start_subscriptions(b),
-                "/api/old/scan": lambda: app.start_old_scan(b),
-                "/api/old/judge": lambda: app.set_judging(b),
-                "/api/old/apply": lambda: app.start_old_apply(b),
-                "/api/digest/read": lambda: app.curator.read_from_clean(b),
-                "/api/digest/reading": lambda: app.curator.set_reading(b),
-                "/api/digest/feedback": lambda: app.curator.feedback(b),
-                "/api/digest/open": lambda: app.curator.opened(b),
-                "/api/digest/archive": lambda: app.curator.archive(b),
-                "/api/digest/source": lambda: app.curator.set_source(b),
-                "/api/memory": lambda: app.curator.memory_change(b),
-                "/api/memory/site": lambda: app.profiler.change_site(b),
-                "/api/memory/learn": lambda: app.learner.set_on(b),
-                "/api/learn/intro-seen": lambda: app.learner.intro_seen(),
-                "/api/memory/whole": lambda: app.curator.open_whole(b),
-                "/api/jobs/cancel": lambda: app.jobs.get(b.get("id"), {}).update(cancel=True) or {"ok": True},
-                # 跳过 / 知道了 only takes it off the list: no processing mode needed
-                "/api/items/act": lambda: app.items_act(src, [int(i) for i in b.get("ids") or []], b.get("op")),
-                "/api/items/override": lambda: app.override(b),
-                "/api/items/draft": lambda: {"text": app.actions(src, write=False).generate_draft(
-                    int(b["id"]), app.link("user-waiting"), memory.about(app.memory_for(app.account(src))),
-                    app.cfg["profile"].get("signature") or "")},
-                "/api/items/draft/save": lambda: app.actions(src).save_draft(int(b["id"]), b.get("text") or "",
-                                                                              app.address(app.account(src)),
-                                                                              app.cfg["profile"].get("signature") or ""),
-                "/api/items/calendar": lambda: app.actions(src, write=False).calendar(int(b["id"])),
-                "/api/undo": lambda: app.undo(src, int(b["log_id"])),
-                "/api/review/act": lambda: app.review.act(b),
-                "/api/mail/own": lambda: app.set_own(b),
-                "/api/review/seen": lambda: app.review.seen(b),
-                "/api/start-page/clear": lambda: app.store.cache_set("", "open_page", None) or {"ok": True},
-                "/api/senders/act": lambda: app.sender_act(b),
-                "/api/rules": lambda: app.add_rule(b),
-                "/api/rules/delete": lambda: app.delete_rule(b),
-                "/api/rules/filter-preview": lambda: app.start_filter_preview(b),
-                "/api/rules/gmail-filters": lambda: app.export_gmail_filters(b),
-                "/api/forget": lambda: app.forget(b),
-            }
+            routes = post_routes(app, b)
             fn = routes.get(path)
             return self._route(fn) if fn else self._send(404, {"error": "not found"})
 
@@ -2377,6 +2379,87 @@ def make_handler(app: App):
     return Handler
 
 
+def get_routes(app: "App", q: dict) -> dict:
+    """The page's GET /api routes, query `q` (the window's pages read the same views: agent.py)."""
+    src = q.get("source")
+    return {
+        "/api/state": app.state,
+        "/api/ping": app.ping,
+        "/api/activity": lambda: app.activity(q.get("seen") == "1"),
+        "/api/items": lambda: app.list_items(src),
+        "/api/review": lambda: app.review.view(src, q.get("day")),
+        "/api/log": lambda: {"entries": app.store.log_entries(app.account(src))},
+        "/api/rules": lambda: app.rules_view(src),
+        "/api/subscriptions": lambda: app.subscriptions_view(app.account(src)),
+        "/api/old": lambda: app.old_view(app.account(src), q.get("scope") if q.get("scope") in App.SCOPES else "inbox"),
+        "/api/digest": lambda: app.curator.view(app.account(src)),
+        "/api/memory": lambda: app.curator.memory_view(src),
+    }
+
+
+def post_routes(app: "App", b: dict) -> dict:
+    """The page's POST /api routes, body `b`: one table for the browser page and the window's pages (window.py),
+    so both do the same thing the same way."""
+    src = b.get("source")
+    return {
+        "/api/mail": lambda: app.save_mail(b),
+        "/api/mail/test": lambda: app.test_mail(b),
+        "/api/mail/remove": lambda: app.remove_mail(b),
+        "/api/engines/scan": lambda: app.scan_engines(b),
+        "/api/engine": lambda: app.save_engine(b),
+        "/api/engine/test": app.test_engine,
+        "/api/profile": lambda: app.save_profile(b),
+        "/api/mode": lambda: app.save_mode(b),
+        "/api/power": lambda: app.save_power(b),
+        "/api/threads": lambda: app.save_threads(b),
+        "/api/flow": lambda: app.save_flow(b),
+        "/api/auto/test-notify": lambda: app.test_notification(b),
+        "/api/auto/notify-settings": lambda: app.notification_settings(b),
+        "/api/auto": lambda: app.set_auto(b),
+        "/api/sync": lambda: app.start_sync(b),
+        "/api/subscriptions": lambda: app.start_subscriptions(b),
+        "/api/old/scan": lambda: app.start_old_scan(b),
+        "/api/old/judge": lambda: app.set_judging(b),
+        "/api/old/apply": lambda: app.start_old_apply(b),
+        "/api/digest/read": lambda: app.curator.read_from_clean(b),
+        "/api/digest/reading": lambda: app.curator.set_reading(b),
+        "/api/digest/feedback": lambda: app.curator.feedback(b),
+        "/api/digest/open": lambda: app.curator.opened(b),
+        "/api/digest/archive": lambda: app.curator.archive(b),
+        "/api/digest/source": lambda: app.curator.set_source(b),
+        "/api/memory": lambda: app.curator.memory_change(b),
+        "/api/memory/site": lambda: app.profiler.change_site(b),
+        "/api/memory/learn": lambda: app.learner.set_on(b),
+        "/api/learn/intro-seen": lambda: app.learner.intro_seen(),
+        "/api/memory/whole": lambda: app.curator.open_whole(b),
+        "/api/jobs/cancel": lambda: app.jobs.get(b.get("id"), {}).update(cancel=True) or {"ok": True},
+        # 跳过 / 知道了 only takes it off the list: no processing mode needed
+        "/api/items/act": lambda: app.items_act(src, [int(i) for i in b.get("ids") or []], b.get("op")),
+        "/api/items/override": lambda: app.override(b),
+        "/api/items/draft": lambda: app.draft(src, int(b["id"])),
+        "/api/items/draft/save": lambda: app.actions(src).save_draft(int(b["id"]), b.get("text") or "",
+                                                                      app.address(app.account(src)),
+                                                                      app.cfg["profile"].get("signature") or ""),
+        "/api/items/calendar": lambda: app.actions(src, write=False).calendar(int(b["id"]), b.get("index")),
+        "/api/undo": lambda: app.undo(src, int(b["log_id"])),
+        "/api/review/act": lambda: app.review.act(b),
+        "/api/mail/own": lambda: app.set_own(b),
+        "/api/review/seen": lambda: app.review.seen(b),
+        "/api/start-page/clear": lambda: app.store.cache_set("", "open_page", None) or {"ok": True},
+        "/api/senders/act": lambda: app.sender_act(b),
+        "/api/rules": lambda: app.add_rule(b),
+        "/api/rules/delete": lambda: app.delete_rule(b),
+        "/api/rules/filter-preview": lambda: app.start_filter_preview(b),
+        "/api/rules/gmail-filters": lambda: app.export_gmail_filters(b),
+        "/api/forget": lambda: app.forget(b),
+    }
+
+
+class PageServer(ThreadingHTTPServer):
+    def handle_error(self, request, client_address) -> None:      # socketserver's prints the exception's text
+        desktop.log_crash(sys.exc_info()[1], "a page request")
+
+
 def _bind(app: App, port: int, wait: float, exact: bool = False) -> ThreadingHTTPServer | None:
     """The service waits for its port (the terminal server it takes over is still letting go of it);
     after that, or from the terminal, the next free port will do -- unless a port was named: that one or none."""
@@ -2385,7 +2468,7 @@ def _bind(app: App, port: int, wait: float, exact: bool = False) -> ThreadingHTT
         late = time.time() >= deadline
         for candidate in [port] + (list(range(port + 1, port + 20)) if late and not exact else []):
             try:
-                return ThreadingHTTPServer(("127.0.0.1", candidate), make_handler(app))
+                return PageServer(("127.0.0.1", candidate), make_handler(app))
             except OSError:
                 continue
         if late:
@@ -2396,8 +2479,8 @@ def _bind(app: App, port: int, wait: float, exact: bool = False) -> ThreadingHTT
 def _trim_log(path: str, limit: int = 1_000_000) -> None:
     """The old login item's log (launchd holds it open, so it is emptied in place). In 螺壳邮件助手.app the resident
     service writes it itself and keeps it small (desktop.log_to_file, an older file beside it): left alone here, or
-    the line it has just written would go (review, 2026-10-21)."""
-    if desktop.launcher_path():
+    the line it has just written would go (review, 2026-10-21). The same inside 螺壳.app."""
+    if desktop.launcher_path() or desktop.in_luoke():
         return
     try:
         if os.path.getsize(path) > limit:
@@ -2488,10 +2571,18 @@ def forget_secrets(store=None) -> int:
     return n
 
 
-def serve(port: int = 8765, open_browser: bool = True, service: bool = False, exact: bool = False) -> int:
+def serve(port: int = 8765, open_browser: bool = True, service: bool = False, exact: bool = False,
+          body: desktop.BodyLink | None = None) -> int:
+    """`body`: this process is part of 螺壳.app and that is the pipe to the body that started it. There is no one to hand
+    over from: another instance on this data folder is said with ALREADY_RUNNING, and the body tries again later."""
     config.private_dir(config.CONFIG_DIR)       # started by 螺壳主控 at login, the folder may not be there yet
     lock = desktop.InstanceLock()
-    if service:
+    if body:
+        if not lock.acquire():
+            print("[luoke-mail] another instance has this data folder", file=sys.stderr, flush=True)
+            return ALREADY_RUNNING
+        desktop.mark_service_started()
+    elif service:
         held = lock.acquire()
         info = None if held else desktop.read_server_info()
         if info and info.get("service") and desktop.running():
@@ -2518,10 +2609,14 @@ def serve(port: int = 8765, open_browser: bool = True, service: bool = False, ex
     try:
         app = App(service=service)
     except memory.TooNew:                   # a bundled luoke-mem older than the memory file: say so, don't crash
-        print(memory.TOO_NEW, file=sys.stderr, flush=True)
         lock.release()
+        if body:                            # starting it again won't help: 0 is the exit the body leaves alone until 螺壳 next starts
+            body.tell({"op": "not-starting"})       # before the dialog: it stays up for as long as the user leaves it
+            desktop.alert(memory.TOO_NEW_IN_LUOKE)
+            return 0
+        print(memory.TOO_NEW, file=sys.stderr, flush=True)
         return TOO_NEW_EXIT
-    httpd = _bind(app, port, 30 if service else 0, exact)
+    httpd = _bind(app, port, 30 if service and not body else 0, exact)
     if httpd is None:
         print(f"端口 {port} 已被占用。" if exact else f"端口 {port}–{port + 19} 均被占用，请用 --port 指定其他端口。", file=sys.stderr)
         return 1
@@ -2536,8 +2631,13 @@ def serve(port: int = 8765, open_browser: bool = True, service: bool = False, ex
         if open_browser:
             threading.Timer(0.6, lambda: desktop.open_url(url)).start()
     app.auto.start()
-    if agent.enabled():                        # off in the first release (ADR 0008)
+    if agent.enabled():                        # LUOKE_MAIL_AGENT=0 turns it off
         app.agent.start()                      # the socket 螺壳 asks on: only the instance holding the lock
+    if body:
+        import signal
+        signal.signal(signal.SIGTERM, lambda *_: app.on_exit())     # the finally below runs: agent.sock and the lock go cleanly
+        body.on_open = lambda: desktop.open_url(url)
+        body.tell({"op": "ready"})
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -2558,6 +2658,7 @@ def serve(port: int = 8765, open_browser: bool = True, service: bool = False, ex
 
 
 TOO_NEW_EXIT = 3
+ALREADY_RUNNING = 3             # to 螺壳's body, the meaning all its helpers give this code
 
 
 def open_or_start(open_browser: bool = True, port: int | None = None) -> int:
@@ -2572,7 +2673,7 @@ def open_or_start(open_browser: bool = True, port: int | None = None) -> int:
         try:
             d.enable(0)
         except desktop.DesktopError as ex:
-            print(f"[luoke-mail] {ex}", file=sys.stderr)
+            print(f"[luoke-mail] login item: {type(ex).__name__}", file=sys.stderr)
             d.kickstart()
         started = True                       # once: a second one would only wait for the first
     url, proc = desktop.running(), None

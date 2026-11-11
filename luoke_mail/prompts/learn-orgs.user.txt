@@ -1,0 +1,6 @@
+{{#senders}}
+[{{n}}] {{name}} <{{addr}}>，{{count}} 封（{{first}} 至 {{last}}）
+{{#subjects}}
+    - {{.}}
+{{/subjects}}
+{{/senders}}

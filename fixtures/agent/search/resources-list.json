@@ -1,0 +1,111 @@
+{
+  "reply": {
+    "id": 3,
+    "jsonrpc": "2.0",
+    "result": {
+      "resources": [
+        {
+          "mimeType": "application/json",
+          "name": "要告诉你的事",
+          "uri": "luoke://luoke-mail/outbox"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "邮件助手的权限",
+          "uri": "permissions"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "概览",
+          "uri": "summary"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "今日处理",
+          "uri": "page/today"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "收件箱",
+          "uri": "page/inbox"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "清理",
+          "uri": "page/clean"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "精选",
+          "uri": "page/digest"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "订阅体检",
+          "uri": "page/subs"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "规则",
+          "uri": "page/rules"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "处理记录",
+          "uri": "page/activity"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "设置",
+          "uri": "page/settings"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 3,
+    "jsonrpc": "2.0",
+    "method": "resources/list",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      }
+    }
+  }
+}

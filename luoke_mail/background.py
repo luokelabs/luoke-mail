@@ -14,9 +14,8 @@ from __future__ import annotations
 import datetime as dt
 import threading
 import time
-import traceback
 
-from . import engines, triage
+from . import desktop, engines, triage
 from .mailbox import KeychainLocked, MailError
 from .store import now
 
@@ -38,9 +37,9 @@ def needs_you(items) -> list[dict]:
 
 def describe(items: list[dict]) -> tuple[str, str]:
     """Notification subtitle and body: how many, then the two most urgent (high priority, newest first)."""
-    prio = {"high": 0, "medium": 1}
+    prio, today = {"high": 0, "medium": 1}, dt.date.today().isoformat()
     items = sorted(items, key=lambda it: it.get("date") or "", reverse=True)
-    items.sort(key=lambda it: prio.get(it.get("priority"), 2))
+    items.sort(key=lambda it: prio.get(triage.priority_now(it, today), 2))
     parts = []
     for it in items[:2]:
         who = (it.get("from_name") or it.get("from_addr") or "").strip()[:12]
@@ -79,8 +78,8 @@ class AutoSync:
                     self.app.idle_step()
             except ValueError:
                 pass                     # a sync the user started is running; try again at the next tick
-            except Exception:  # noqa: BLE001 - the loop must survive anything
-                traceback.print_exc()
+            except Exception as ex:  # noqa: BLE001 - the loop must survive anything
+                desktop.log_crash(ex, "background round")
 
     def state(self, acct: str) -> dict:
         st, _ = self.app.store.cache_get(acct, "auto")
@@ -198,8 +197,8 @@ class AutoSync:
             n = sum(a["count"] for a in auto)
             words = "、".join(dict.fromkeys(a["name"] for a in auto))
             app.store.cache_set("", "open_page", {"page": "review", "at": time.time()})
-            app.desktop.notify(TITLE, f"已按你的习惯处理 {n} 封{at}", f"{words}。点此在「今日处理」中查看。")
-            notes.append(f"按习惯自动处理 {n} 封")
+            app.desktop.notify(TITLE, f"已自动处理 {n} 封{at}", f"{words}。点此在「今日处理」中查看。")   # habits and 螺壳's own mailbox
+            notes.append(f"自动处理 {n} 封")
         told = set(store.cache_get(acct, "due_told")[0] or [])
         soon = (dt.date.today() + dt.timedelta(days=1)).isoformat()
         due = [it for it in app.due_soon(acct) if it["when"] <= soon and it["id"] not in told]

@@ -1,0 +1,95 @@
+{
+  "reply": {
+    "id": 26,
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "已撤销：1 封草稿删掉了。",
+          "type": "text"
+        }
+      ],
+      "isError": false,
+      "resultType": "complete",
+      "structuredContent": {
+        "card": [
+          {
+            "updateComponents": {
+              "components": [
+                {
+                  "children": [
+                    "end-t1"
+                  ],
+                  "component": "Column",
+                  "id": "root"
+                },
+                {
+                  "component": "Text",
+                  "id": "end-t1",
+                  "text": "已撤销：1 封草稿删掉了。"
+                }
+              ],
+              "surfaceId": "new-mail-000000000001"
+            },
+            "version": "v0.9"
+          }
+        ],
+        "done": true
+      }
+    }
+  },
+  "request": {
+    "id": 26,
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "_meta": {
+        "ai.luoke/user-action": {
+          "at": "2026-10-20T09:36:00+08:00",
+          "componentId": "res-b3",
+          "surfaceId": "new-mail-000000000001"
+        },
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "arguments": {
+        "execution_id": "new-mail-000000000001"
+      },
+      "name": "mail_undo"
+    }
+  }
+}

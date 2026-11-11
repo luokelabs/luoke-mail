@@ -127,7 +127,7 @@ class ServerTests(unittest.TestCase):
         def reply(body):
             text = body["messages"][1]["content"]
             if "draft" in json.dumps(body.get("response_format", {})) or '"body"' in json.dumps(body.get("response_format", {})):
-                return 200, json.dumps({"body": "好的，今天下班前发您。"}, ensure_ascii=False)
+                return 200, json.dumps({"body": "好的，今天下班前发您。也可以找 helper@else.example。"}, ensure_ascii=False)
             if "AI Weekly" in text or "某某商城" in text:
                 return 200, suggestion("ignore", category="promotion", priority="low", due_date=None, reply_points=[])
             return 200, GOOD
@@ -170,6 +170,10 @@ class ServerTests(unittest.TestCase):
             status, d = self.req("POST", "/api/items/draft", {"source": "demo", "id": one["id"]})
             self.assertEqual(status, 200, d)
             self.assertIn("下班前", d["text"])
+            self.assertIn("helper@else.example", d["note"])                     # not in the mail: checked before sending
+            _, view = self.req("GET", "/api/items?source=demo")
+            drafted = next(e["item"] for e in view["entries"] if e["type"] == "item" and e["item"]["id"] == one["id"])
+            self.assertEqual(drafted["draft_note"], d["note"])                   # and still there on 查看草稿
 
     def test_write_mode_gates_bulk_trash_only(self):
         self.req("POST", "/api/mail", {"provider": "qq", "address": "me@qq.com", "secret": "AUTHCODE1234"})
@@ -237,7 +241,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual((p["count"], p["purge_days"]), (25, 30))
         status, r = self.req("POST", "/api/senders/act", {"source": "demo", "key": forum, "op": "trash_history"})
         self.assertEqual(status, 200, r)
-        self.assertIn("垃圾箱", r["message"])
+        self.assertIn("「已删除」", r["message"])
         # suspicious sender: spam rule allowed, unsubscribe refused
         _, r = self.req("POST", "/api/senders/act", {"source": "demo", "key": "from:security@icbc-verify.example", "op": "spam_rule"})
         self.assertIn("垃圾邮件", r["message"])

@@ -13,7 +13,8 @@ hard criteria only with no hard failure at all (luoke-core V1 §7: 第 1 层硬�
   learn-*     a fact containing a word it must never contain (a third party's claim, a secret, a one-off event...)
   thread      a settled conversation reported as waiting on the user (`done_as_you`), or one waiting on the user
               not reported as such (`missed_you`); each item has `state` (them / you / done) and `expect`
-Results -> bench/results/tasks/<task>/<label>.json, with the set's sha256 (the evidence record); `--out DIR` writes
+Results -> bench/results/tasks/<task>/<label>.json, with the set's sha256 and the prompt's (prompt_sha256: all of
+the task's files in luoke_mail/prompts/, top-level ADR 0019) -- the evidence record; `--out DIR` writes
 <DIR>/<task>/<label>.json instead (luoke-core's release script keeps its evidence in its own folder).
 Stdlib only, Python 3.9.
 """
@@ -31,11 +32,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from luoke_mail import __version__, engines, hub, learn, threads, triage  # noqa: E402
+from luoke_mail import __version__, engines, hub, learn, prompts, threads, triage  # noqa: E402
 import task_sets as S  # noqa: E402
 
 TASKS = ("cleanup", "senders", "learn-sent", "learn-orgs", "thread")
-UNSUB = ("marketing", "newsletter", "notification")
+UNSUB = triage.UNSUB_SENDER_KINDS          # what the app suggests unsubscribing from
 
 
 def set_hash(data) -> str:
@@ -98,6 +99,7 @@ def run_learn(link, kind: str) -> tuple[list, dict]:
             facts, _ = learn.from_sent(case["mails"], S.ME, link)
         else:
             facts, _ = learn.from_received(case["senders"], link)
+        facts = facts or []                     # no usable answer scores as nothing found, as before
         hits = []
         for e in case["expect"]:
             if kind == "learn-sent":
@@ -170,7 +172,8 @@ def main() -> None:
         rec = {"task": f"luoke-mail.{task}", "accessory": f"luoke-mail/{__version__}", "label": label,
                "model": link.name if a.hub else a.model, "base_url": "unix:" + a.hub if a.hub else a.base_url,
                "machine": engines.machine_summary(), "python": platform.python_version(), "date": time.strftime("%Y-%m-%d"),
-               "set_sha256": set_hash(sets[task]), "score": score, "items": items}
+               "set_sha256": set_hash(sets[task]), "prompt_sha256": prompts.sha256(task),
+               "prompt_files": prompts.files(task), "score": score, "items": items}
         with open(os.path.join(out_dir, label.replace("/", "_") + ".json"), "w", encoding="utf-8") as f:
             json.dump(rec, f, ensure_ascii=False, indent=1)
 

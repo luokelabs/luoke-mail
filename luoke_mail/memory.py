@@ -85,6 +85,7 @@ if (tuple(int(x) for x in re.findall(r"\d+", getattr(luoke_mem, "__version__", "
 Memory = luoke_mem.Memory
 TooNew = luoke_mem.TooNew                       # the memory file was written by a newer luoke-mem than the one here
 TOO_NEW = "你的记忆是更新版本的螺壳记忆写的，这一版螺壳邮件助手读不了。请更新螺壳邮件助手。"
+TOO_NEW_IN_LUOKE = "你的记忆是更新版本的螺壳记忆写的，这一版螺壳读不了。请更新螺壳。"
 sensitive = luoke_mem.sensitive                 # either kind below: the same lists for every luoke tool
 
 
@@ -201,6 +202,7 @@ MEMORY_APP_ID = "ai.luoke.memory"
 MEMORY_URL = "luoke://memory"
 HUB_APPS = ("螺壳.app", "螺壳主控.app")
 HUB_ID = "ai.luoke.core"
+HUB_DEV_ID = "ai.luoke.core.dev"     # 螺壳（开发）: build_app.sh's default, ad hoc
 
 
 def hub_roots() -> tuple[str, ...]:

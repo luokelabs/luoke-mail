@@ -4,18 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "luoke-mail"
-version = "0.18.19"
+version = "0.19.47"
 description = "螺壳邮件助手：用本机模型整理收件箱（只读、不出本机）"
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 dependencies = []          # standard library only; plus luoke-mem (installed, or checked out next to luoke-mail)
 
 [project.scripts]
 luoke-mail = "luoke_mail.__main__:main"
 
 [tool.setuptools]
-packages = ["luoke_mail"]
+packages = ["luoke_mail", "luoke_mail.prompts"]
 
 [tool.setuptools.package-data]
 luoke_mail = ["static/*", "static/img/*"]
+"luoke_mail.prompts" = ["*.txt", "*.json"]

@@ -1,0 +1,161 @@
+{
+  "reply": {
+    "id": 31,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "clean"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g19-r3",
+                      "g19-t4",
+                      "g19-r7"
+                    ],
+                    "component": "Column",
+                    "id": "root"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g19-t1",
+                    "text": "收件箱中的旧邮件",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g19-b2-t",
+                    "text": "已归档的邮件"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g19-b2",
+                          "page": "clean"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g19-b2-t",
+                    "component": "Button",
+                    "id": "g19-b2",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g19-t1",
+                      "g19-b2"
+                    ],
+                    "component": "Row",
+                    "id": "g19-r3"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g19-t4",
+                    "text": "收件箱里超过 30 天的邮件。加了星标或「收藏」「重要」这类标签的不会动。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g19-t5",
+                    "text": "还没有读取这些邮件。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g19-b6-t",
+                    "text": "读取邮件"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g19-b6",
+                          "page": "clean"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g19-b6-t",
+                    "component": "Button",
+                    "id": "g19-b6",
+                    "variant": "primary"
+                  },
+                  {
+                    "children": [
+                      "g19-t5",
+                      "g19-b6"
+                    ],
+                    "component": "Row",
+                    "id": "g19-r7"
+                  }
+                ],
+                "surfaceId": "clean"
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/clean"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 31,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/clean"
+    }
+  }
+}

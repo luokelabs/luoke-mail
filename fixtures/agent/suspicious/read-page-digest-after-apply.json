@@ -1,0 +1,182 @@
+{
+  "reply": {
+    "id": 22,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "digest"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g12-t1",
+                      "g12-r6",
+                      "g12-t7",
+                      "g12-t8"
+                    ],
+                    "component": "Column",
+                    "id": "root"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g12-t1",
+                    "text": "暂时按热度挑选，读得多了会按你的口味挑。在「设置」里添加你的网站或博客。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g12-t2",
+                    "text": "精选",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g12-b3-t",
+                    "text": "收藏（0）"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g12-b3",
+                          "page": "digest"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g12-b3-t",
+                    "component": "Button",
+                    "id": "g12-b3",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g12-b4-t",
+                    "text": "已归档（0）"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g12-b4",
+                          "page": "digest"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g12-b4-t",
+                    "component": "Button",
+                    "id": "g12-b4",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g12-b5-t",
+                    "text": "精选来源（0）"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g12-b5",
+                          "page": "digest"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g12-b5-t",
+                    "component": "Button",
+                    "id": "g12-b5",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g12-t2",
+                      "g12-b3",
+                      "g12-b4",
+                      "g12-b5"
+                    ],
+                    "component": "Row",
+                    "id": "g12-r6"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g12-t7",
+                    "text": "还没有精选来源。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g12-t8",
+                    "text": "在「订阅体检」里把发件人加入精选，或在「清理」的「订阅内容」一栏选择「先读一遍」。",
+                    "variant": "caption"
+                  }
+                ],
+                "surfaceId": "digest"
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/digest"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 22,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/digest"
+    }
+  }
+}

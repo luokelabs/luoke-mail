@@ -339,7 +339,7 @@ def _chat_json(base_url: str, model: str, messages: list[dict], schema: dict, ap
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", errors="replace")[:300]
             e.close()
-            print(f"[luoke-mail] model server HTTP {e.code}: {detail}", file=sys.stderr)
+            print(f"[luoke-mail] model server HTTP {e.code}", file=sys.stderr)     # not its words: they can quote the mail
             full = _memory_full(e.code, detail)
             if full:
                 raise full from e
@@ -350,7 +350,7 @@ def _chat_json(base_url: str, model: str, messages: list[dict], schema: dict, ap
             last = EngineError("模型服务未正常响应，可能是内存不足或模型尚未加载。请稍后重试，或换用较小的模型。")
             continue   # 400/422/500: try a simpler request
         except Exception as e:  # noqa: BLE001
-            print(f"[luoke-mail] model server unreachable: {type(e).__name__}: {e}", file=sys.stderr)
+            print(f"[luoke-mail] model server unreachable: {type(e).__name__}", file=sys.stderr)
             if "timed out" in str(e).lower() or isinstance(e, TimeoutError):
                 raise EngineError("模型响应超时。首次加载大模型可能需要一两分钟，请稍后重试。") from e
             raise EngineError("无法连接模型服务，请确认模型服务已启动。") from e
@@ -359,7 +359,7 @@ def _chat_json(base_url: str, model: str, messages: list[dict], schema: dict, ap
         if choices and isinstance(choices[0], dict) and "message" in choices[0]:
             return (choices[0]["message"].get("content") or "").strip(), d.get("usage", {}), time.time() - t0
         detail = json.dumps(d, ensure_ascii=False)[:300]
-        print(f"[luoke-mail] model server answered without a completion: {detail}", file=sys.stderr)
+        print("[luoke-mail] model server answered without a completion", file=sys.stderr)
         full = _memory_full(200, detail)
         if full:
             raise full

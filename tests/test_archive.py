@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import isolate  # noqa: F401,E402 -- first: never the user's real data (tests/isolate.py)
-from luoke_mail import actions, triage  # noqa: E402
+from luoke_mail import actions, profiler, triage  # noqa: E402
 from fakes import FakeChat  # noqa: E402
 from test_old_mail import ME, Rig, mail, wait  # noqa: E402
 
@@ -89,7 +89,7 @@ class IdleJobTests(unittest.TestCase):
         r = ArchiveRig(self)
         r.scan()
         r.app.store.cache_set(ME, "judge:archive", {"on": True})        # switched on earlier: work waiting
-        r.app.store.cache_update(ME, "profile", at=time.time(), records_v=2)   # the weekly records: written already
+        r.app.store.cache_update(ME, "profile", at=time.time(), records_v=profiler.RECORDS_V)   # the weekly records: written already
         r.app.cfg["learn"]["on"] = False                                     # 了解你 paused: only the work tested here
         r.app.hub_only = True
         with FakeChat(judge) as chat:
@@ -170,7 +170,7 @@ class ArchiveTests(unittest.TestCase):
         r.scan()
         r.app.cfg["engine"]["base_url"] = "http://127.0.0.1:9/v1"
         r.app.store.cache_set(ME, "judge:archive", {"on": True})
-        r.app.store.cache_update(ME, "profile", at=time.time(), records_v=2)   # the weekly records: written already
+        r.app.store.cache_update(ME, "profile", at=time.time(), records_v=profiler.RECORDS_V)   # the weekly records: written already
         r.app.cfg["learn"]["on"] = False                                     # 了解你 paused: only the work tested here
         self.assertTrue(r.app.idle_pending())
         r.app._judge_slice(ME, "archive", {"cancel": False})
@@ -283,6 +283,26 @@ class SenderCheckTests(unittest.TestCase):
             n = len(asked)
             self.run_check(r)
             self.assertEqual(len(asked), n)                                     # remembered per sender
+
+    def test_unsure_or_unanswered_is_not_suggested_for_unsubscribing_on_the_model_s_word(self):
+        """The prompt says 拿不准 is other (with transactional, security): the app used to keep only the latter two
+        and suggested unsubscribing from senders the model was unsure about. One it said nothing about keeps the
+        suggestion from reading alone, and the page says so."""
+        r = Rig(self)
+
+        def reply(body):
+            lines = [ln for ln in body["messages"][1]["content"].splitlines() if ln[:1].isdigit()]
+            kind = lambda ln: "other" if "论坛" in ln else "marketing"
+            return 200, json.dumps({"items": [{"n": i, "kind": kind(ln)} for i, ln in enumerate(lines, 1)
+                                              if "promo@mall" not in ln]})
+        with FakeChat(reply) as chat:
+            r.app.cfg["engine"]["base_url"] = chat.base_url
+            rows, result = self.run_check(r)
+        forum = rows["from:notice@forum.example"]
+        self.assertEqual(forum["verdict"], "important")
+        self.assertIn("不好归类", forum["why"])
+        self.assertEqual(rows["list:promo.mall.example"]["verdict"], "unsubscribe")
+        self.assertIn("有 1 个发件人未能分析", result["model_note"])
 
     def test_without_the_model_it_says_so(self):
         r = Rig(self)

@@ -1,0 +1,29 @@
+今天是 {{today}}。
+{{#taste}}{{taste}}{{/taste}}{{^taste}}用户还没有说明关注的话题：按一般读者的标准，只给真正重要或有深度的内容 2 分以上。{{/taste}}
+{{?liked}}
+用户收藏的内容：
+{{#liked}}
+- {{.}}
+{{/liked}}
+{{/liked}}
+{{?disliked}}
+用户点过「没兴趣」的内容：
+{{#disliked}}
+- {{.}}
+{{/disliked}}
+{{/disliked}}
+
+=== 邮件开始 ===
+发件人：{{from_name}} <{{from_addr}}>
+时间：{{#date}}{{date}}{{/date}}{{^date}}未知{{/date}}
+主题：{{subject}}
+
+{{#text}}{{text}}{{/text}}{{^text}}（正文为空）{{/text}}
+
+{{?links}}
+链接：
+{{#links}}
+〔{{n}}〕{{text}}（{{host}}）
+{{/links}}
+{{/links}}
+=== 邮件结束 ===

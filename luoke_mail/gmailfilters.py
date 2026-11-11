@@ -22,7 +22,7 @@ FILTER_ACTIONS = {
     "spam": (("shouldTrash", "true"),),
     "follow_up": (("shouldStar", "true"),),
 }
-FILTER_LABELS = {"archive": "跳过收件箱并标为已读", "ignore": "删除（移到垃圾箱）", "spam": "删除（移到垃圾箱）",
+FILTER_LABELS = {"archive": "跳过收件箱并标为已读", "ignore": "删除", "spam": "删除",
                  "follow_up": "加星标"}
 NOT_EXPORTABLE = {"reply": "需要你亲自回复", "schedule": "需要你确认日程"}
 

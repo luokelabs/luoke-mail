@@ -1,0 +1,550 @@
+{
+  "reply": {
+    "id": 16,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "items": [
+              {
+                "card": [
+                  {
+                    "createSurface": {
+                      "catalogId": "ai.luoke/a2ui/agent/1",
+                      "surfaceId": "mailbox-000000000002-3a316d6d"
+                    },
+                    "version": "v0.9"
+                  },
+                  {
+                    "updateComponents": {
+                      "components": [
+                        {
+                          "children": [
+                            "r3",
+                            "d4",
+                            "r7",
+                            "g25",
+                            "d26",
+                            "r29",
+                            "g34"
+                          ],
+                          "component": "Column",
+                          "id": "root",
+                          "subtitle": "me@example.com"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "h1",
+                          "text": "邮箱",
+                          "variant": "h4"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t2",
+                          "text": "me@example.com",
+                          "variant": "badge"
+                        },
+                        {
+                          "children": [
+                            "h1",
+                            "t2"
+                          ],
+                          "component": "Row",
+                          "id": "r3"
+                        },
+                        {
+                          "component": "Divider",
+                          "id": "d4"
+                        },
+                        {
+                          "component": "Icon",
+                          "id": "i5",
+                          "name": "inbox"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t6",
+                          "text": "待处理"
+                        },
+                        {
+                          "children": [
+                            "i5",
+                            "t6"
+                          ],
+                          "component": "Row",
+                          "id": "r7"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t9",
+                          "text": "项目组",
+                          "variant": "strong"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t10",
+                          "maxLines": 1,
+                          "text": "项目周会"
+                        },
+                        {
+                          "children": [
+                            "t9",
+                            "t10"
+                          ],
+                          "component": "Row",
+                          "id": "r11"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t12",
+                          "maxLines": 1,
+                          "text": "周四下午三点的周会",
+                          "variant": "caption"
+                        },
+                        {
+                          "children": [
+                            "r11",
+                            "t12"
+                          ],
+                          "component": "Column",
+                          "id": "c13"
+                        },
+                        {
+                          "component": "ChoicePicker",
+                          "id": "c-m4",
+                          "label": "项目组：项目周会",
+                          "options": [
+                            {
+                              "icon": "star",
+                              "label": "加星标",
+                              "value": "flag"
+                            },
+                            {
+                              "icon": "archive",
+                              "label": "归档",
+                              "value": "archive"
+                            },
+                            {
+                              "icon": "circle-minus",
+                              "label": "先不动",
+                              "value": "keep"
+                            }
+                          ],
+                          "value": {
+                            "path": "/choices/m4"
+                          }
+                        },
+                        {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=%E9%A1%B9%E7%9B%AE%E5%91%A8%E4%BC%9A&dates=20261022T150000%2F20261022T160000&details=%E5%91%A8%E5%9B%9B%E4%B8%8B%E5%8D%88%E4%B8%89%E7%82%B9%E7%9A%84%E5%91%A8%E4%BC%9A%0A%E6%9D%A5%E8%87%AA%E9%82%AE%E4%BB%B6%EF%BC%9A%E9%A1%B9%E7%9B%AE%E5%91%A8%E4%BC%9A%EF%BC%88team%40corp.example%EF%BC%89"
+                              },
+                              "name": "agent.open_url"
+                            }
+                          },
+                          "child": "b14-row",
+                          "component": "Button",
+                          "id": "b14",
+                          "tooltip": "加入日程"
+                        },
+                        {
+                          "component": "Icon",
+                          "id": "b14-icon",
+                          "name": "calendar-plus"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b14-text",
+                          "text": "10-22 15:00"
+                        },
+                        {
+                          "children": [
+                            "b14-icon",
+                            "b14-text"
+                          ],
+                          "component": "Row",
+                          "id": "b14-row"
+                        },
+                        {
+                          "children": [
+                            "c13",
+                            "c-m4",
+                            "b14"
+                          ],
+                          "component": "Row",
+                          "id": "r15",
+                          "justify": "spaceBetween"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t16",
+                          "text": "李律师",
+                          "variant": "strong"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t17",
+                          "maxLines": 1,
+                          "text": "合同扫描件"
+                        },
+                        {
+                          "children": [
+                            "t16",
+                            "t17"
+                          ],
+                          "component": "Row",
+                          "id": "r18"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t19",
+                          "maxLines": 1,
+                          "text": "律师发来合同扫描件",
+                          "variant": "caption"
+                        },
+                        {
+                          "children": [
+                            "r18",
+                            "t19"
+                          ],
+                          "component": "Column",
+                          "id": "c20"
+                        },
+                        {
+                          "component": "ChoicePicker",
+                          "id": "c-m3",
+                          "label": "李律师：合同扫描件",
+                          "options": [
+                            {
+                              "icon": "star",
+                              "label": "加星标",
+                              "value": "flag"
+                            },
+                            {
+                              "icon": "archive",
+                              "label": "归档",
+                              "value": "archive"
+                            },
+                            {
+                              "icon": "circle-minus",
+                              "label": "先不动",
+                              "value": "keep"
+                            }
+                          ],
+                          "value": {
+                            "path": "/choices/m3"
+                          }
+                        },
+                        {
+                          "children": [
+                            "c20",
+                            "c-m3"
+                          ],
+                          "component": "Row",
+                          "id": "r21",
+                          "justify": "spaceBetween"
+                        },
+                        {
+                          "children": [
+                            "r15",
+                            "r21"
+                          ],
+                          "component": "List",
+                          "id": "l8"
+                        },
+                        {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "choices": {
+                                  "path": "/choices"
+                                },
+                                "part": "todo",
+                                "plan_id": "mailbox-000000000002-3a316d6d"
+                              },
+                              "name": "mail_apply_plan"
+                            }
+                          },
+                          "child": "b23-row",
+                          "component": "Button",
+                          "id": "b23",
+                          "variant": "primary"
+                        },
+                        {
+                          "component": "Icon",
+                          "id": "b23-icon",
+                          "name": "check"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b23-text",
+                          "text": "加星标 2"
+                        },
+                        {
+                          "children": [
+                            "b23-icon",
+                            "b23-text"
+                          ],
+                          "component": "Row",
+                          "id": "b23-row"
+                        },
+                        {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "args": {
+                                  "box": "me@example.com",
+                                  "list": "needs"
+                                },
+                                "page": "inbox"
+                              },
+                              "name": "agent.open_page"
+                            }
+                          },
+                          "child": "b24-row",
+                          "component": "Button",
+                          "id": "b24"
+                        },
+                        {
+                          "component": "Icon",
+                          "id": "b24-icon",
+                          "name": "inbox"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b24-text",
+                          "text": "在邮件助手里看"
+                        },
+                        {
+                          "children": [
+                            "b24-icon",
+                            "b24-text"
+                          ],
+                          "component": "Row",
+                          "id": "b24-row"
+                        },
+                        {
+                          "children": [
+                            "b23",
+                            "b24"
+                          ],
+                          "component": "Row",
+                          "id": "r22"
+                        },
+                        {
+                          "children": [
+                            "l8",
+                            "r22"
+                          ],
+                          "component": "Column",
+                          "id": "g25"
+                        },
+                        {
+                          "component": "Divider",
+                          "id": "d26"
+                        },
+                        {
+                          "component": "Icon",
+                          "id": "i27",
+                          "name": "archive"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t28",
+                          "text": "可以整理"
+                        },
+                        {
+                          "children": [
+                            "i27",
+                            "t28"
+                          ],
+                          "component": "Row",
+                          "id": "r29"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t30",
+                          "text": "多是某某商城、周刊。",
+                          "variant": "caption"
+                        },
+                        {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "choices": {
+                                  "tidy": [
+                                    "suggested"
+                                  ]
+                                },
+                                "part": "tidy",
+                                "plan_id": "mailbox-000000000002-3a316d6d"
+                              },
+                              "name": "mail_apply_plan"
+                            }
+                          },
+                          "child": "b32-row",
+                          "component": "Button",
+                          "id": "b32",
+                          "variant": "primary"
+                        },
+                        {
+                          "component": "Icon",
+                          "id": "b32-icon",
+                          "name": "archive"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b32-text",
+                          "text": "归档 1 · 删除 1"
+                        },
+                        {
+                          "children": [
+                            "b32-icon",
+                            "b32-text"
+                          ],
+                          "component": "Row",
+                          "id": "b32-row"
+                        },
+                        {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "choices": {
+                                  "tidy": [
+                                    "keep"
+                                  ]
+                                },
+                                "part": "tidy",
+                                "plan_id": "mailbox-000000000002-3a316d6d"
+                              },
+                              "name": "mail_apply_plan"
+                            }
+                          },
+                          "child": "b33-row",
+                          "component": "Button",
+                          "id": "b33"
+                        },
+                        {
+                          "component": "Icon",
+                          "id": "b33-icon",
+                          "name": "circle-minus"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b33-text",
+                          "text": "先不动"
+                        },
+                        {
+                          "children": [
+                            "b33-icon",
+                            "b33-text"
+                          ],
+                          "component": "Row",
+                          "id": "b33-row"
+                        },
+                        {
+                          "children": [
+                            "b32",
+                            "b33"
+                          ],
+                          "component": "Row",
+                          "id": "r31"
+                        },
+                        {
+                          "children": [
+                            "t30",
+                            "r31"
+                          ],
+                          "component": "Column",
+                          "id": "g34"
+                        }
+                      ],
+                      "surfaceId": "mailbox-000000000002-3a316d6d"
+                    },
+                    "version": "v0.9"
+                  },
+                  {
+                    "updateDataModel": {
+                      "path": "/",
+                      "surfaceId": "mailbox-000000000002-3a316d6d",
+                      "value": {
+                        "choices": {
+                          "m3": [
+                            "flag"
+                          ],
+                          "m4": [
+                            "flag"
+                          ]
+                        }
+                      }
+                    },
+                    "version": "v0.9"
+                  }
+                ],
+                "created": "2026-10-20T01:18:00",
+                "deadline": null,
+                "id": "mailbox/mailbox-000000000002-3a316d6d",
+                "kind": "mailbox",
+                "summary": "项目组：项目周会；李律师：合同扫描件；整理：归档 1 · 删除 1，多是某某商城、周刊。",
+                "title": "2 封待处理，2 封可以整理",
+                "urgency": "low",
+                "why_now": "不急，有空时看看"
+              }
+            ]
+          },
+          "uri": "luoke://luoke-mail/outbox"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 16,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "luoke://luoke-mail/outbox"
+    }
+  }
+}

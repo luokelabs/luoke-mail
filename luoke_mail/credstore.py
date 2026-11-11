@@ -7,13 +7,14 @@ plaintext in the UI.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
 import subprocess
 import sys
 
-from .config import CONFIG_DIR
+from .config import CONFIG_DIR, DEFAULT_DIR
 
 SERVICE_PREFIX = "luoke-mail"
 NOT_FOUND = 44                  # `security find-generic-password`: errSecItemNotFound
@@ -27,13 +28,24 @@ class SecretUnavailable(RuntimeError):
 KEYCHAIN_LOCKED = "钥匙串暂时读不到（Mac 锁定时会这样），解锁后会自动继续。"
 
 
+def service(name: str, home: str = CONFIG_DIR) -> str:
+    """The keychain service an entry is kept under: `luoke-mail:imap` for the real data folder, as it always was;
+    a copy (LUOKE_MAIL_HOME elsewhere: an experiment, a development 螺壳) adds the folder's tag, like its login items.
+    Entries are keyed by address, so a copy sharing them would overwrite the real app password when the same
+    mailbox is added there, and delete it with the copy's data (`--forget-secrets`)."""
+    if os.path.abspath(home) == os.path.abspath(DEFAULT_DIR):
+        return f"{SERVICE_PREFIX}:{name}"
+    return f"{SERVICE_PREFIX}:{name}:{hashlib.sha1(os.path.abspath(home).encode()).hexdigest()[:8]}"
+
+
 class KeychainStore:
     kind = "keychain"
     label = "macOS 钥匙串"
     plaintext = False
 
-    def __init__(self, binary: str = "/usr/bin/security"):
+    def __init__(self, binary: str = "/usr/bin/security", home: str = CONFIG_DIR):
         self.bin = binary
+        self.home = home
 
     @staticmethod
     def _quote(s: str) -> str:
@@ -43,24 +55,24 @@ class KeychainStore:
         if "\n" in secret or "\r" in secret:
             raise ValueError("secret must be a single line")
         cmd = "add-generic-password -U -s {} -a {} -w {}\n".format(
-            self._quote(f"{SERVICE_PREFIX}:{name}"), self._quote(account), self._quote(secret))
+            self._quote(service(name, self.home)), self._quote(account), self._quote(secret))
         p = subprocess.run([self.bin, "-i"], input=cmd, capture_output=True, text=True, timeout=20)
         if p.returncode != 0 or "error" in (p.stderr or "").lower():
             raise RuntimeError(f"写入钥匙串失败：{(p.stderr or p.stdout).strip()[:200]}")
 
     def get(self, name: str, account: str) -> str | None:
         """The secret, None when there is none -- or SecretUnavailable when the keychain cannot be read now."""
-        p = subprocess.run([self.bin, "find-generic-password", "-s", f"{SERVICE_PREFIX}:{name}", "-a", account, "-w"],
+        p = subprocess.run([self.bin, "find-generic-password", "-s", service(name, self.home), "-a", account, "-w"],
                            capture_output=True, text=True, timeout=20)
         if p.returncode == 0:
             return p.stdout.rstrip("\n")
         if p.returncode == NOT_FOUND:
             return None
-        print(f"[luoke-mail] keychain not readable now ({p.returncode}): {(p.stderr or '').strip()[:160]}", file=sys.stderr)
+        print(f"[luoke-mail] keychain not readable now ({p.returncode})", file=sys.stderr)
         raise SecretUnavailable(KEYCHAIN_LOCKED)
 
     def delete(self, name: str, account: str) -> None:
-        subprocess.run([self.bin, "delete-generic-password", "-s", f"{SERVICE_PREFIX}:{name}", "-a", account],
+        subprocess.run([self.bin, "delete-generic-password", "-s", service(name, self.home), "-a", account],
                        capture_output=True, text=True, timeout=20)
 
 

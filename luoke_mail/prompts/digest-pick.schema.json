@@ -1,0 +1,28 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "picks"
+  ],
+  "properties": {
+    "picks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "n",
+          "why"
+        ],
+        "properties": {
+          "n": {
+            "type": "integer"
+          },
+          "why": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

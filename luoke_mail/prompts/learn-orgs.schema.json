@@ -1,0 +1,73 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "facts"
+  ],
+  "properties": {
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "topic",
+          "who",
+          "text",
+          "n"
+        ],
+        "properties": {
+          "topic": {
+            "type": "string",
+            "x-describe": [
+              [
+                "账户",
+                "银行、支付、交易所、券商这类涉及钱的"
+              ],
+              [
+                "服务",
+                "购物平台、软件和网络服务、邮箱、云盘这类不涉及钱的"
+              ],
+              [
+                "会员",
+                ""
+              ],
+              [
+                "学校",
+                ""
+              ],
+              [
+                "住房",
+                ""
+              ],
+              [
+                "出行",
+                ""
+              ],
+              [
+                "工作",
+                ""
+              ],
+              [
+                "其他",
+                ""
+              ]
+            ]
+          },
+          "who": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "n": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    }
+  }
+}

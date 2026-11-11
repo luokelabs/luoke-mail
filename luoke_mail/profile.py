@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import email.utils
 import html
+import ipaddress
 import re
 import urllib.parse
 import urllib.request
@@ -118,6 +119,23 @@ def _feed(raw: bytes) -> list[dict]:
     return out
 
 
+def _may_read(url: str, base: str) -> bool:
+    """An address the page itself points to (its feed) is read only over http(s), and not on this Mac or the local
+    network -- unless the address the user gave is there too."""
+    p = urllib.parse.urlparse(url)
+    if p.scheme not in ("http", "https") or not p.hostname:
+        return False
+    host = p.hostname.lower()
+    if host == (urllib.parse.urlparse(base).hostname or "").lower():
+        return True
+    if host == "localhost" or host.endswith((".localhost", ".local", ".internal", ".lan", ".home.arpa")):
+        return False
+    try:
+        return ipaddress.ip_address(host).is_global
+    except ValueError:
+        return True
+
+
 def fetch_site(url: str, get=_get) -> dict:
     """The user's own site: its title and description, and its posts -- from its feed when it has one, otherwise
     from the links on its front page. Read-only, and only addresses the user gave. ValueError for a bad address."""
@@ -135,7 +153,7 @@ def fetch_site(url: str, get=_get) -> dict:
         pass
     posts: list[dict] = []
     tries = [page.feed_url] if page.feed_url else [urllib.parse.urljoin(url, path) for path in FEED_PATHS]
-    for feed_url in tries:
+    for feed_url in filter(lambda u: _may_read(u, url), tries):
         try:
             body, _ = get(feed_url)
         except Exception:  # noqa: BLE001 - no feed there

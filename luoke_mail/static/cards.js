@@ -19,7 +19,7 @@ export function primaryOp(it) {
 // to many at once (`bulk`: to the trash or junk), waits for 处理模式 (ADR 0016)
 function writeBtn(label, onclick, cls = "btn small", pending = "处理中…", bulk = false, ico = null) {
   const can = !bulk || handlers.canWrite();
-  return el("button", { type: "button", class: cls, title: can ? null : "移到垃圾箱前需要先开启处理模式，点击时会说明",
+  return el("button", { type: "button", class: cls, title: can ? null : "删除前需要先开启处理模式，点击时会说明",
     onclick: async (e) => {
       const btn = e.currentTarget;
       if (bulk && !handlers.canWrite() && !(await handlers.needWrite())) return;       // luoke-mail#18
@@ -109,20 +109,29 @@ export function renderCard(it, opts = {}) {
   else if (it.suggested_by) tags.append(el("span", { class: "chip soft" }, it.suggested_by));
   if (it.reason) tags.append(el("span", { class: "reason" }, it.reason));
   body.append(tags);
-  if (it.event) body.append(el("p", { class: "event" }, icon("calendar-plus", 14), " ", eventText(it.event)));
+  const events = it.events && it.events.length ? it.events : it.event ? [it.event] : [];
+  const several = events.length > 1;        // each has its own line; Google 日历 takes one at a time (luoke-mail#34)
+  const google = (currentMailbox() || {}).provider === "gmail";
+  const open = !preview && it.action === "schedule" && !it.suspicious;
+  events.forEach((ev) => {
+    const line = el("p", { class: "event" }, icon("calendar-plus", 14), " ", eventText(ev));
+    if (several && open && google && !ev.past && !ev.added) line.append(" ", el("button", { type: "button", class: "btn small", onclick: () => handlers.calendar(it, ev.index) }, "添加"));
+    else if (several && (ev.past || ev.added)) line.append(" ", el("span", { class: "chip soft" }, ev.past ? "已过" : "已添加"));
+    body.append(line);
+  });
   if (it.action === "reply" && it.reply_points && it.reply_points.length) body.append(el("ul", { class: "points" }, it.reply_points.map((p) => el("li", null, p))));
   if (it.error) body.append(el("p", { class: "err" }, "分析失败：" + it.error));
 
   // the fifth row: what to do
   const calendarBtn = () => el("button", { type: "button", class: "btn small primary", onclick: () => handlers.calendar(it) }, icon("calendar-plus"),
-    (currentMailbox() || {}).provider === "gmail" ? "添加到 Google 日历" : "下载日历文件");
+    google ? "添加到 Google 日历" : "下载日历文件");
   const draftBtn = (box) => el("button", { type: "button", class: "btn small primary", onclick: () => openDraft(it, box) }, icon("pen-line"),
     it.draft_text ? "查看草稿" : "起草回复");
   if (!preview && it.action && opts.archived) {
     // archived by the user: only what is still for them -- the calendar, a reply -- and 知道了; nothing is moved
     const row = el("div", { class: "card-actions" });
     const draftBox = el("div", { class: "draft", hidden: true });
-    if (it.action === "schedule" && it.event && !it.past_event && !it.in_calendar) row.append(calendarBtn());
+    if (it.action === "schedule" && it.event && !it.past_event && !it.in_calendar && !(several && google)) row.append(calendarBtn());
     if (it.action === "reply") row.append(draftBtn(draftBox));
     row.append(el("button", { type: "button", class: "btn small", title: "不再列出，不更改邮箱", onclick: () => handlers.act([it.id], "skip") }, icon("check"), "知道了"));
     body.append(row, draftBox);
@@ -137,7 +146,7 @@ export function renderCard(it, opts = {}) {
       // over, or already put in the calendar from another mail about it: nothing left but to file it
       if (it.past_event || it.in_calendar) row.append(writeBtn("归档", () => handlers.act([it.id], "archive"), "btn small primary", doing("archive"), false, "archive"));
       else {
-        if (it.event) row.append(calendarBtn());
+        if (it.event) { if (!(several && google)) row.append(calendarBtn()); }   // several in Gmail: a button on each line
         // no day and time to put in a calendar: keep it in sight instead (luoke-mail#27)
         else if (!it.flagged) row.append(writeBtn("加星标", () => handlers.act([it.id], "flag"), "btn small primary", doing("flag"), false, "star"));
         row.append(archive());
@@ -169,16 +178,18 @@ async function openDraft(it, box) {
   const area = el("textarea", { rows: "8", "aria-label": "回复草稿", spellcheck: "false" });
   const status = el("p", { class: "status busy" }, "正在生成草稿…");
   box.append(area, status);
-  if (it.draft_text) { area.value = it.draft_text; status.textContent = ""; status.className = "status"; }
+  // contact details the mail never had come first: they are to be checked before sending
+  const said = (plain) => { status.textContent = it.draft_note || plain; status.className = it.draft_note ? "status warn" : "status hint"; };
+  if (it.draft_text) { area.value = it.draft_text; said(""); }
   else {
-    try { area.value = await handlers.draft(it); status.textContent = "修改后保存到草稿箱，由你在邮箱中发送。"; status.className = "status hint"; }
+    try { area.value = await handlers.draft(it); said("修改后保存到草稿箱，由你在邮箱中发送。"); }
     catch (err) { status.textContent = err.message; status.className = "status err"; }
   }
   const actions = el("div", { class: "card-actions" },
     writeBtn("保存到草稿箱", () => handlers.saveDraft(it, area.value), "btn small primary", "正在保存…"),
     el("button", { type: "button", class: "btn small", onclick: async () => {
       status.textContent = "正在重新生成…"; status.className = "status busy";
-      try { it.draft_text = null; area.value = await handlers.draft(it); status.textContent = ""; status.className = "status"; }
+      try { it.draft_text = null; area.value = await handlers.draft(it); said(""); }
       catch (err) { status.textContent = err.message; status.className = "status err"; }
     } }, "重新生成"));
   box.append(actions);

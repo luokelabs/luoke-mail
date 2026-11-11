@@ -14,3 +14,4 @@ if "luoke_mail.config" in sys.modules and not os.environ.get("LUOKE_MAIL_HOME"):
 os.environ.setdefault("LUOKE_MAIL_HOME", tempfile.mkdtemp(prefix="luoke-test-"))
 os.environ.setdefault("LUOKE_HUB_SOCKET", "/nonexistent/luoke-hub-for-tests.sock")   # never the 螺壳主控 in daily use
 os.environ.setdefault("LUOKE_HUB_APPS", "/nonexistent/luoke-hub-apps-for-tests")      # nor its app (memory.hub_roots)
+os.environ.setdefault("LUOKE_DOWNLOADS", os.path.join(os.environ["LUOKE_MAIL_HOME"], "Downloads"))  # nor ~/Downloads

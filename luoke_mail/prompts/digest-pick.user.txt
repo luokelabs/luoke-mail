@@ -1,0 +1,18 @@
+{{#taste}}{{taste}}{{/taste}}{{^taste}}用户还没有明确的关注话题：按分量和热度挑选。{{/taste}}
+{{?liked}}
+用户收藏的内容：
+{{#liked}}
+- {{.}}
+{{/liked}}
+{{/liked}}
+{{?disliked}}
+用户点过「没兴趣」的内容：
+{{#disliked}}
+- {{.}}
+{{/disliked}}
+{{/disliked}}
+
+候选：
+{{#cands}}
+[{{n}}] {{title}}{{#summary}}｜{{summary}}{{/summary}}（{{source}} · {{date}}{{#also}} · 另有 {{also}} 家报道{{/also}}）
+{{/cands}}

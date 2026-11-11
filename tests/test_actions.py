@@ -1,5 +1,6 @@
 """Write paths against the fake servers: every action, its undo, and the provider quirks."""
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -362,7 +363,37 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("一律「移到垃圾箱」", msgs[1]["content"])
 
 
+class SeveralEventsTests(unittest.TestCase):
+    def test_every_appointment_in_the_file_and_one_at_a_time(self):
+        st = Store(os.path.join(tempfile.mkdtemp(), "u.db"))
+        self.addCleanup(st.close)
+        ev = {"title": "去程", "date": "2026-12-15", "start": "10:10", "end": "14:05",
+              "more": [{"title": "回程", "date": "2026-12-22", "start": "15:30", "end": "21:15"}]}
+        a = actions.Actions(st, "demo", None, None)
+        it = {"id": 1, "message_id": "<a@b.example>", "subject": "机票", "from_domain": "fly.example", "event": ev}
+        a._item = lambda _id: it
+        both = a.calendar(1)["ics"]
+        self.assertEqual(both.count("BEGIN:VEVENT"), 2)
+        self.assertEqual(len(set(re.findall(r"UID:(\S+)", both))), 2)
+        self.assertEqual(both.count("DTSTART:20261222T153000"), 1)
+        self.assertNotIn("more", ev["more"][0])
+        back = a.calendar(1, 1)["ics"]
+        self.assertEqual(back.count("BEGIN:VEVENT"), 1)
+        self.assertIn("DTEND:20261222T211500", back)
+        self.assertEqual(re.search(r"UID:\S+", back).group(0), re.findall(r"UID:\S+", both)[1])    # imported twice: updated
+        self.assertEqual(len(st.cache_get("demo", "calendar_added")[0]), 2)
+        with self.assertRaises(actions.ActionError):
+            a.calendar(1, 2)
+
+
 class SubscriptionTests(unittest.TestCase):
+    def test_read_by_the_assistant_is_not_read_by_the_user(self):
+        hs = [{"from_addr": "news@shop.example", "from_domain": "shop.example", "bulk": True, "seen": True, "subject": "s",
+               "date": "2026-10-01", "message_id": f"<{i}@x>", "unsub_http": "https://shop.example/u", "size": 1} for i in range(5)]
+        self.assertEqual(subscriptions.summarize(hs, set(), 60)[0]["verdict"], "keep")
+        row = subscriptions.summarize(hs, set(), 60, {h["message_id"] for h in hs})[0]
+        self.assertEqual((row["read"], row["verdict"]), (0, "unsubscribe"))
+
     def test_body_methods_and_sizes(self):
         rows = {r["key"]: r for r in subscriptions.summarize(samples.demo_headers(), set(), 60)}
         gym = rows["from:news@gymcloud.example"]
@@ -426,10 +457,10 @@ class CalendarTests(unittest.TestCase):
         ev = {"title": "项目评审会", "date": "2026-10-14", "start": "15:00", "end": None, "location": "3 楼"}
         url = actions.google_calendar_url(it, ev)
         self.assertIn("dates=20261014T150000%2F20261014T160000", url)
-        ics = actions.event_ics(it, ev)
+        ics = actions.event_ics(it, [ev])
         self.assertIn("DTSTART:20261014T150000", ics)
         self.assertIn("LOCATION:3 楼", ics)
-        all_day = actions.event_ics(it, dict(ev, start=None))
+        all_day = actions.event_ics(it, [dict(ev, start=None)])
         self.assertIn("DTSTART;VALUE=DATE:20261014", all_day)
         self.assertIn("DTEND;VALUE=DATE:20261015", all_day)
 
@@ -439,12 +470,16 @@ class CalendarTests(unittest.TestCase):
         import re
         it = {"id": 7, "message_id": "<a@b.example>", "subject": "评审会" * 30, "summary": "项目评审" * 20}
         ev = {"title": "项目评审会", "date": "2026-10-14", "start": "15:00", "end": None, "location": None}
-        one, two = actions.event_ics(it, ev), actions.event_ics(it, ev)
+        one, two = actions.event_ics(it, [ev]), actions.event_ics(it, [ev])
         uid = re.search(r"UID:(\S+)", one).group(1)
         self.assertEqual(uid, re.search(r"UID:(\S+)", two).group(1))
-        self.assertNotEqual(uid, re.search(r"UID:(\S+)", actions.event_ics({**it, "message_id": "<c@d.example>"}, ev)).group(1))
+        self.assertNotEqual(uid, re.search(r"UID:(\S+)", actions.event_ics({**it, "message_id": "<c@d.example>"}, [ev])).group(1))
         lines = one.split("\r\n")
         self.assertTrue(all(len(x.encode("utf-8")) <= 75 for x in lines))
+        # a bare CR in the mail's text must not end the line and start a property of its own
+        cr = actions.event_ics({**it, "subject": "会\rATTACH:http://x.example/a"}, [{**ev, "title": "评审\r\nORGANIZER:x"}])
+        self.assertFalse([x for x in cr.replace("\r\n ", "").split("\r\n") if x.startswith(("ATTACH", "ORGANIZER"))])
+        self.assertNotIn("\r", cr.replace("\r\n", ""))
         unfolded = one.replace("\r\n ", "")
         self.assertIn("SUMMARY:" + "项目评审会", unfolded)
         self.assertIn("项目评审" * 20, unfolded)                        # nothing lost, no character split

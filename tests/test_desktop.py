@@ -403,6 +403,28 @@ class LauncherAndNotificationTests(unittest.TestCase):
             else:
                 self.assertEqual(store.get("imap", "me@example.com"), out)
 
+    def test_a_copy_of_the_data_folder_has_its_own_keychain_entries(self):
+        """A development 螺壳 or an experiment (LUOKE_MAIL_HOME elsewhere) never overwrites or deletes the real
+        folder's app passwords: entries are keyed by address, so they get the folder's tag."""
+        from luoke_mail import config, credstore
+        self.assertEqual(credstore.service("imap", config.DEFAULT_DIR), "luoke-mail:imap")        # as it always was
+        self.assertEqual(credstore.service("imap", config.DEFAULT_DIR + "/"), "luoke-mail:imap")
+        copy = credstore.service("imap", "/tmp/elsewhere")
+        self.assertRegex(copy, r"^luoke-mail:imap:[0-9a-f]{8}$")
+        self.assertNotEqual(copy, credstore.service("imap", "/tmp/another"))
+        fake = os.path.join(tempfile.mkdtemp(), "security")
+        said = fake + ".args"
+        with open(fake, "w") as f:
+            f.write(f'#!/bin/sh\necho "$@" >> {said}\nexit 0\n')
+        os.chmod(fake, 0o755)
+        credstore.KeychainStore(fake, "/tmp/elsewhere").delete("imap", "me@example.com")
+        credstore.KeychainStore(fake).get("imap", "me@example.com")        # the tests' data folder is a copy too
+        with open(said) as f:
+            lines = f.read().splitlines()
+        self.assertIn(f"-s {copy} -a me@example.com", lines[0])
+        self.assertIn(f"-s {credstore.service('imap', config.CONFIG_DIR)} -a", lines[1])
+        self.assertNotIn("-s luoke-mail:imap -a", "\n".join(lines))
+
     def test_each_notification_is_noted_with_what_came_back(self):
         """2026-10-20: none seen all afternoon and nothing to tell why -- each one is noted: how it went out, and
         what the app's launcher said (a newer launcher exits 3 when macOS has not allowed notifications)."""
@@ -419,8 +441,7 @@ class LauncherAndNotificationTests(unittest.TestCase):
             d.notify("螺壳邮件助手", "1 封新邮件需要你处理", "回复：王总")
             d.notify("螺壳邮件助手", "测试通知", "x")
         seen = d.recent_notifications()
-        self.assertEqual([(n["subtitle"], n["how"], n["result"]) for n in seen],
-                         [("1 封新邮件需要你处理", "app", "posted"), ("测试通知", "app", "not allowed")])
+        self.assertEqual([(n["how"], n["result"]) for n in seen], [("app", "posted"), ("app", "not allowed")])
         self.assertEqual(mode(os.path.join(self.home, "run", "notifications.json")), 0o600)
 
     def test_notification_settings_open_at_the_apps_own_page(self):

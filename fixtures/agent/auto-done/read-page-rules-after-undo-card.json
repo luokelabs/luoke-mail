@@ -1,0 +1,387 @@
+{
+  "reply": {
+    "id": 23,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "rules"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g14-t1",
+                      "g14-t2",
+                      "g14-r5",
+                      "g14-k12",
+                      "g14-t13",
+                      "g14-k20",
+                      "g14-t21",
+                      "g14-t22",
+                      "g14-t23",
+                      "g14-t24"
+                    ],
+                    "component": "Column",
+                    "id": "root"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-t1",
+                    "text": "告诉螺壳某类邮件以后怎么处理。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-t2",
+                    "text": "规则仅在螺壳邮件助手分析邮件时生效。将 1 条规则导出为 Gmail 过滤器后，Gmail 会自动处理之后的邮件。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-b3-t",
+                    "text": "导出到 Gmail（1 条）"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g14-b3",
+                          "page": "rules"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g14-b3-t",
+                    "component": "Button",
+                    "id": "g14-b3"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-b4-t",
+                    "text": "打开 Gmail 过滤器设置"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "url": "https://mail.google.com/mail/u/?authuser=me@example.com#settings/filters"
+                        },
+                        "name": "agent.open_url"
+                      }
+                    },
+                    "child": "g14-b4-t",
+                    "component": "Button",
+                    "id": "g14-b4",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g14-b3",
+                      "g14-b4"
+                    ],
+                    "component": "Row",
+                    "id": "g14-r5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-t6",
+                    "text": "添加规则",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "ChoicePicker",
+                    "id": "g14-p7",
+                    "label": "类型",
+                    "options": [
+                      {
+                        "label": "发件人",
+                        "value": "sender"
+                      },
+                      {
+                        "label": "域名",
+                        "value": "domain"
+                      },
+                      {
+                        "label": "邮件列表",
+                        "value": "list"
+                      }
+                    ],
+                    "value": {
+                      "path": "/choices/kind"
+                    }
+                  },
+                  {
+                    "component": "TextField",
+                    "id": "g14-f8",
+                    "label": "内容（例如 news.shop.example）",
+                    "value": {
+                      "path": "/fields/value"
+                    }
+                  },
+                  {
+                    "component": "ChoicePicker",
+                    "id": "g14-p9",
+                    "label": "处理方式",
+                    "options": [
+                      {
+                        "label": "回复",
+                        "value": "reply"
+                      },
+                      {
+                        "label": "加入日程",
+                        "value": "schedule"
+                      },
+                      {
+                        "label": "加星标",
+                        "value": "follow_up"
+                      },
+                      {
+                        "label": "归档",
+                        "value": "archive"
+                      },
+                      {
+                        "label": "删除",
+                        "value": "ignore"
+                      },
+                      {
+                        "label": "移到垃圾邮件",
+                        "value": "spam"
+                      }
+                    ],
+                    "value": {
+                      "path": "/choices/action"
+                    }
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-b10-t",
+                    "text": "添加"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g14-b10",
+                          "choices": {
+                            "path": "/choices"
+                          },
+                          "fields": {
+                            "path": "/fields"
+                          },
+                          "page": "rules"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g14-b10-t",
+                    "component": "Button",
+                    "id": "g14-b10",
+                    "variant": "primary"
+                  },
+                  {
+                    "children": [
+                      "g14-t6",
+                      "g14-p7",
+                      "g14-f8",
+                      "g14-p9",
+                      "g14-b10"
+                    ],
+                    "component": "Column",
+                    "id": "g14-c11"
+                  },
+                  {
+                    "child": "g14-c11",
+                    "component": "Card",
+                    "id": "g14-k12"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-t13",
+                    "text": "规则",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-t14",
+                    "text": "发件人「news@weekly.example」→ 归档",
+                    "variant": "body"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-t15",
+                    "text": "命中 0 次",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-b16-t",
+                    "text": "预演 Gmail 过滤器"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g14-b16",
+                          "page": "rules"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g14-b16-t",
+                    "component": "Button",
+                    "id": "g14-b16"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-b17-t",
+                    "text": "删除"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g14-b17",
+                          "page": "rules"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g14-b17-t",
+                    "component": "Button",
+                    "id": "g14-b17",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g14-b16",
+                      "g14-b17"
+                    ],
+                    "component": "Row",
+                    "id": "g14-r18"
+                  },
+                  {
+                    "children": [
+                      "g14-t14",
+                      "g14-t15",
+                      "g14-r18"
+                    ],
+                    "component": "Column",
+                    "id": "g14-c19"
+                  },
+                  {
+                    "child": "g14-c19",
+                    "component": "Card",
+                    "id": "g14-k20"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-t21",
+                    "text": "按习惯自动做的",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-t22",
+                    "text": "螺壳照你确认过的习惯自动处理，每封都列在「今日处理」里，能逐封撤销。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-t23",
+                    "text": "某某书店的推广邮件都归档",
+                    "variant": "body"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-t24",
+                    "text": "某某商城的推广邮件都归档",
+                    "variant": "body"
+                  }
+                ],
+                "surfaceId": "rules"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateDataModel": {
+                "path": "/",
+                "surfaceId": "rules",
+                "value": {
+                  "choices": {
+                    "action": [
+                      "archive"
+                    ],
+                    "kind": [
+                      "sender"
+                    ]
+                  },
+                  "fields": {
+                    "value": ""
+                  }
+                }
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/rules"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 23,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/rules"
+    }
+  }
+}

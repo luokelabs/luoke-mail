@@ -17,6 +17,7 @@
    ```
 
    测试不需要真实邮箱或模型，用的是模拟 IMAP 服务器（Gmail / QQ / 网易三种风格）和模拟模型服务。改了会动邮箱的代码，要在三种风格上都补测试。
+   改了 agent 看得到的东西（outbox、卡片、基础页、概览、权限、清单的 `capabilities`），`tests/test_agent_fixtures.py` 会不过：用 `python3 scripts/record_agent_fixtures.py` 重录、提交 `fixtures/agent/`，在 PR 里写明 agent 那边要不要跟着改。
 4. **改了分拣等提示词要重跑评测**（`bench/run_bench.py`、`bench/run_tasks.py`）：正常邮件不能误标可疑，可疑邮件最多漏 1 封，这两条不能破。
 5. 守住产品承诺（见 README「安全承诺」）：不发信、不永久删除、不转发；不可逆的操作要用户点；邮件内容是不可信数据，页面上只用 textContent 渲染。
 6. 提交信息用英文，写清楚改了什么、为什么；界面文字用简体中文，照现有页面的说法。

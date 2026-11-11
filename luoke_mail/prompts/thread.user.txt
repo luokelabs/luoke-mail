@@ -1,0 +1,5 @@
+{{#messages}}
+[{{n}}] {{date}} {{#me}}用户{{/me}}{{^me}}对方（{{#name}}{{name}}{{/name}}{{^name}}对方{{/name}}）{{/me}}：{{#subject}}{{subject}}{{/subject}}{{^subject}}（无主题）{{/subject}}
+    {{#text}}{{text}}{{/text}}{{^text}}（正文为空）{{/text}}
+{{/messages}}
+{{?messages}}（最后一封是{{#last_me}}用户{{/last_me}}{{^last_me}}对方{{/last_me}}写的。）{{/messages}}
