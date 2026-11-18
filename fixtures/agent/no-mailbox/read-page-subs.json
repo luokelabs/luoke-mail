@@ -1,6 +1,6 @@
 {
   "reply": {
-    "id": 11,
+    "id": 14,
     "jsonrpc": "2.0",
     "result": {
       "contents": [
@@ -19,21 +19,21 @@
                 "components": [
                   {
                     "children": [
-                      "g5-t1",
-                      "g5-t2"
+                      "g8-t1",
+                      "g8-t2"
                     ],
                     "component": "Column",
                     "id": "root"
                   },
                   {
                     "component": "Text",
-                    "id": "g5-t1",
+                    "id": "g8-t1",
                     "text": "还没有连接邮箱。",
                     "variant": "h4"
                   },
                   {
                     "component": "Text",
-                    "id": "g5-t2",
+                    "id": "g8-t2",
                     "text": "在「设置」里添加邮箱以后，可以在这里查看哪些订阅可以退订。",
                     "variant": "caption"
                   }
@@ -50,7 +50,7 @@
     }
   },
   "request": {
-    "id": 11,
+    "id": 14,
     "jsonrpc": "2.0",
     "method": "resources/read",
     "params": {
@@ -81,7 +81,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

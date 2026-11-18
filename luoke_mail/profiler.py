@@ -1,16 +1,16 @@
 """The user's own things, kept in their memory as records: their websites' posts, the labels they made, the
 threads they started. luoke-mem works out 关注的话题, 不感兴趣 and 精选的口味 from these and the mail
-assistant's other records (luoke-mem 0.19, top-level ADR 0012 amended: only the memory concludes); this part
+assistant's other records (luoke-mem 0.19, top-level archived ADR 0012 amended: only the memory concludes); this part
 used to ask the model itself (task `interests`) and does not any more.
 
 Idle work, no model: it runs when the user adds a website and once a week (also writing how each newsletter
-was read, month by month). Each thing is one record, written once (the same label or sender in two mailboxes is two, ADR 0010)."""
+was read, month by month). Each thing is one record, written once (the same label or sender in two mailboxes is two, archived ADR 0010)."""
 from __future__ import annotations
 
 import re
 import time
 
-from . import memory, profile, samples
+from . import memory, problems, profile, samples
 from .mailbox import NOREPLY, SPECIAL_NAMES, SPECIAL_USE, MailError
 
 DEMO = "demo"
@@ -48,7 +48,7 @@ class Profiler:
             if m:
                 info = cache.get(m.group(0)) or {}
                 out.append({"id": n["id"], "url": m.group(0), "title": info.get("title") or "", "posts": len(info.get("posts") or []),
-                            "problem": info.get("problem")})
+                            "problem": info.get("problem"), "fetched_at": info.get("fetched_at")})
         return out
 
     def change_site(self, body: dict) -> dict:
@@ -135,7 +135,7 @@ class Profiler:
             self._refresh_sites(acct, job)
             evidence = self._evidence(acct)
         except MailError as ex:
-            self.store.cache_update(acct, "profile", problem=str(ex), failed_at=time.time())
+            self.store.cache_update(acct, "profile", problem=str(ex), problem_code=problems.code_of(ex), failed_at=time.time())
             return {"made": 0}
         made = 0
         for ev in evidence:
@@ -293,7 +293,7 @@ class Profiler:
     # ---- written once ---------------------------------------------------------------------------------------
     @staticmethod
     def _keep(mem, ev: dict) -> bool:
-        """Write the record unless it is kept already (from the same mailbox: ADR 0010). True when written."""
+        """Write the record unless it is kept already (from the same mailbox: archived ADR 0010). True when written."""
         when = (ev.get("when") or "")[:19] or None
         for r in mem.records(topic=ev["topic"], ref=ev["ref"], limit=20):
             if r["speaker"] == "user" and memory.from_account(r, ev.get("account")):

@@ -97,7 +97,7 @@ class MailboxTests(unittest.TestCase):
             a.actions(WORK).clear_old(a.store.old_rows(HOME, "inbox", None), [])
 
     def test_memory_records_say_which_mailbox_they_come_from(self):
-        """Top-level ADR 0010 (2026-10-16): each record says which mailbox it comes from -- an opaque key, never the
+        """Top-level archived ADR 0010 (2026-10-16): each record says which mailbox it comes from -- an opaque key, never the
         address -- and the same message, sender or label in two mailboxes is two records. Sharing is unchanged."""
         from luoke_mail import memory
         from luoke_mail.learner import Learner

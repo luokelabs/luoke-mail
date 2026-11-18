@@ -118,6 +118,10 @@ class AutoSyncTests(unittest.TestCase):
             self.assertEqual((r["new"], r["needs_you"]), (2, 1))
             self.assertEqual(self.desk.notes, [("1 封新邮件需要处理", "回复：王总「Q3 预算评审」")])
             self.assertEqual(self.app.auto_view()["last"]["text"], "新邮件 2 封，1 封需要处理")
+            last = self.app.auto_view()["last"]                 # the same in numbers, for the window to word
+            self.assertEqual({k: last[k] for k in ("new", "needs_you", "auto", "unanalyzed", "unanalyzed_why", "cut_at")},
+                             {"new": 2, "needs_you": 1, "auto": 0, "unanalyzed": 0, "unanalyzed_why": None, "cut_at": None})
+            self.assertEqual([(x["account"], x["new"]) for x in last["accounts"]], [(ME, 2)])
 
             self.app.auto.run(new_job())                       # nothing new: quiet
             self.assertEqual(len(self.desk.notes), 1)
@@ -128,7 +132,7 @@ class AutoSyncTests(unittest.TestCase):
             self.app.auto.run(new_job())
             self.assertEqual(self.desk.notes[-1], ("1 封新邮件需要处理", "回复：李律师「合同请确认」"))
         self.assertEqual(self.imap.violations, [])
-        # what it sorted is marked read (ADR 0016: \\Seen, taken back from 今日处理); without a confirmed habit
+        # what it sorted is marked read (ADR 0006: \\Seen, taken back from 今日处理); without a confirmed habit
         # nothing is moved, nothing removed, nothing written
         for cmd in ("UID MOVE", "UID EXPUNGE", "APPEND", "UID COPY"):
             self.assertNotIn(cmd, self.imap.commands)
@@ -156,6 +160,7 @@ class AutoSyncTests(unittest.TestCase):
         self.assertEqual((r["new"], r["by_rule"], r["waiting"]), (2, 0, 2))   # every message waits for the model, rule or not
         self.assertEqual(self.desk.notes, [("2 封新邮件尚未分析", "本机模型服务未运行。启动后，下次整理时会继续分析。")])
         self.assertFalse(a.auto_view()["last"]["ok"])
+        self.assertEqual((a.auto_view()["last"]["unanalyzed"], a.auto_view()["last"]["unanalyzed_why"]), (2, "model_not_running"))
         a.auto.run(new_job())
         self.assertEqual(len(self.desk.notes), 1)                               # once per outage
         with FakeChat(triage_reply) as chat:
@@ -191,6 +196,7 @@ class AutoSyncTests(unittest.TestCase):
             self.app.auto.run(new_job())
         self.assertEqual(self.desk.notes, [])
         self.assertIn("钥匙串", self.app.auto_view()["last"]["text"])
+        self.assertEqual(self.app.auto_view()["last"]["problem_code"], "keychain_locked")
 
     def test_mailbox_failure_reported_after_two_in_a_row_and_once(self):
         a = self.app

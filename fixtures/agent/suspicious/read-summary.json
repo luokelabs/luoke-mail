@@ -7,8 +7,13 @@
         {
           "mimeType": "application/json",
           "text": {
+            "auto_today": 0,
+            "connected": true,
             "count": 2,
-            "text": "1 封要你处理，1 封可疑"
+            "needs": 1,
+            "suspicious": 1,
+            "text": "1 封待处理，1 封可疑",
+            "tidy": 0
           },
           "uri": "summary"
         }
@@ -48,7 +53,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

@@ -19,37 +19,43 @@
                 "components": [
                   {
                     "children": [
-                      "g1-t1",
-                      "g1-r9",
-                      "g1-r13",
-                      "g1-r16",
-                      "g1-t17",
-                      "g1-k26",
-                      "g1-k35",
-                      "g1-k44",
-                      "g1-r47",
-                      "g1-k56",
-                      "g1-k65"
+                      "g1-c13",
+                      "g1-c28",
+                      "g1-r31"
                     ],
                     "component": "Column",
-                    "id": "root"
+                    "id": "root",
+                    "layout": "sections"
                   },
                   {
                     "component": "Text",
                     "id": "g1-t1",
-                    "text": "螺壳今天处理了哪些邮件。不对的改一下，它会记住。",
-                    "variant": "caption"
+                    "text": "双十一预告",
+                    "variant": "strong"
                   },
                   {
                     "component": "Text",
                     "id": "g1-t2",
-                    "text": "今天",
-                    "variant": "h5"
+                    "text": "已读，留在收件箱 · 某某商城",
+                    "variant": "caption"
                   },
                   {
                     "component": "Text",
                     "id": "g1-b3-t",
-                    "text": "昨天"
+                    "text": "撤销"
+                  },
+                  {
+                    "component": "Icon",
+                    "id": "g1-b3-i",
+                    "name": "undo-2"
+                  },
+                  {
+                    "children": [
+                      "g1-b3-i",
+                      "g1-b3-t"
+                    ],
+                    "component": "Row",
+                    "id": "g1-b3-r"
                   },
                   {
                     "action": {
@@ -58,98 +64,60 @@
                           "button": "g1-b3",
                           "page": "today"
                         },
-                        "name": "mail_view"
+                        "name": "mail_do"
                       }
                     },
-                    "child": "g1-b3-t",
+                    "child": "g1-b3-r",
                     "component": "Button",
                     "id": "g1-b3",
-                    "variant": "borderless"
+                    "tooltip": "标为未读"
+                  },
+                  {
+                    "children": [
+                      "g1-t1",
+                      "g1-t2"
+                    ],
+                    "component": "Column",
+                    "id": "g1-c5"
+                  },
+                  {
+                    "children": [
+                      "g1-c5",
+                      "g1-b3"
+                    ],
+                    "component": "Row",
+                    "id": "g1-r4",
+                    "justify": "spaceBetween"
                   },
                   {
                     "component": "Text",
-                    "id": "g1-b4-t",
-                    "text": "10/18"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b4",
-                          "page": "today"
-                        },
-                        "name": "mail_view"
-                      }
-                    },
-                    "child": "g1-b4-t",
-                    "component": "Button",
-                    "id": "g1-b4",
-                    "variant": "borderless"
+                    "id": "g1-t6",
+                    "text": "本周精选",
+                    "variant": "strong"
                   },
                   {
                     "component": "Text",
-                    "id": "g1-b5-t",
-                    "text": "10/17"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b5",
-                          "page": "today"
-                        },
-                        "name": "mail_view"
-                      }
-                    },
-                    "child": "g1-b5-t",
-                    "component": "Button",
-                    "id": "g1-b5",
-                    "variant": "borderless"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-b6-t",
-                    "text": "10/16"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b6",
-                          "page": "today"
-                        },
-                        "name": "mail_view"
-                      }
-                    },
-                    "child": "g1-b6-t",
-                    "component": "Button",
-                    "id": "g1-b6",
-                    "variant": "borderless"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-b7-t",
-                    "text": "10/15"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b7",
-                          "page": "today"
-                        },
-                        "name": "mail_view"
-                      }
-                    },
-                    "child": "g1-b7-t",
-                    "component": "Button",
-                    "id": "g1-b7",
-                    "variant": "borderless"
+                    "id": "g1-t7",
+                    "text": "已读，留在收件箱 · 周刊",
+                    "variant": "caption"
                   },
                   {
                     "component": "Text",
                     "id": "g1-b8-t",
-                    "text": "10/14"
+                    "text": "撤销"
+                  },
+                  {
+                    "component": "Icon",
+                    "id": "g1-b8-i",
+                    "name": "undo-2"
+                  },
+                  {
+                    "children": [
+                      "g1-b8-i",
+                      "g1-b8-t"
+                    ],
+                    "component": "Row",
+                    "id": "g1-b8-r"
                   },
                   {
                     "action": {
@@ -158,565 +126,270 @@
                           "button": "g1-b8",
                           "page": "today"
                         },
-                        "name": "mail_view"
+                        "name": "mail_do"
                       }
                     },
-                    "child": "g1-b8-t",
+                    "child": "g1-b8-r",
                     "component": "Button",
                     "id": "g1-b8",
-                    "variant": "borderless"
+                    "tooltip": "标为未读"
                   },
                   {
                     "children": [
-                      "g1-t2",
-                      "g1-b3",
-                      "g1-b4",
-                      "g1-b5",
-                      "g1-b6",
-                      "g1-b7",
+                      "g1-t6",
+                      "g1-t7"
+                    ],
+                    "component": "Column",
+                    "id": "g1-c10"
+                  },
+                  {
+                    "children": [
+                      "g1-c10",
                       "g1-b8"
                     ],
                     "component": "Row",
-                    "id": "g1-r9"
+                    "id": "g1-r9",
+                    "justify": "spaceBetween"
                   },
                   {
                     "component": "Text",
-                    "id": "g1-t10",
-                    "text": "全部 5",
-                    "variant": "caption"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-b11-t",
-                    "text": "等你处理 3"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b11",
-                          "page": "today"
-                        },
-                        "name": "mail_view"
-                      }
-                    },
-                    "child": "g1-b11-t",
-                    "component": "Button",
-                    "id": "g1-b11",
-                    "variant": "borderless"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-b12-t",
-                    "text": "留在收件箱 2"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b12",
-                          "page": "today"
-                        },
-                        "name": "mail_view"
-                      }
-                    },
-                    "child": "g1-b12-t",
-                    "component": "Button",
-                    "id": "g1-b12",
-                    "variant": "borderless"
+                    "id": "g1-t11",
+                    "text": "今天替你处理了 2 封",
+                    "variant": "h5"
                   },
                   {
                     "children": [
-                      "g1-t10",
-                      "g1-b11",
-                      "g1-b12"
+                      "g1-r4",
+                      "g1-r9"
                     ],
-                    "component": "Row",
-                    "id": "g1-r13"
+                    "component": "List",
+                    "id": "g1-l12"
+                  },
+                  {
+                    "children": [
+                      "g1-t11",
+                      "g1-l12"
+                    ],
+                    "component": "Column",
+                    "id": "g1-c13"
                   },
                   {
                     "component": "Text",
                     "id": "g1-t14",
-                    "text": "等你处理",
-                    "variant": "h5"
+                    "text": "项目周会",
+                    "variant": "strong"
                   },
                   {
                     "component": "Text",
                     "id": "g1-t15",
-                    "text": "3",
+                    "text": "项目组 · 周四下午三点的周会",
                     "variant": "caption"
+                  },
+                  {
+                    "component": "ChoicePicker",
+                    "id": "g1-p16",
+                    "label": "怎么处理",
+                    "options": [
+                      {
+                        "icon": "calendar-plus",
+                        "label": "加入日程",
+                        "value": "calendar"
+                      },
+                      {
+                        "icon": "archive",
+                        "label": "归档",
+                        "value": "archive"
+                      },
+                      {
+                        "icon": "circle-minus",
+                        "label": "留在收件箱",
+                        "value": "skip"
+                      }
+                    ],
+                    "value": {
+                      "path": "/choices/a4"
+                    }
                   },
                   {
                     "children": [
                       "g1-t14",
                       "g1-t15"
                     ],
+                    "component": "Column",
+                    "id": "g1-c18"
+                  },
+                  {
+                    "children": [
+                      "g1-c18",
+                      "g1-p16"
+                    ],
                     "component": "Row",
-                    "id": "g1-r16"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t17",
-                    "text": "请到「收件箱」处理。",
-                    "variant": "caption"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t18",
-                    "text": "项目周会",
-                    "variant": "h5"
+                    "id": "g1-r17",
+                    "justify": "spaceBetween"
                   },
                   {
                     "component": "Text",
                     "id": "g1-t19",
-                    "text": "等你处理",
-                    "variant": "caption"
-                  },
-                  {
-                    "children": [
-                      "g1-t19"
-                    ],
-                    "component": "Row",
-                    "id": "g1-r20"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t21",
-                    "text": "项目组 · 建议：加入日程 · 周四下午三点的周会",
-                    "variant": "caption"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-b22-t",
-                    "text": "标为未读"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b22",
-                          "page": "today"
-                        },
-                        "name": "mail_do"
-                      }
-                    },
-                    "child": "g1-b22-t",
-                    "component": "Button",
-                    "id": "g1-b22"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-b23-t",
-                    "text": "改为…"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b23",
-                          "page": "today"
-                        },
-                        "name": "mail_view"
-                      }
-                    },
-                    "child": "g1-b23-t",
-                    "component": "Button",
-                    "id": "g1-b23",
-                    "variant": "borderless"
-                  },
-                  {
-                    "children": [
-                      "g1-b22",
-                      "g1-b23"
-                    ],
-                    "component": "Row",
-                    "id": "g1-r24"
-                  },
-                  {
-                    "children": [
-                      "g1-t18",
-                      "g1-r20",
-                      "g1-t21",
-                      "g1-r24"
-                    ],
-                    "component": "Column",
-                    "id": "g1-c25"
-                  },
-                  {
-                    "child": "g1-c25",
-                    "component": "Card",
-                    "id": "g1-k26"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t27",
-                    "text": "答辩时间确认",
-                    "variant": "h5"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t28",
-                    "text": "等你处理 · 快到期（2026-10-23）",
-                    "variant": "caption"
-                  },
-                  {
-                    "children": [
-                      "g1-t28"
-                    ],
-                    "component": "Row",
-                    "id": "g1-r29"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t30",
-                    "text": "王老师 · 建议：回复 · 王老师问答辩时间，周五前回",
-                    "variant": "caption"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-b31-t",
-                    "text": "标为未读"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b31",
-                          "page": "today"
-                        },
-                        "name": "mail_do"
-                      }
-                    },
-                    "child": "g1-b31-t",
-                    "component": "Button",
-                    "id": "g1-b31"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-b32-t",
-                    "text": "改为…"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b32",
-                          "page": "today"
-                        },
-                        "name": "mail_view"
-                      }
-                    },
-                    "child": "g1-b32-t",
-                    "component": "Button",
-                    "id": "g1-b32",
-                    "variant": "borderless"
-                  },
-                  {
-                    "children": [
-                      "g1-b31",
-                      "g1-b32"
-                    ],
-                    "component": "Row",
-                    "id": "g1-r33"
-                  },
-                  {
-                    "children": [
-                      "g1-t27",
-                      "g1-r29",
-                      "g1-t30",
-                      "g1-r33"
-                    ],
-                    "component": "Column",
-                    "id": "g1-c34"
-                  },
-                  {
-                    "child": "g1-c34",
-                    "component": "Card",
-                    "id": "g1-k35"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t36",
                     "text": "合同扫描件",
-                    "variant": "h5"
+                    "variant": "strong"
                   },
                   {
                     "component": "Text",
-                    "id": "g1-t37",
-                    "text": "等你处理",
+                    "id": "g1-t20",
+                    "text": "李律师 · 律师发来合同扫描件",
                     "variant": "caption"
+                  },
+                  {
+                    "component": "ChoicePicker",
+                    "id": "g1-p21",
+                    "label": "怎么处理",
+                    "options": [
+                      {
+                        "icon": "star",
+                        "label": "加星标",
+                        "value": "flag"
+                      },
+                      {
+                        "icon": "archive",
+                        "label": "归档",
+                        "value": "archive"
+                      },
+                      {
+                        "icon": "circle-minus",
+                        "label": "留在收件箱",
+                        "value": "skip"
+                      }
+                    ],
+                    "value": {
+                      "path": "/choices/a3"
+                    }
                   },
                   {
                     "children": [
-                      "g1-t37"
+                      "g1-t19",
+                      "g1-t20"
+                    ],
+                    "component": "Column",
+                    "id": "g1-c23"
+                  },
+                  {
+                    "children": [
+                      "g1-c23",
+                      "g1-p21"
                     ],
                     "component": "Row",
-                    "id": "g1-r38"
+                    "id": "g1-r22",
+                    "justify": "spaceBetween"
                   },
                   {
                     "component": "Text",
-                    "id": "g1-t39",
-                    "text": "李律师 · 建议：加星标 · 律师发来合同扫描件",
-                    "variant": "caption"
+                    "id": "g1-t24",
+                    "text": "要你定的",
+                    "variant": "h5"
+                  },
+                  {
+                    "children": [
+                      "g1-r17",
+                      "g1-r22"
+                    ],
+                    "component": "List",
+                    "id": "g1-l25"
                   },
                   {
                     "component": "Text",
-                    "id": "g1-b40-t",
-                    "text": "标为未读"
+                    "id": "g1-b26-t",
+                    "text": "按选择处理"
                   },
                   {
                     "action": {
                       "event": {
                         "context": {
-                          "button": "g1-b40",
+                          "button": "g1-b26",
+                          "choices": {
+                            "path": "/choices"
+                          },
                           "page": "today"
                         },
                         "name": "mail_do"
                       }
                     },
-                    "child": "g1-b40-t",
+                    "child": "g1-b26-t",
                     "component": "Button",
-                    "id": "g1-b40"
+                    "id": "g1-b26",
+                    "variant": "primary"
+                  },
+                  {
+                    "children": [
+                      "g1-b26"
+                    ],
+                    "component": "Row",
+                    "id": "g1-r27"
+                  },
+                  {
+                    "children": [
+                      "g1-t24",
+                      "g1-l25",
+                      "g1-r27"
+                    ],
+                    "component": "Column",
+                    "id": "g1-c28"
                   },
                   {
                     "component": "Text",
-                    "id": "g1-b41-t",
-                    "text": "改为…"
+                    "id": "g1-t29",
+                    "text": "还有 1 封等你回复。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-b30-t",
+                    "text": "去收件箱"
                   },
                   {
                     "action": {
                       "event": {
                         "context": {
-                          "button": "g1-b41",
-                          "page": "today"
+                          "args": {
+                            "box": "me@example.com",
+                            "list": "reply"
+                          },
+                          "page": "inbox"
                         },
-                        "name": "mail_view"
+                        "name": "agent.open_page"
                       }
                     },
-                    "child": "g1-b41-t",
+                    "child": "g1-b30-t",
                     "component": "Button",
-                    "id": "g1-b41",
+                    "id": "g1-b30",
                     "variant": "borderless"
                   },
                   {
                     "children": [
-                      "g1-b40",
-                      "g1-b41"
+                      "g1-t29",
+                      "g1-b30"
                     ],
                     "component": "Row",
-                    "id": "g1-r42"
-                  },
-                  {
-                    "children": [
-                      "g1-t36",
-                      "g1-r38",
-                      "g1-t39",
-                      "g1-r42"
-                    ],
-                    "component": "Column",
-                    "id": "g1-c43"
-                  },
-                  {
-                    "child": "g1-c43",
-                    "component": "Card",
-                    "id": "g1-k44"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t45",
-                    "text": "已读，留在收件箱",
-                    "variant": "h5"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t46",
-                    "text": "2",
-                    "variant": "caption"
-                  },
-                  {
-                    "children": [
-                      "g1-t45",
-                      "g1-t46"
-                    ],
-                    "component": "Row",
-                    "id": "g1-r47"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t48",
-                    "text": "双十一预告",
-                    "variant": "h5"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t49",
-                    "text": "已读，留在收件箱",
-                    "variant": "caption"
-                  },
-                  {
-                    "children": [
-                      "g1-t49"
-                    ],
-                    "component": "Row",
-                    "id": "g1-r50"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t51",
-                    "text": "某某商城 · 建议：删除 · 促销",
-                    "variant": "caption"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-b52-t",
-                    "text": "标为未读"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b52",
-                          "page": "today"
-                        },
-                        "name": "mail_do"
-                      }
-                    },
-                    "child": "g1-b52-t",
-                    "component": "Button",
-                    "id": "g1-b52"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-b53-t",
-                    "text": "改为…"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b53",
-                          "page": "today"
-                        },
-                        "name": "mail_view"
-                      }
-                    },
-                    "child": "g1-b53-t",
-                    "component": "Button",
-                    "id": "g1-b53",
-                    "variant": "borderless"
-                  },
-                  {
-                    "children": [
-                      "g1-b52",
-                      "g1-b53"
-                    ],
-                    "component": "Row",
-                    "id": "g1-r54"
-                  },
-                  {
-                    "children": [
-                      "g1-t48",
-                      "g1-r50",
-                      "g1-t51",
-                      "g1-r54"
-                    ],
-                    "component": "Column",
-                    "id": "g1-c55"
-                  },
-                  {
-                    "child": "g1-c55",
-                    "component": "Card",
-                    "id": "g1-k56"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t57",
-                    "text": "本周精选",
-                    "variant": "h5"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t58",
-                    "text": "已读，留在收件箱",
-                    "variant": "caption"
-                  },
-                  {
-                    "children": [
-                      "g1-t58"
-                    ],
-                    "component": "Row",
-                    "id": "g1-r59"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-t60",
-                    "text": "周刊 · 建议：归档 · 周刊",
-                    "variant": "caption"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-b61-t",
-                    "text": "标为未读"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b61",
-                          "page": "today"
-                        },
-                        "name": "mail_do"
-                      }
-                    },
-                    "child": "g1-b61-t",
-                    "component": "Button",
-                    "id": "g1-b61"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g1-b62-t",
-                    "text": "改为…"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g1-b62",
-                          "page": "today"
-                        },
-                        "name": "mail_view"
-                      }
-                    },
-                    "child": "g1-b62-t",
-                    "component": "Button",
-                    "id": "g1-b62",
-                    "variant": "borderless"
-                  },
-                  {
-                    "children": [
-                      "g1-b61",
-                      "g1-b62"
-                    ],
-                    "component": "Row",
-                    "id": "g1-r63"
-                  },
-                  {
-                    "children": [
-                      "g1-t57",
-                      "g1-r59",
-                      "g1-t60",
-                      "g1-r63"
-                    ],
-                    "component": "Column",
-                    "id": "g1-c64"
-                  },
-                  {
-                    "child": "g1-c64",
-                    "component": "Card",
-                    "id": "g1-k65"
+                    "id": "g1-r31"
                   }
                 ],
                 "surfaceId": "today"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateDataModel": {
+                "path": "/",
+                "surfaceId": "today",
+                "value": {
+                  "choices": {
+                    "a3": [
+                      "flag"
+                    ],
+                    "a4": [
+                      "calendar"
+                    ]
+                  }
+                }
               },
               "version": "v0.9"
             }
@@ -759,7 +432,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

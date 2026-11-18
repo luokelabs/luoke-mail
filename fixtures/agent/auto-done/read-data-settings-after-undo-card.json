@@ -1,0 +1,144 @@
+{
+  "reply": {
+    "id": 58,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "accounts": [
+              {
+                "address": "me@example.com",
+                "error": null,
+                "error_code": null,
+                "id": "me@example.com",
+                "last_sync": "2026-10-20 09:30:00",
+                "name": null,
+                "own": false,
+                "provider": "gmail",
+                "status": "ok"
+              }
+            ],
+            "auto": {
+              "enabled": false,
+              "every": 30,
+              "intervals": [
+                15,
+                30,
+                60,
+                120
+              ],
+              "last": null,
+              "next_in_min": null,
+              "notify": null,
+              "stalled": null
+            },
+            "habits": [
+              {
+                "account": "me@example.com",
+                "note_id": 2,
+                "text": "某某书店的推广邮件都归档"
+              },
+              {
+                "account": "me@example.com",
+                "note_id": 1,
+                "text": "某某商城的推广邮件都归档"
+              }
+            ],
+            "more": {
+              "fetch_days": 30,
+              "fetch_limit": 100,
+              "learn": {
+                "learnt": 0,
+                "on": true,
+                "problem": null,
+                "problem_code": null,
+                "running": false,
+                "sent_done": 0,
+                "sent_total": 0,
+                "stage": "sent_check",
+                "waiting": 0
+              },
+              "mark_read": true,
+              "mode_write": true,
+              "model": "test-model",
+              "power": "full",
+              "power_by_luoke": false,
+              "signature": "",
+              "sites": [],
+              "threads": true
+            },
+            "rules": [
+              {
+                "account": "me@example.com",
+                "action": "archive",
+                "created_at": "2026-10-20 09:30:00",
+                "exported_at": null,
+                "gmail": true,
+                "hits": 0,
+                "id": 1,
+                "kind": "sender",
+                "label": null,
+                "value": "news@weekly.example",
+                "who": null
+              }
+            ]
+          },
+          "uri": "data/settings"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 58,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/settings"
+    }
+  }
+}

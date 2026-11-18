@@ -1,4 +1,4 @@
-"""今日处理 (top-level ADR 0016, 2026-10-19): sorted mail is marked read, confirmed habits archive, and each
+"""今日处理 (top-level ADR 0006, 2026-10-19): sorted mail is marked read, confirmed habits archive, and each
 message's outcome is listed for the day -- taken back or changed in one click, a change recorded for the memory;
 once each evening the user is told how many there were."""
 from __future__ import annotations
@@ -241,7 +241,7 @@ class OlderUnreadTests(unittest.TestCase):
 
 
 class OwnMailboxTests(unittest.TestCase):
-    """ADR 0016 第 5 条 (2026-10-19): in 螺壳's own mailbox, reading, archiving and deleting are done
+    """ADR 0006 第 5 条 (2026-10-19): in 螺壳's own mailbox, reading, archiving and deleting are done
     unasked -- each listed in 今日处理 and undone there."""
 
     def test_sorted_mail_is_archived_or_trashed_by_itself_and_undone_from_the_review(self):

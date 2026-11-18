@@ -11,18 +11,18 @@ sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import isolate  # noqa: F401,E402 -- first: never the user's real data (tests/isolate.py)
+from unittest import mock  # noqa: E402
 import agent_a2ui as a2ui  # noqa: E402
+from luoke_mail import subscriptions  # noqa: E402
 from luoke_mail.window import kit, pages  # noqa: E402
-from luoke_mail.window.pages import clean, subs  # noqa: E402
+from luoke_mail.window.pages import subs, sweep  # noqa: E402
+from test_agent import labelled, said  # noqa: E402
 from test_old_mail import ME  # noqa: E402
 from test_window import WindowRig  # noqa: E402
 
 
 class Rig(WindowRig):
     def setUp(self):
-        for pid, fn in (("clean", clean.build), ("subs", subs.build)):
-            pages.BUILDERS[pid] = fn
-            self.addCleanup(pages.BUILDERS.pop, pid, None)
         super().setUp()
         self.w = self.r.app.agent.window
         self.assertIs(self.w.builders, pages.BUILDERS)
@@ -38,7 +38,7 @@ class Rig(WindowRig):
         return a2ui.build(messages)
 
     def buttons(self, s) -> list:
-        return [s.components[c["child"]].get("text") for c in s.components.values() if c.get("component") == "Button"]
+        return [said(s.components, cid) for cid, c in s.components.items() if c.get("component") == "Button"]
 
     @staticmethod
     def in_row(s, words: str, about: str) -> str:
@@ -49,7 +49,7 @@ class Rig(WindowRig):
                 continue
             kids = [comps[k] for k in c["children"] if k in comps]
             if any(about in (k.get("text") or "") for k in kids):
-                return next(k["id"] for k in kids if k.get("component") == "Button" and comps[k["child"]].get("text") == words)
+                return next(k["id"] for k in kids if k.get("component") == "Button" and said(comps, k["id"]) == words)
         raise AssertionError(f"没有「{about}」那一行")
 
     def tap(self, name: str, words: str, about: str):
@@ -74,12 +74,14 @@ class Rig(WindowRig):
         raise AssertionError("a job did not finish")
 
 
-class CleanTests(Rig):
+class SweepTests(Rig):
+    """清理旧邮件 (the whole of it, a page 清理 goes to), drawn for a core without §4 confirm: 确认 on the page."""
+
     def read(self, scope_words: str = ""):
         if scope_words:
-            self.ok(self.press("clean", scope_words))
-        self.assertIn("还没有读取这些邮件", self.texts(self.page("clean")))
-        self.ok(self.press("clean", "读取邮件"))
+            self.ok(self.press("sweep", scope_words))
+        self.assertIn("还没有读取这些邮件", self.texts(self.page("sweep")))
+        self.ok(self.press("sweep", "读取邮件"))
         self.settle()
 
     def judge(self):
@@ -89,7 +91,7 @@ class CleanTests(Rig):
 
     def test_reading_lists_the_sources_and_nothing_unjudged_is_ticked(self):
         self.read()
-        s = self.page("clean")
+        s = self.page("sweep")
         words = self.texts(s)
         self.assertIn("未分析", words)
         self.assertIn("某某商城", words)
@@ -100,37 +102,37 @@ class CleanTests(Rig):
     def test_the_suggested_are_ticked_and_carried_out_after_confirming_then_undone(self):
         self.read()
         self.judge()
-        s = self.page("clean")
+        s = self.page("sweep")
         words = self.texts(s)
         self.assertIn("建议删除（3 封", words)
         self.assertIn("已选 4 封：归档 1，删除 3", words)
-        r = self.ok(self.press("clean", "处理（4 封）"))
+        r = self.ok(self.press("sweep", "处理（4 封）"))
         self.assertIn("确认", r.text)
         self.assertIn("旧推送一", self.r.inbox())                        # nothing moved before 确认
-        words = self.texts(self.page("clean"))
+        words = self.texts(self.page("sweep"))
         self.assertIn("删除：广告促销 3 封", words)                         # the browser dialog's words
         self.assertIn("可在处理记录中撤销", words)
-        self.ok(self.press("clean", "确认"))
+        self.ok(self.press("sweep", "确认"))
         self.settle()
         self.assertNotIn("旧推送一", self.r.inbox())
         self.assertNotIn("去年的聚餐", self.r.inbox())
         self.assertIn("合同扫描件（留着）", self.r.inbox())
-        s = self.page("clean")
+        s = self.page("sweep")
         self.assertIn("撤销", self.buttons(s))
-        self.ok(self.press("clean", "撤销"))
+        self.ok(self.press("sweep", "撤销"))
         self.assertIn("旧推送一", self.r.inbox())
 
     def test_unticking_holds_across_redraws_and_changes_what_is_carried_out(self):
         self.read()
         self.judge()
-        s = self.page("clean")
-        self.ok(self.tap("clean", "取消勾选", "某某商城"))
-        self.ok(self.press("clean", "刷新"))                              # a redraw keeps it
-        s = self.page("clean")
+        s = self.page("sweep")
+        self.ok(self.tap("sweep", "取消勾选", "某某商城"))
+        self.ok(self.press("sweep", "刷新"))                              # a redraw keeps it
+        s = self.page("sweep")
         self.assertIn("已选 1 封：归档 1，删除 0", self.texts(s))
         self.assertIn("勾选", [self.s_text(s, self.in_row(s, "勾选", "某某商城"))])
-        self.ok(self.press("clean", "全选"))                               # the section's 全选 ticks it again
-        self.assertIn("已选 4 封", self.texts(self.page("clean")))
+        self.ok(self.press("sweep", "全选"))                               # the section's 全选 ticks it again
+        self.assertIn("已选 4 封", self.texts(self.page("sweep")))
 
     @staticmethod
     def s_text(s, bid):
@@ -140,48 +142,48 @@ class CleanTests(Rig):
         self.r.app.cfg["mode"]["write"] = False
         self.read()
         self.judge()
-        s = self.page("clean")
+        s = self.page("sweep")
         self.assertIn("删除前需要先开启处理模式", self.texts(s))
         self.assertNotIn("处理（4 封）", self.buttons(s))
-        self.ok(self.press("clean", "开启处理模式"))
+        self.ok(self.press("sweep", "开启处理模式"))
         self.assertFalse(self.r.app.cfg["mode"]["write"])
-        self.assertIn("螺壳不会发信", self.texts(self.page("clean")))
-        self.ok(self.press("clean", "确认"))
+        self.assertIn("螺壳不会发信", self.texts(self.page("sweep")))
+        self.ok(self.press("sweep", "确认"))
         self.assertTrue(self.r.app.cfg["mode"]["write"])
-        self.assertIn("处理（4 封）", self.buttons(self.page("clean")))
+        self.assertIn("处理（4 封）", self.buttons(self.page("sweep")))
 
     def test_archiving_alone_needs_no_mode(self):
         self.r.app.cfg["mode"]["write"] = False
         self.read()
         self.judge()
-        s = self.page("clean")
-        self.ok(self.tap("clean", "取消勾选", "某某商城"))
-        self.assertIn("处理（1 封）", self.buttons(self.page("clean")))
+        s = self.page("sweep")
+        self.ok(self.tap("sweep", "取消勾选", "某某商城"))
+        self.assertIn("处理（1 封）", self.buttons(self.page("sweep")))
 
     def test_analysis_pauses_and_resumes(self):
         self.read()
-        self.assertIn("已分析 0 / 4", self.texts(self.page("clean")))
-        self.ok(self.press("clean", "暂停"))
-        self.assertIn("4 封未分析", self.texts(self.page("clean")))
-        self.ok(self.press("clean", "开始分析"))
+        self.assertIn("已分析 0 / 4", self.texts(self.page("sweep")))
+        self.ok(self.press("sweep", "暂停"))
+        self.assertIn("4 封未分析", self.texts(self.page("sweep")))
+        self.ok(self.press("sweep", "开始分析"))
         self.assertTrue(self.r.app.judging(ME, "inbox"))
 
     def test_newsletters_are_read_first_after_confirming(self):
         self.read()
         rows = self.r.app.store.old_rows(ME, "inbox")
         self.r.app.store.old_judge(ME, {x["message_id"]: "newsletter" for x in rows if "推送" in x["subject"]}, "t")
-        self.ok(self.press("clean", "暂停"))                     # the analysis is not what this is about
-        r = self.ok(self.press("clean", "先读一遍"))
+        self.ok(self.press("sweep", "暂停"))                     # the analysis is not what this is about
+        r = self.ok(self.press("sweep", "先读一遍"))
         self.assertIn("确认", r.text)
-        self.assertIn("本机模型会读这 3 封邮件", self.texts(self.page("clean")))
-        self.ok(self.press("clean", "确认"))
+        self.assertIn("本机模型会读这 3 封邮件", self.texts(self.page("sweep")))
+        self.ok(self.press("sweep", "确认"))
         self.assertIn("list:promo.shop.example", {x["key"] for x in self.r.app.store.digest_sources(ME)})
         self.settle()
-        self.assertRegex(self.texts(self.page("clean")), "正在阅读|已暂停|已阅读")
+        self.assertRegex(self.texts(self.page("sweep")), "正在阅读|已暂停|已阅读")
 
     def test_archived_mail_is_its_own_tab(self):
         self.read("已归档的邮件")
-        s = self.page("clean")
+        s = self.page("sweep")
         self.assertIn("已归档的邮件", self.texts(s))
         self.assertIn("收件箱中的旧邮件", self.buttons(s))
 
@@ -191,15 +193,15 @@ class CleanTests(Rig):
         old = self.r.app.old_view("demo", "archive")
         self.r.app.store.old_judge("demo", {r["message_id"]: "promotion" for r in
                                             self.r.app.store.old_rows("demo", "archive")[::2]}, "t")
-        s = self.page("clean")
+        s = self.page("sweep")
         self.assertIn("示例数据，不会更改邮箱。", self.texts(s))
         self.assertGreater(len(old["groups"]), 0)
         self.read("收件箱中的旧邮件")
-        self.page("clean")
+        self.page("sweep")
 
     def test_no_mailbox(self):
         self.r.app.cfg["accounts"] = []
-        for pid in ("clean", "subs"):
+        for pid in ("sweep", "subs"):
             self.assertIn("还没有连接邮箱", self.texts(self.page(pid)))
 
 
@@ -319,6 +321,75 @@ class SubsTests(Rig):
             self.ok(self.press("subs", label))
         if "一键退订" in self.buttons(self.page("subs")):
             self.assertIn("（示例）", self.ok(self.press("subs", "一键退订")).text)
+
+
+class CleanTests(Rig):
+    """清理 (设计规范 §18.2, 订阅体检 folded in): 「可以退订」 and 「可以归档」, each sender with its own buttons and one
+    button for the group, asked first by the window (§4 confirm)."""
+
+    checked = SubsTests.checked
+
+    def page(self, name: str) -> "a2ui.Surface":
+        return WindowRig.page(self, name)                     # as the agent reads it, with the core's features
+
+    def read_old(self, kind: str) -> None:
+        self.ok(self.press("sweep", "读取邮件"))
+        self.settle()
+        rows = self.r.app.store.old_rows(ME, "inbox")
+        self.r.app.store.old_judge(ME, {x["message_id"]: kind for x in rows}, "t")
+
+    def test_before_anything_was_looked_at(self):
+        s = self.page("clean")
+        words = self.texts(s)
+        self.assertIn("还没检查过你的订阅。", words)
+        self.assertIn("还没看过收件箱里的旧邮件。", words)
+        self.assertIn("订阅体检", self.buttons(s))                          # the whole of each, a page away
+
+    def test_nothing_to_clear_is_one_sentence(self):
+        self.checked([SHOP])                                              # 无法退订: not for this group
+        self.read_old("promotion")                                        # to delete: on 清理旧邮件, not here
+        self.ok(self.press("clean", "留着别再问", on="张伟"))                 # mail with a person: archived, kept
+        words = self.texts(self.page("clean"))
+        self.assertIn("现在没有要清理的。", words)
+        self.assertNotIn("可以退订", words)
+        self.assertNotIn("上次", words)                                    # never when it was last tidied
+
+    def test_unsubscribing_one_or_all_and_keeping_one(self):
+        self.checked([SHOP, sender("one@x.example", "早报", method="one_click", unsub_http="https://x.example/u"),
+                      sender("two@x.example", "晚报", method="one_click", unsub_http="https://x.example/v"),
+                      sender("web@x.example", "周报", method="web", unsub_http="https://x.example/web")])
+        s = self.page("clean")
+        words = self.texts(s)
+        self.assertIn("可以退订", words)
+        self.assertNotIn("某某商城", words)                                # 无法退订 is not offered here
+        whole = s.components[labelled(s, "全部退订（2 个）")]
+        self.assertEqual(whole["confirm"]["title"], "退订这 2 个发件人？")
+        self.assertIn("早报、晚报", whole["confirm"]["text"])
+        web = s.components[self.in_card(s, "退订", "周报")]
+        self.assertEqual(web["action"]["event"]["name"], "agent.open_url")     # its own page, opened by the window
+        self.ok(self.press("clean", "留着别再问", on="周报"))
+        self.assertRaises(AssertionError, self.in_card, self.page("clean"), "退订", "周报")
+        with mock.patch.object(subscriptions, "one_click", lambda url: (True, "")):
+            r = self.ok(self.press("clean", "全部退订（2 个）"))
+        self.assertIn("已退订 2 个", r.text)
+        self.assertNotIn("可以退订", self.texts(self.page("clean")))
+
+    def test_archiving_one_source_or_all_and_keeping_one(self):
+        self.read_old("personal")
+        s = self.page("clean")
+        self.assertIn("可以归档", self.texts(s))
+        whole = next(x for x in self.buttons(s) if x.startswith("全部归档（"))
+        self.assertIn("可以在处理记录里撤销", s.components[labelled(s, whole)]["confirm"]["text"])
+        first = next(c["text"] for c in s.components.values() if c.get("variant") == "strong")
+        self.ok(self.press("clean", "留着别再问", on=first))
+        kept = self.r.app.store.cache_get(ME, "keep:inbox")[0]
+        self.assertEqual(len(kept), 1)
+        s = self.page("clean")
+        self.assertNotIn(first, self.texts(s))
+        self.ok(self.press("clean", next(x for x in self.buttons(s) if x.startswith("全部归档（"))))
+        self.settle()
+        self.assertEqual(self.r.app.store.cache_get(ME, "keep:inbox")[0], kept)    # the rest not taken as kept
+        self.assertNotIn("可以归档", self.texts(self.page("clean")))
 
 if __name__ == "__main__":
     unittest.main()

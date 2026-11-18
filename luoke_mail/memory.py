@@ -74,8 +74,8 @@ def _load():
 
 
 luoke_mem = _load()
-# 0.8: secrets apart from sensitive context (top-level ADR 0004); 0.9: a rewritten note marked by its new words;
-# 0.15: what the user says about understandings is the memory's, not forgotten with the mail assistant (ADR 0009)
+# 0.8: secrets apart from sensitive context (top-level archived ADR 0004); 0.9: a rewritten note marked by its new words;
+# 0.15: what the user says about understandings is the memory's, not forgotten with the mail assistant (archived ADR 0009)
 # -- the forget dialogs promise it; 0.15.4: what is forgotten is gone from the file too, and the names users see
 NEEDED = (0, 23, 0)
 if (tuple(int(x) for x in re.findall(r"\d+", getattr(luoke_mem, "__version__", "0"))[:3]) < NEEDED
@@ -91,7 +91,7 @@ sensitive = luoke_mem.sensitive                 # either kind below: the same li
 
 def mask(text: str | None) -> str:
     """What is written to the memory, credentials hidden: a password, a code, a key or token, a full card or ID
-    number is replaced where it stands (「验证码 〔验证码〕」), the rest kept as it is (top-level ADR 0013: a
+    number is replaced where it stands (「验证码 〔验证码〕」), the rest kept as it is (top-level ADR 0001: a
     credential is a security matter; nothing else is held back on the user's own machine). The memory masks
     again when it writes; this is so the mail assistant's own words never carry one either."""
     return luoke_mem.mask_secrets(text or "")
@@ -99,14 +99,14 @@ def mask(text: str | None) -> str:
 
 def marks(*texts: str | None) -> list[str]:
     """The kinds of sensitive context in what is about to be written: it is kept, marked with them, for the memory
-    to weigh (what it infers about health, legal matters or beliefs waits for the user's word; ADR 0013)."""
+    to weigh (what it infers about health, legal matters or beliefs waits for the user's word; ADR 0001)."""
     found: set[str] = set()
     for t in texts:
         found.update(luoke_mem.sensitive_kinds(t or ""))
     return sorted(found)
 
 
-# ---- which mailbox a record comes from (top-level ADR 0010) ----------------------------------------------------
+# ---- which mailbox a record comes from (top-level archived ADR 0010) ----------------------------------------------------
 def account_key(acct: str) -> str:
     """The mailbox a record comes from, as it is written into the record's data: an opaque key, not the address
     (2026-10-16). The same mailbox removed and added again gets the same key -- it rests on a random
@@ -124,7 +124,7 @@ def sourced(acct: str, data: dict | None = None) -> dict:
 
 def happened(mem, acct: str, topic: str, text: str, *, sender: str | None, by: str = "user", when: str | None = None,
              data: dict | None = None, ref: str | None = None, speaker: str = "user", kind: str = "activity") -> int:
-    """What happened, for the memory to learn from (top-level ADR 0015: the tools record, the memory concludes):
+    """What happened, for the memory to learn from (top-level ADR 0005: the tools record, the memory concludes):
     which mailbox, which sender (list:/from:), who did it -- "user", "rule", or "suggestion" (the user accepting
     one) -- and when it really happened (`when`, not when it is written down). Credentials masked, sensitive
     context marked."""
@@ -133,7 +133,7 @@ def happened(mem, acct: str, topic: str, text: str, *, sender: str | None, by: s
                       sensitive=marks(words), data=sourced(acct, {**(data or {}), "sender": sender, "by": by}))
 
 
-AUTO_ACTIONS = ("archive", "read", "label")   # what may be done unasked, each undone in one click (ADR 0016)
+AUTO_ACTIONS = ("archive", "read", "label")   # what may be done unasked, each undone in one click (ADR 0006)
 
 
 def auto_habits(mem, acct: str) -> list[dict]:
@@ -188,21 +188,19 @@ def _salt() -> bytes:
     return _salts[path]
 
 
-def whole_memory_ui():
-    """luoke-mem's own page for the whole memory (0.6: `luoke_mem.ui.ensure(path) -> url`), or None with an
-    older luoke-mem. Everything the user keeps, from every tool, is seen and managed there (top-level ADR 0002)."""
-    try:
-        from luoke_mem import ui
-    except ImportError:
-        return None
-    return ui if hasattr(ui, "ensure") else None
-
-
 MEMORY_APP_ID = "ai.luoke.memory"
 MEMORY_URL = "luoke://memory"
 HUB_APPS = ("螺壳.app", "螺壳主控.app")
 HUB_ID = "ai.luoke.core"
 HUB_DEV_ID = "ai.luoke.core.dev"     # 螺壳（开发）: build_app.sh's default, ad hoc
+# a development instance, one per session (luoke-core tools/dev_app.sh <名字>, 11-12): 螺壳（<名字>）, ad hoc. Not
+# ai.luoke.core.lab itself (the lab build): it needs a name between.
+HUB_INSTANCE_ID = re.compile(r"ai\.luoke\.core\.[a-z0-9][a-z0-9-]*\.lab")
+
+
+def hub_dev_build(bundle_id) -> bool:
+    """An ad hoc 螺壳 built on this Mac: 螺壳（开发） or a development instance."""
+    return bundle_id == HUB_DEV_ID or bool(HUB_INSTANCE_ID.fullmatch(str(bundle_id or "")))
 
 
 def hub_roots() -> tuple[str, ...]:
@@ -232,7 +230,7 @@ def hub_app() -> str | None:
 
 def memory_entry() -> str | None:
     """How to open 螺壳记忆, or None when there is none. From beta1 it is part of 螺壳主控, opened with
-    luoke://memory (top-level ADR 0003, amended 2026-10-16; luoke-core's page): there when 主控 carries it. With
+    luoke://memory (top-level archived ADR 0003, amended 2026-10-16; luoke-core's page): there when 主控 carries it. With
     a 主控 from before, the separate 螺壳记忆.app, by its bundle id."""
     hub = hub_app()
     if hub and os.path.isfile(os.path.join(hub, "Contents", "Resources", "memory", "luoke-accessory.json")):

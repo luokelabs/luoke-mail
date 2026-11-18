@@ -13,7 +13,7 @@ import os
 import re
 import time
 
-from . import desktop, digest, editor, engines, memory, providers, samples, triage
+from . import desktop, digest, editor, engines, memory, problems, providers, samples, triage
 from .mailbox import MailError, real_mid
 from .subscriptions import sender_key
 
@@ -22,15 +22,15 @@ SLICE_SECONDS = 240
 WEEK_DAYS = 7
 MONTHS_SHOWN = 60
 NOTIFY_HOUR = 8                       # the weekly note goes out on the first background run after Monday 08:00
-NOTE_KINDS = ("fact", "preference", "interest", "dislike", "taste", "term")   # every kind (ADR 0013), the input method's too
-# sensitive context is kept marked, and the mail assistant may not read it back (top-level ADR 0004)
+NOTE_KINDS = ("fact", "preference", "interest", "dislike", "taste", "term")   # every kind (ADR 0001), the input method's too
+# sensitive context is kept marked, and the mail assistant may not read it back (top-level archived ADR 0004)
 # where an understanding came from, by the records it cites (who said it)
 SOURCES = {"own-site": "你的网站", "own-label": "你的邮箱标签", "sent-mail": "你发出的邮件", "mail-read": "你的阅读记录",
            "digest-open": "你的阅读记录", "digest-feedback": "你对精选的反馈", "received-mail": "你收到的邮件",
            "override": "你的操作", "mail-cleared": "你清理的邮件"}
 
 
-# other luoke tools write to the same memory (top-level ADR 0002): their understandings are shared, their raw
+# other luoke tools write to the same memory (top-level archived ADR 0002): their understandings are shared, their raw
 # records are theirs -- shown here only as where they came from and how many
 TOOL_NAMES = memory.luoke_mem.TOOL_NAMES        # one copy of the names users see: luoke-mem's (0.15.4)
 
@@ -46,7 +46,7 @@ def own_record(c: dict) -> bool:
 def origin_text(n: dict) -> str:
     """「你填写的」, or what it was drawn from: 「根据…推断」 when it took effect by itself (from the user's own things),
     「根据…推测」 for a guess (「，已确认」 once the user said yes). Another tool's: 「来自螺壳输入法」."""
-    if n["origin"] == "user":             # whichever page it was said on: the user's words belong to the memory (ADR 0009)
+    if n["origin"] == "user":             # whichever page it was said on: the user's words belong to the memory (archived ADR 0009)
         return "你填写的"
     if n.get("tool") and n["tool"] != memory.TOOL:
         return f"来自{tool_name(n['tool'])}" + ("，已确认" if n["status"] == "active" and n["decided_at"] else "")
@@ -103,22 +103,38 @@ class Curator:
     def now(self, acct: str) -> dt.datetime:
         return dt.datetime.combine(samples.TODAY, dt.time(9)) if acct == DEMO else dt.datetime.now()
 
+    def months(self, acct: str) -> list[str]:
+        """The months with pieces before the last seven days, newest first (at most MONTHS_SHOWN)."""
+        return sorted(self.store.digest_months(acct, self._since(acct)), reverse=True)[:MONTHS_SHOWN]
+
+    def period(self, acct: str, kind: str, month: str | None = None, todo: set | None = None) -> tuple[list[dict], bool]:
+        """One period's picks as shown (archived ones left out), and whether the editor has still to choose. Picking
+        a period compares its pieces with each other, so a page asks only for the period it shows: all sixty
+        months each time took half a second (2026-11-17)."""
+        items, pending = self._chosen(acct, kind, month, todo)
+        return [self.public_item(acct, i) for i in items if not i.get("archived_at")], pending
+
+    def reading(self, acct: str) -> dict:
+        counts = self.store.digest_mail_counts(acct)
+        state, _ = self.store.cache_get(acct, "read")
+        busy = self.app.running_job()
+        return {"queued": counts.get("queued", 0), "read": counts.get("read", 0), "failed": counts.get("failed", 0),
+                "on": (state or {}).get("on", True), "problem": (state or {}).get("problem"),
+                "problem_code": (state or {}).get("problem_code") if (state or {}).get("problem") else None,
+                "running": bool(busy and busy["kind"] == "read" and busy.get("account") == acct)}
+
     def view(self, acct: str) -> dict:
         mem = self.app.memory_for(acct)
         since = self._since(acct)
         todo = set(self.edit_pending(acct, waiting=True))
-        week, week_pending = self._chosen(acct, "week", None, todo)
+        week, week_pending = self.period(acct, "week", None, todo)
         months = []
-        counts = self.store.digest_months(acct, since)
-        for m in sorted(counts, reverse=True)[:MONTHS_SHOWN]:
-            items, pending = self._chosen(acct, "month", m, todo)
-            months.append({"month": m, "items": [self.public_item(acct, i) for i in items if not i.get("archived_at")],
-                           "pending": pending})
+        for m in self.months(acct):
+            items, pending = self.period(acct, "month", m, todo)
+            months.append({"month": m, "items": items, "pending": pending})
         week_total, earlier_total = self.store.digest_counts(acct, since)
         edit_state, _ = self.store.cache_get(acct, "edit")
-        state, _ = self.store.cache_get(acct, "read")
         busy = self.app.running_job()
-        counts = self.store.digest_mail_counts(acct)
         sources = self.store.digest_sources(acct)
         return {
             # what the picks go by: the memory's 精选的口味, and what it understood of the user's interests
@@ -126,10 +142,8 @@ class Curator:
             "dislikes": mem.notes(kinds=["dislike"]),
             "proposed": [],                               # the memory asks what is worth it: on the 记忆 page
             "sources": sources, "since": since,
-            "reading": {"queued": counts.get("queued", 0), "read": counts.get("read", 0), "failed": counts.get("failed", 0),
-                        "on": (state or {}).get("on", True), "problem": (state or {}).get("problem"),
-                        "running": bool(busy and busy["kind"] == "read" and busy.get("account") == acct)},
-            "week": [self.public_item(acct, i) for i in week if not i.get("archived_at")], "week_pending": week_pending,
+            "reading": self.reading(acct),
+            "week": week, "week_pending": week_pending,
             "week_total": week_total,
             "saved": [self.public_item(acct, i) for i in self.store.digest_saved(acct)],
             "archived": [self.public_item(acct, i) for i in self.store.digest_archived(acct)],
@@ -171,7 +185,7 @@ class Curator:
 
     @staticmethod
     def _text_of(it: dict) -> dict:
-        """What the piece says, for the memory to read (ADR 0015): its title and the reader's summary of it --
+        """What the piece says, for the memory to read (ADR 0005): its title and the reader's summary of it --
         the sender's words, not the user's (`text_by`, agreed with luoke-mem)."""
         text = " ".join(x for x in (it.get("title") or "", " ".join((it.get("summary") or "").split())) if x)
         return {"text": memory.mask(text), "text_by": "sender"} if text else {}
@@ -362,7 +376,7 @@ class Curator:
             except engines.Busy:
                 break                                    # the hub has more urgent work: this period comes again
             except engines.EngineError as ex:
-                self.store.cache_update(acct, "edit", problem=str(ex), failed_at=time.time())
+                self.store.cache_update(acct, "edit", problem=str(ex), problem_code=problems.code_of(ex), failed_at=time.time())
                 break
             if chosen is None:                           # asked to make way: this period is chosen again later
                 break
@@ -440,14 +454,14 @@ class Curator:
                     except engines.Busy:
                         return {"read": read}            # the hub has more urgent work: come back later
                     except engines.EngineError as ex:
-                        self.store.cache_update(acct, "read", problem=str(ex), failed_at=time.time())
+                        self.store.cache_update(acct, "read", problem=str(ex), problem_code=problems.code_of(ex), failed_at=time.time())
                         return {"read": read}
                     self.store.digest_read(acct, row["message_id"], items, link.name,
                                            None if items is not None else "模型未按要求返回结果。")
                     self.store.cache_update(acct, "read", problem=None)     # never "on": that is the user's switch
                     read += 1
         except MailError as ex:
-            self.store.cache_update(acct, "read", problem=str(ex), failed_at=time.time())
+            self.store.cache_update(acct, "read", problem=str(ex), problem_code=problems.code_of(ex), failed_at=time.time())
         finally:
             if mb:
                 mb.close()
@@ -517,10 +531,9 @@ class Curator:
                 **{k: [pub(n) for n in mem.notes(kinds=[k]) if n.get("topic") != "site"] for k in NOTE_KINDS},
                 "sites": self.app.profiler.sites(acct), "profile": self.app.profiler.view(acct),
                 "learning": self.app.learner.view(acct),
-                "whole": acct != DEMO and (memory.memory_entry() is not None if self._installed_memory()
-                                           else memory.whole_memory_ui() is not None)}
+                "whole": acct != DEMO and self._own_memory() and memory.memory_entry() is not None}
 
-    # ---- what the memory would like to ask, and what it suggests (ADR 0012: the memory decides what is worth it) --
+    # ---- what the memory would like to ask, and what it suggests (archived ADR 0012: the memory decides what is worth it) --
     # the choices luoke-mem's reply() takes, by the words of the options it gives (0.18; 0.20 adds 「以前是，现在不是」)
     CHOICES = {"对": "yes", "不对": "no", "以前是，现在不是": "past", "以后再说": "later",
                "好": "useful", "有用": "useful", "不用": "useless", "没用": "useless", "别再提": "never"}
@@ -529,7 +542,7 @@ class Curator:
 
     def asks(self, mem) -> list[dict]:
         """Open questions and suggestions that concern the mail assistant (`asks(tool=...)`), for the 记忆 page
-        while luoke-agent is not there (ADR 0012 amendment 6). An older memory has none."""
+        while luoke-agent is not there (archived ADR 0012 amendment 6). An older memory has none."""
         try:
             rows = mem.asks(tool=memory.TOOL)
         except (AttributeError, TypeError):
@@ -545,33 +558,24 @@ class Curator:
                         "about_kind": a.get("about_kind"), "options": [{"label": l, "choice": c} for l, c in pairs]})
         return out
 
-    def _installed_memory(self) -> bool:
-        """The app, on the user's own memory: 「查看整份记忆」 is the 螺壳记忆 they installed, as from the input method
-        and the agent -- not the page of the library this app carries, which may be another version (top-level
-        boundary audit, 2026-10-16). Run from source, or on a copy of the data, the library's own page."""
-        return self.app.hub_only and os.path.realpath(self.app.mem.path) == os.path.realpath(memory.luoke_mem.default_path())
+    def _own_memory(self) -> bool:
+        """luoke-mail is on the user's own memory file: 「查看整份记忆」 is the memory page in 螺壳's window (or 螺壳记忆
+        with a 主控 from before beta1), the same file. On a copy of the data (LUOKE_MAIL_HOME) that page would show
+        the real memory, not the copy: no entry there. luoke-mem's own page (luoke_mem.ui) is going away (11-12)."""
+        return os.path.realpath(self.app.mem.path) == os.path.realpath(memory.luoke_mem.default_path())
 
     def open_whole(self, body: dict) -> dict:
-        """「查看整份记忆」: luoke-mem's own page, started (or found running) for the memory file luoke-mail uses --
-        the real one, or the copy's when LUOKE_MAIL_HOME points at a copy. Not for the demo's memory."""
+        """「查看整份记忆」: the memory page 螺壳 opens (luoke://memory), or 螺壳记忆.app with a 主控 from before. Not for
+        the demo's memory or a copy of the data."""
         acct = self.app.account(body.get("source"))
-        if acct != DEMO and self._installed_memory():
-            entry = memory.memory_entry()
-            if not entry:
-                raise ValueError("没有找到螺壳记忆。")
-            if entry == memory.MEMORY_URL:
-                desktop.open_url(entry)                   # 螺壳主控 starts the memory's page and opens the browser
-            else:
-                desktop.open_app(entry)
-            return {"opened": True}
-        ui = memory.whole_memory_ui()
-        if acct == DEMO or ui is None:
-            raise ValueError("整份记忆的页面需要更新的螺壳记忆（luoke-mem）。")
-        try:
-            return {"url": ui.ensure(self.app.mem.path)}
-        except (RuntimeError, OSError) as ex:
-            print(f"luoke-mail: luoke-mem ui did not start: {type(ex).__name__}", flush=True)
-            raise ValueError("螺壳记忆的页面没能打开，请稍后再试。") from None
+        entry = memory.memory_entry() if acct != DEMO and self._own_memory() else None
+        if not entry:
+            raise ValueError("没有找到螺壳记忆。")
+        if entry == memory.MEMORY_URL:
+            desktop.open_url(entry)                       # 螺壳 opens its window on the memory page
+        else:
+            desktop.open_app(entry)
+        return {"opened": True}
 
     def memory_change(self, body: dict) -> dict:
         source = body.get("source")
@@ -607,8 +611,8 @@ class Curator:
                 mem.revise(int(body["id"]), text, sensitive=memory.marks(text))   # the new words may bring a kind
             elif op == "forget_mine":
                 # what the mail assistant wrote, and the understandings resting only on it; what the user said stays,
-                # it is the memory's (top-level ADR 0009). Clearing the whole memory, or what other tools wrote, is
-                # luoke-mem's (ADR 0002). The demo's memory is luoke-mail's own sample: all of it, started again
+                # it is the memory's (top-level archived ADR 0009). Clearing the whole memory, or what other tools wrote, is
+                # luoke-mem's (archived ADR 0002). The demo's memory is luoke-mail's own sample: all of it, started again
                 if acct == DEMO:
                     self.app.reset_demo_memory()
                 else:

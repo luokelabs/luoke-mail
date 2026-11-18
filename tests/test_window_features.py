@@ -42,13 +42,13 @@ class OpenAtOneMailTests(WindowRig):
         self.assertIn("返回列表", [c.get("text") for c in self.page("inbox").components.values()])
         self.assertIsNone(self.press("inbox", "返回列表"))                       # agent.open_page, no args
         self.assertEqual(self.opened["inbox"], {})
-        self.assertIn("答辩时间确认", self.texts(self.page("inbox")))
+        self.assertIn("王老师问答辩时间", self.texts(self.page("inbox")))
 
     def test_a_card_about_one_mail_opens_at_it_and_one_about_several_at_the_list(self):
         ctx = events(self.card("new-mail"), "agent.open_page")[0]
         self.assertEqual(ctx, {"page": "inbox", "args": {"box": ME, "list": "needs"}})   # more wait: that list
         self.opened["inbox"] = ctx["args"]
-        self.assertIn("合同扫描件", self.texts(self.page("inbox")))
+        self.assertIn("律师发来合同扫描件", self.texts(self.page("inbox")))
         store = self.r.app.store
         for it in store.items(self.r.app.account(None)):
             if it["subject"] != "答辩时间确认" and it.get("action") in ("reply", "schedule", "follow_up"):
@@ -64,10 +64,10 @@ class OpenAtOneMailTests(WindowRig):
         self.assertEqual(ctx["args"], {"box": ME, "list": "needs"})
         self.opened["inbox"] = {"box": ME, "list": "suspicious"}
         words = self.texts(self.page("inbox"))
-        self.assertIn("账户已冻结", words)
-        self.assertNotIn("合同扫描件", words)                              # only what looks suspicious
+        self.assertIn("冒充银行要求登录", words)
+        self.assertNotIn("律师发来合同扫描件", words)                              # only what looks suspicious
         self.press("inbox", "全部")                                         # the user's own choice, same args
-        self.assertIn("合同扫描件", self.texts(self.page("inbox")))
+        self.assertIn("律师发来合同扫描件", self.texts(self.page("inbox")))
 
     def test_view_the_text_opens_the_page_at_that_mail(self):
         self.press("inbox", "查看原文")
@@ -78,7 +78,7 @@ class OpenAtOneMailTests(WindowRig):
         self.opened["inbox"] = {"id": "999999"}
         self.assertIn("这封邮件已经处理过了", self.texts(self.page("inbox")))
         self.opened["inbox"] = {"id": "not a number"}
-        self.assertIn("答辩时间确认", self.texts(self.page("inbox")))
+        self.assertIn("王老师问答辩时间", self.texts(self.page("inbox")))
 
     def test_an_older_core_has_the_browser_page_opened(self):
         with OLD_CORE:
@@ -132,36 +132,36 @@ class AddMailboxTests(WindowRig):
     SECRET = "pw-not-on-any-page-1234"
 
     def test_the_app_password_goes_to_the_keychain_and_nowhere_else(self):
-        self.press("settings", "添加邮箱…")
-        self.press("settings", "其他邮箱（手动填写 IMAP）")
-        s = self.page("settings")
+        self.press("legacy-settings", "添加邮箱…")
+        self.press("legacy-settings", "其他邮箱（手动填写 IMAP）")
+        s = self.page("legacy-settings")
         secret = next(c for c in s.components.values() if c.get("variant") == "obscured")
         self.assertEqual(s.data["secrets"]["secret"], "")                # never a value from the tool
         self.assertEqual(secret["value"], {"path": "/secrets/secret"})
-        r = self.press("settings", "保存并测试连接", fields={"address": "lucy@corp.example", "host": "127.0.0.1",
+        r = self.press("legacy-settings", "保存并测试连接", fields={"address": "lucy@corp.example", "host": "127.0.0.1",
                                                              "port": "993"}, secrets={"secret": self.SECRET})
         self.assertFalse(r.is_error, r.text)
         self.assertIn("连接成功", r.text)
         self.assertEqual(self.r.app.secrets.get(server.MAIL_SECRET, "lucy@corp.example"), self.SECRET)
         self.assertIn("lucy@corp.example", self.r.app.mail_accounts())
         w = self.r.app.agent.window
-        seen = json.dumps([r.text, r.structured, w.views, w.notes, w.confirming, self.c.read_json("page/settings")],
+        seen = json.dumps([r.text, r.structured, w.views, w.notes, w.confirming, self.c.read_json("page/legacy-settings")],
                           ensure_ascii=False, default=str)
         self.assertNotIn(self.SECRET, seen)
 
     def test_a_refused_password_says_so_and_the_form_stays(self):
-        self.press("settings", "添加邮箱…")
-        self.press("settings", "Gmail")
-        r = self.press("settings", "保存并测试连接", fields={"address": "lucy@gmail.example"})
+        self.press("legacy-settings", "添加邮箱…")
+        self.press("legacy-settings", "Gmail")
+        r = self.press("legacy-settings", "保存并测试连接", fields={"address": "lucy@gmail.example"})
         self.assertTrue(r.is_error)
         self.assertIn("授权码", r.text)
-        words = self.texts(self.page("settings"))
+        words = self.texts(self.page("legacy-settings"))
         self.assertIn("连不上？", words)
-        self.assertIn("lucy@gmail.example", json.dumps(self.page("settings").data, ensure_ascii=False))
+        self.assertIn("lucy@gmail.example", json.dumps(self.page("legacy-settings").data, ensure_ascii=False))
 
     def test_an_older_core_opens_the_browser_page(self):
         with OLD_CORE:
-            s = self.page("settings")
+            s = self.page("legacy-settings")
             self.assertFalse([c for c in s.components.values() if c.get("variant") == "obscured"])
             bid = labelled(s, "添加邮箱…")
             self.assertEqual(s.find_action(bid)[0], "mail_do")
@@ -174,10 +174,16 @@ class GmailFilterTests(WindowRig):
         self.r.app.store.add_rule(self.r.app.account(None), "sender", "news@shop2.example", "archive")
 
     def export(self):
+        """Asked first: by the window (§4 confirm), or on the page with 确认 (an older core)."""
+        s = self.page("rules")
+        asked = s.components[labelled(s, "导出到 Gmail（1 条）")].get("confirm")
         r = self.press("rules", "导出到 Gmail（1 条）")
-        self.assertIn("确认", r.text)
-        self.assertIn("导入过滤器", self.texts(self.page("rules")))
-        r = self.press("rules", "确认")
+        if asked:
+            self.assertIn("导入过滤器", asked["text"])
+        else:
+            self.assertIn("确认", r.text)
+            self.assertIn("导入过滤器", self.texts(self.page("rules")))
+            r = self.press("rules", "确认")
         self.assertFalse(r.is_error, r.text)
         return r
 

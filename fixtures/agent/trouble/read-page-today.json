@@ -1,0 +1,337 @@
+{
+  "reply": {
+    "id": 7,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "today"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g1-c18",
+                      "g1-r21"
+                    ],
+                    "component": "Column",
+                    "id": "root",
+                    "layout": "sections"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-t1",
+                    "text": "双十一预告",
+                    "variant": "strong"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-t2",
+                    "text": "已读，留在收件箱 · 某某商城",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-b3-t",
+                    "text": "撤销"
+                  },
+                  {
+                    "component": "Icon",
+                    "id": "g1-b3-i",
+                    "name": "undo-2"
+                  },
+                  {
+                    "children": [
+                      "g1-b3-i",
+                      "g1-b3-t"
+                    ],
+                    "component": "Row",
+                    "id": "g1-b3-r"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g1-b3",
+                          "page": "today"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g1-b3-r",
+                    "component": "Button",
+                    "id": "g1-b3",
+                    "tooltip": "标为未读"
+                  },
+                  {
+                    "children": [
+                      "g1-t1",
+                      "g1-t2"
+                    ],
+                    "component": "Column",
+                    "id": "g1-c5"
+                  },
+                  {
+                    "children": [
+                      "g1-c5",
+                      "g1-b3"
+                    ],
+                    "component": "Row",
+                    "id": "g1-r4",
+                    "justify": "spaceBetween"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-t6",
+                    "text": "双十一预告",
+                    "variant": "strong"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-t7",
+                    "text": "已读，留在收件箱 · 某某商城",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-b8-t",
+                    "text": "撤销"
+                  },
+                  {
+                    "component": "Icon",
+                    "id": "g1-b8-i",
+                    "name": "undo-2"
+                  },
+                  {
+                    "children": [
+                      "g1-b8-i",
+                      "g1-b8-t"
+                    ],
+                    "component": "Row",
+                    "id": "g1-b8-r"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g1-b8",
+                          "page": "today"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g1-b8-r",
+                    "component": "Button",
+                    "id": "g1-b8",
+                    "tooltip": "标为未读"
+                  },
+                  {
+                    "children": [
+                      "g1-t6",
+                      "g1-t7"
+                    ],
+                    "component": "Column",
+                    "id": "g1-c10"
+                  },
+                  {
+                    "children": [
+                      "g1-c10",
+                      "g1-b8"
+                    ],
+                    "component": "Row",
+                    "id": "g1-r9",
+                    "justify": "spaceBetween"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-t11",
+                    "text": "周末促销",
+                    "variant": "strong"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-t12",
+                    "text": "已读，留在收件箱 · 某某商城",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-b13-t",
+                    "text": "撤销"
+                  },
+                  {
+                    "component": "Icon",
+                    "id": "g1-b13-i",
+                    "name": "undo-2"
+                  },
+                  {
+                    "children": [
+                      "g1-b13-i",
+                      "g1-b13-t"
+                    ],
+                    "component": "Row",
+                    "id": "g1-b13-r"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g1-b13",
+                          "page": "today"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g1-b13-r",
+                    "component": "Button",
+                    "id": "g1-b13",
+                    "tooltip": "标为未读"
+                  },
+                  {
+                    "children": [
+                      "g1-t11",
+                      "g1-t12"
+                    ],
+                    "component": "Column",
+                    "id": "g1-c15"
+                  },
+                  {
+                    "children": [
+                      "g1-c15",
+                      "g1-b13"
+                    ],
+                    "component": "Row",
+                    "id": "g1-r14",
+                    "justify": "spaceBetween"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-t16",
+                    "text": "今天替你处理了 3 封",
+                    "variant": "h5"
+                  },
+                  {
+                    "children": [
+                      "g1-r4",
+                      "g1-r9",
+                      "g1-r14"
+                    ],
+                    "component": "List",
+                    "id": "g1-l17"
+                  },
+                  {
+                    "children": [
+                      "g1-t16",
+                      "g1-l17"
+                    ],
+                    "component": "Column",
+                    "id": "g1-c18"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-t19",
+                    "text": "还有 1 封等你回复。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-b20-t",
+                    "text": "去收件箱"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "args": {
+                            "box": "me@example.com",
+                            "list": "reply"
+                          },
+                          "page": "inbox"
+                        },
+                        "name": "agent.open_page"
+                      }
+                    },
+                    "child": "g1-b20-t",
+                    "component": "Button",
+                    "id": "g1-b20",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g1-t19",
+                      "g1-b20"
+                    ],
+                    "component": "Row",
+                    "id": "g1-r21"
+                  }
+                ],
+                "surfaceId": "today"
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/today"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 7,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/today"
+    }
+  }
+}

@@ -1,77 +1,104 @@
-"""今日处理 in the window: what the browser page's 今日处理 shows (static/review.js, view App.review.view), a screen
-at a time -- each message sorted or handled on a day with its outcome, taken back (撤销), marked unread again, or
-its suggestion changed (改为…) in place. The last 7 days can be switched to; a header filters to one group."""
+"""今日 in the window (设计规范 §18.2): what the mail assistant did for the user today on top, a line a message with
+its 撤销; then the few it could not decide on (at most three, §18.1), each with its ways to go as one group of
+choices, the suggestion picked already, and one button for them; last, one small line for the mail that waits for a
+reply, which goes to the inbox. No group headings with counts of what waits (§18.1).
+
+Drawn from the browser page's 今日处理 (App.review.view). Earlier days are in 处理记录."""
 from __future__ import annotations
 
-from ... import triage
 from .. import kit
 from .common import mailbox_row, more, running, screen
 
 RESULT = {
     "auto_archive": "已自动归档", "auto_trash": "已自动删除", "auto_read": "已自动标为已读", "auto_label": "已自动加标签",
-    "auto_complete": "已自动归档", "kept": "已读，留在收件箱", "waiting": "等你处理", "suspicious": "可疑",
-    "elsewhere": "你在邮箱中处理了", "unsorted": "未分析",
-    "you_archive": "你已归档", "you_trash": "你已删除", "you_spam": "你已移到垃圾邮件", "you_complete": "你已完成并归档",
-    "you_flag": "你已加星标", "you_read": "你已标为已读", "you_skip": "你已跳过", "you_skipped": "你已跳过", "you_done": "你已处理",
-    "you_draft": "你已保存回复草稿",
+    "auto_complete": "已自动归档", "kept": "已读，留在收件箱",
 }
-# what each outcome is grouped under, in this order; the header counts the same groups, so the numbers add up
-SECTIONS = [
-    ("needs", "等你处理", "等你处理", lambda x: not x["older"] and x["result"] in ("waiting", "suspicious")),
-    ("older", "以前的未读", "以前的未读", lambda x: x["older"]),
-    ("kept", "已读，留在收件箱", "留在收件箱", lambda x: not x["older"] and x["result"] in ("kept", "unsorted")),
-    ("auto", "已自动处理", "自动处理", lambda x: not x["older"] and x["result"].startswith("auto_")),
-    ("you", "你处理的", "你处理的", lambda x: not x["older"] and (x["result"].startswith("you_") or x["result"] == "elsewhere")),
-]
-LATE = {"overdue": "已过期", "due": "快到期", "old": "很久以前收到"}
+DECIDE_AT_MOST = 3          # what the user decides on a day (§18.1)
+STAY = ("skip", "留在收件箱")
+# the ways a mail can go, by what it was sorted as: the first is the suggestion (picked already)
+WAYS = {
+    "suspicious": [("spam", "移到垃圾邮件"), STAY],
+    "schedule": [("calendar", "加入日程"), ("archive", "归档"), STAY],
+    "follow_up": [("flag", "加星标"), ("archive", "归档"), STAY],
+    "archive": [("archive", "归档"), STAY],
+    "ignore": [("trash", "删除"), ("archive", "归档"), STAY],
+}
+ICONS = {"spam": "shield-alert", "skip": "circle-minus", "calendar": "calendar-plus", "archive": "archive",
+         "flag": "star", "trash": "trash-2"}
 
 
-def _day_label(i: int, day: str) -> str:
-    return "今天" if i == 0 else "昨天" if i == 1 else day[5:].replace("-", "/")
+def _done(x: dict) -> bool:
+    """Done for the user today: by a habit or a rule, or sorted, marked read and left where it was."""
+    return not x["older"] and (x["result"].startswith("auto_") or x["result"] == "kept")
+
+
+def _undo(p: kit.Page, src: str, day: str, x: dict):
+    """Taking it back: what a habit did is undone; mail marked read goes back to unread."""
+    one = {"source": src, "id": x["id"], "day": day}
+    if x["result"].startswith("auto_") and x.get("log_id"):
+        return p.do("撤销", "/api/review/act", {**one, "op": "undo"}, icon="undo-2")
+    if x["state"] == "pending" and x.get("read_by_us"):
+        return p.do("撤销", "/api/review/act", {**one, "op": "unread"}, icon="undo-2", tip="标为未读")
+    return None
+
+
+def _done_line(p: kit.Page, src: str, day: str, x: dict) -> str:
+    what = RESULT.get(x["result"], "已处理") + (f"「{x['label']}」" if x.get("label") else "")
+    return p.item([p.text(x.get("subject") or "（无主题）", "strong"),
+                   p.text(" · ".join(w for w in (what, x.get("from")) if w), "caption")],
+                  [_undo(p, src, day, x)])
+
+
+def _ways(x: dict) -> list:
+    if x.get("suspicious"):
+        return WAYS["suspicious"]
+    return WAYS.get(x.get("action") or "", [])
+
+
+def _to_decide(items: list) -> list:
+    """What waits for the user's word today, and the older mail still waiting: suspicious first, then what is late.
+    Mail that waits for a reply is not decided here: it is answered in the inbox."""
+    rows = [x for x in items if x["state"] == "pending" and x["result"] in ("waiting", "suspicious")
+            and (x["result"] == "suspicious" or x.get("action") != "reply") and _ways(x)]
+    late = {"overdue": 0, "due": 1, "old": 2}
+    return sorted(rows, key=lambda x: (x["result"] != "suspicious", late.get(x.get("late") or "", 3)))
+
+
+def _decide(w, p: kit.Page, src: str, rows: list) -> None:
+    shown = rows[:DECIDE_AT_MOST]
+    lines, picks = [], {}
+    for x in shown:
+        ways = _ways(x)
+        about = " · ".join(v for v in (x.get("from"), _late(x), x.get("summary")) if v)
+        key = f"a{x['id']}"
+        lines.append(p.item([p.text(x.get("subject") or "（无主题）", "strong"), p.text(about, "caption") if about else None],
+                            [p.choice(key, "怎么处理", ways, ways[0][0], icons=ICONS)]))
+        picks[str(x["id"])] = {"$input": f"choices/{key}"}
+    rest = len(rows) - len(shown)
+    p.add(p.column(p.text("要你定的", "h5"), p.list(lines),
+                   p.row(p.do("按选择处理", "decide", {"source": src, "picks": picks}, inputs=["choices"], primary=True),
+                         p.text(f"另有 {rest} 封在收件箱里。", "caption") if rest else None,
+                         p.open("去收件箱", {"box": w.app.account(src), "list": "needs"}, page="inbox") if rest else None)))
 
 
 def _late(x: dict) -> str:
-    if not x.get("late"):
-        return ""
-    if x["late"] == "overdue" and x.get("due_date"):
-        return f"已过期（{x['due_date'][:10]}）"
-    if x["late"] == "due" and x.get("due_date"):
-        return f"快到期（{x['due_date'][:10]}）"
-    if x["late"] == "old" and x.get("date"):
-        return f"{x['date'][:10]} 收到"
-    return LATE.get(x["late"], "")
+    if x.get("late") == "overdue":
+        return f"已过期（{x['due_date'][:10]}）" if x.get("due_date") else "已过期"
+    if x.get("late") == "due":
+        return f"快到期（{x['due_date'][:10]}）" if x.get("due_date") else "快到期"
+    return ""
 
 
-def _row(p: kit.Page, src: str, day: str, x: dict, view: dict) -> str:
-    what = RESULT.get(x["result"], "已处理") + (f"「{x['label']}」" if x.get("label") else "")    # never a code
-    # what the card offered: suspicious mail goes to junk, not the trash (luoke-mail#13)
-    suggested = "建议：移到垃圾邮件（可疑）" if x.get("suspicious") else \
-        f"建议：{triage.ACTIONS[x['action']]}" if x.get("action") in triage.ACTIONS else ""
-    lines = [p.text(x.get("subject") or "（无主题）", "h5"),
-             p.row(p.icon("warning") if x["result"] == "suspicious" else None,
-                   p.text(" · ".join(w for w in (what, _late(x)) if w), "caption"))]
-    meta = " · ".join(w for w in (x.get("from"), suggested, x.get("summary")) if w)
-    if meta:
-        lines.append(p.text(meta, "caption"))
-    one = {"source": src, "id": x["id"], "day": day}
-    if x["state"] == "pending" and view.get("change") == x["id"] and view.get("change_from") == x.get("action"):
-        others = [(a, label) for a, label in triage.ACTIONS.items() if a != x.get("action")]
-        lines.append(p.choice(f"a{x['id']}", "改为", others, others[0][0]))
-        lines.append(p.row(p.do("改好了", "/api/items/override",
-                                {"source": src, "ids": [x["id"]], "action": {"$input": f"choices/a{x['id']}"}},
-                                inputs=["choices"], primary=True),
-                           p.go("取消", {"change": None, "change_from": None})))
-        return p.card(*lines)
-    acts = []
-    if x["result"].startswith("auto_") and x.get("log_id"):
-        acts.append(p.do("撤销", "/api/review/act", {**one, "op": "undo"}))
-    if x["state"] == "pending" and x.get("read_by_us"):
-        acts.append(p.do("标为未读", "/api/review/act", {**one, "op": "unread"}))
-    if x["state"] == "pending":
-        acts.append(p.go("改为…", {"change": x["id"], "change_from": x.get("action")}))
-    if acts:
-        lines.append(p.row(*acts))
-    return p.card(*lines)
+def _replies(w, p: kit.Page, src: str) -> None:
+    """One small line for the mail that waits for a reply, all of this mailbox's: it goes to the inbox."""
+    acct = w.app.account(src)
+    try:
+        n = sum(1 for it in w.app.agent.waiting(acct)["needs"] if it.get("action") == "reply")
+    except Exception:  # noqa: BLE001 -- the line is a nicety
+        return
+    if n:
+        p.add(p.row(p.text(f"还有 {n} 封等你回复。", "caption"),
+                    p.open("去收件箱", {"box": acct, "list": "reply"}, page="inbox")))
 
 
 def build(w, p: kit.Page, view: dict) -> None:
@@ -79,49 +106,33 @@ def build(w, p: kit.Page, view: dict) -> None:
     running(w, p)
     if not w.app.mail_accounts():
         p.add(p.text("还没有连接邮箱。", "h4"),
-              p.text("在「设置」里添加邮箱以后，这里会列出螺壳每天处理过的邮件。", "caption"))
+              p.text("在「设置」里添加邮箱以后，这里会列出螺壳每天替你处理的邮件。", "caption"))
         return
     src = w.source(p.page)
-    v =w.app.review.view(src, view.get("day"))
-    if v["day"] not in v["days"]:                    # a day chosen a week ago: back to today
-        v = w.app.review.view(src)
+    v = w.app.review.view(src)
     day = v["day"]
-    if day == v["days"][0]:                          # looked at today's: the rail's badge clears (as the browser page)
-        try:
-            w.app.review.seen({"source": src})
-        except ValueError:
-            pass
-    p.add(p.text("螺壳今天处理了哪些邮件。不对的改一下，它会记住。", "caption"))
-    p.add(p.row(*[p.text(_day_label(i, d), "h5") if d == day else
-                  p.go(_day_label(i, d), {"day": None if i == 0 else d, "only": None, "at": 0, "change": None})
-                  for i, d in enumerate(v["days"])]))
-    groups = [(key, title, short, [x for x in v["items"] if test(x)]) for key, title, short, test in SECTIONS]
-    only = view.get("only")
-    if only and not any(k == only and rows for k, _, _, rows in groups):
-        only = None
-    tiles = [p.text(f"全部 {len(v['items'])}", "caption") if not only else p.go(f"全部 {len(v['items'])}", {"only": None, "at": 0})]
-    for key, _, short, rows in groups:
-        if rows:
-            label = f"{short} {len(rows)}"
-            tiles.append(p.text(label, "caption") if only == key else p.go(label, {"only": key, "at": 0}))
-    p.add(p.row(*tiles))
-    if not v["items"]:
-        p.add(p.text("这一天没有处理过的邮件。", "caption"))
-        return
-    flat = [(key, title, x, rows) for key, title, _, rows in groups if rows and (not only or only == key) for x in rows]
-    p.reserve = 6
-    shown = None
-    for key, title, x, rows in screen(p, view, flat):
-        if not p.room(18):
-            break
-        if key != shown:
-            shown = key
-            p.add(p.row(p.text(title, "h5"), p.text(str(len(rows)), "caption")))
-            late = sum(1 for y in rows if y.get("late")) if key == "older" else 0
-            if key == "older":
-                p.add(p.text("以前一直没读的邮件，螺壳看过并标为已读。" + (f"其中 {late} 封还要你处理。" if late else ""), "caption"))
-            if key == "needs" or late:
-                p.add(p.text("请到「收件箱」处理。", "caption"))
-        p.add(_row(p, src, day, x, view))
+    try:
+        w.app.review.seen({"source": src})          # looked at today's: the rail's badge clears (as the browser page)
+    except ValueError:
+        pass
+    p.sections = True
+    done = [x for x in v["items"] if _done(x)]
+    older = [x for x in v["items"] if x["older"] and x["result"] not in ("waiting", "suspicious")]
+    p.reserve = 30                                    # 要你定的 and the line for replies come after
+    if done or older:
+        lines = []
+        for x in screen(p, view, done):
+            if not p.room(10):
+                break
+            lines.append(_done_line(p, src, day, x))
+        p.add(p.column(p.text(f"今天替你处理了 {len(done)} 封" if done else "今天替你处理的", "h5"),
+                       p.list(lines) if lines else None,
+                       p.text(f"以前一直没读的 {len(older)} 封，螺壳看过，标为已读。", "caption") if older else None))
+        more(p, view, len(done))
     p.reserve = 0
-    more(p, view, len(flat))
+    decide = _to_decide(v["items"])
+    if decide:
+        _decide(w, p, src, decide)
+    if not done and not older and not decide:
+        p.add(p.text("今天还没有新邮件要处理。", "caption"))
+    _replies(w, p, src)

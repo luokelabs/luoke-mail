@@ -1,5 +1,5 @@
 // 今日处理: what was done with each message today -- archived by a habit, marked read and left in the inbox, waiting
-// for you, suspicious, handled by you -- each taken back or changed in one click (top-level ADR 0016). A change is
+// for you, suspicious, handled by you -- each taken back or changed in one click (top-level ADR 0006). A change is
 // what the memory learns from.
 import { $, S, api, el, nav, toast, withBusy } from "./core.js";
 import { icon } from "./icons.js";

@@ -7,8 +7,13 @@
         {
           "mimeType": "application/json",
           "text": {
+            "auto_today": 0,
+            "connected": false,
             "count": 0,
-            "text": "还没连邮箱"
+            "needs": 0,
+            "suspicious": 0,
+            "text": "未连接邮箱",
+            "tidy": 0
           },
           "uri": "summary"
         }
@@ -48,7 +53,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

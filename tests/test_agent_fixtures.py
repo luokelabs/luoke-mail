@@ -56,7 +56,7 @@ class FixtureTests(unittest.TestCase):
                 for c in result.get("contents") or []:
                     text = c["text"]
                     if c["uri"].startswith("page/"):
-                        self.assertEqual(a2ui.validate(text), [], f"{sc}/{name}")
+                        self.assertEqual(a2ui.validate(text, page=True), [], f"{sc}/{name}")
                     elif c["uri"].endswith("/outbox"):
                         for it in text["items"]:
                             self.assertEqual(a2ui.validate(it["card"]), [], f"{sc}/{name}")

@@ -1,0 +1,96 @@
+{
+  "reply": {
+    "id": 37,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "account": "me@example.com",
+            "address": "news@shop.example",
+            "count": 3,
+            "decision": null,
+            "domain": "shop.example",
+            "group": "no_way",
+            "history_error_code": "login_refused",
+            "history_state": "error",
+            "key": "list:promo.shop.example",
+            "kind": null,
+            "last": "2026-10-19 20:30",
+            "mailto": null,
+            "method": null,
+            "name": "某某商城",
+            "one_click": false,
+            "per_week": 0.3,
+            "read": 0,
+            "reply_keyword": null,
+            "rule": null,
+            "size": 938,
+            "still_sending": false,
+            "subjects": [
+              "双十一预告",
+              "双十一预告",
+              "周末促销"
+            ],
+            "suspicious": false,
+            "unsubscribe_url": null,
+            "verdict": "filter"
+          },
+          "uri": "data/sender?account=me%40example.com&key=list%3Apromo.shop.example"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 37,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/sender?account=me%40example.com&key=list%3Apromo.shop.example"
+    }
+  }
+}

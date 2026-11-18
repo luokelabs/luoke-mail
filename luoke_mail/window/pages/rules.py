@@ -16,7 +16,7 @@ HABITS_SHOWN = 30
 
 
 def _rule_text(r: dict) -> str:
-    return f"{RULE_KINDS.get(r['kind'], '规则')}「{r['value']}」→ {triage.RULE_ACTIONS.get(r['action'], '处理')}"
+    return f"{RULE_KINDS.get(r['kind'], '规则')}「{r.get('who') or r['value']}」→ {triage.RULE_ACTIONS.get(r['action'], '处理')}"
 
 
 def _preview(w, acct: str, rid: int):

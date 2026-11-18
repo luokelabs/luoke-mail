@@ -1,6 +1,6 @@
 {
   "reply": {
-    "id": 9,
+    "id": 10,
     "jsonrpc": "2.0",
     "result": {
       "contents": [
@@ -19,22 +19,22 @@
                 "components": [
                   {
                     "children": [
-                      "g3-t1",
-                      "g3-t2"
+                      "g4-t1",
+                      "g4-t2"
                     ],
                     "component": "Column",
                     "id": "root"
                   },
                   {
                     "component": "Text",
-                    "id": "g3-t1",
+                    "id": "g4-t1",
                     "text": "还没有连接邮箱。",
                     "variant": "h4"
                   },
                   {
                     "component": "Text",
-                    "id": "g3-t2",
-                    "text": "在「设置」里添加邮箱以后，这里会列出可以清理的旧邮件。",
+                    "id": "g4-t2",
+                    "text": "在「设置」里添加邮箱以后，这里会列出可以退订的订阅和可以归档的旧邮件。",
                     "variant": "caption"
                   }
                 ],
@@ -50,7 +50,7 @@
     }
   },
   "request": {
-    "id": 9,
+    "id": 10,
     "jsonrpc": "2.0",
     "method": "resources/read",
     "params": {
@@ -81,7 +81,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

@@ -1,0 +1,83 @@
+{
+  "reply": {
+    "id": 84,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "counts": {
+              "archived": 0,
+              "saved": 0,
+              "sources": 0
+            },
+            "items": [],
+            "months": [],
+            "range": "week",
+            "reading": {
+              "on": true,
+              "problem": null,
+              "problem_code": null,
+              "queued": 0,
+              "read": 0
+            },
+            "sources": []
+          },
+          "uri": "data/digest?account=all"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 84,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/digest?account=all"
+    }
+  }
+}

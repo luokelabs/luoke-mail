@@ -1,6 +1,6 @@
 {
   "reply": {
-    "id": 17,
+    "id": 36,
     "jsonrpc": "2.0",
     "result": {
       "contents": [
@@ -33,7 +33,7 @@
                         {
                           "component": "Text",
                           "id": "h1",
-                          "text": "1 封要处理",
+                          "text": "1 封待处理",
                           "variant": "h4"
                         },
                         {
@@ -114,7 +114,7 @@
                             },
                             {
                               "icon": "circle-minus",
-                              "label": "先不动",
+                              "label": "暂不处理",
                               "value": "keep"
                             }
                           ],
@@ -163,7 +163,7 @@
                         {
                           "component": "Text",
                           "id": "b13-text",
-                          "text": "写草稿 1"
+                          "text": "处理这封"
                         },
                         {
                           "children": [
@@ -197,7 +197,7 @@
                         {
                           "component": "Text",
                           "id": "b14-text",
-                          "text": "在邮件助手里看"
+                          "text": "在邮件助手中查看"
                         },
                         {
                           "children": [
@@ -240,9 +240,9 @@
                 "id": "new-mail/new-mail-000000000002",
                 "kind": "new-mail",
                 "summary": "王老师：王老师问答辩时间，周五前回。",
-                "title": "1 封邮件要你处理",
+                "title": "1 封待处理邮件",
                 "urgency": "normal",
-                "why_now": "分拣好了，1 封要你先处理，最早的要在 2026-10-23 前回"
+                "why_now": "分拣完成，1 封待处理，最早一封需在 2026-10-23 前回复"
               }
             ]
           },
@@ -253,7 +253,7 @@
     }
   },
   "request": {
-    "id": 17,
+    "id": 36,
     "jsonrpc": "2.0",
     "method": "resources/read",
     "params": {
@@ -284,7 +284,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

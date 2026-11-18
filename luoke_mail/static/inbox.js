@@ -118,7 +118,7 @@ function renderWaiting() {
       c.what ? el("span", { class: "muted" }, c.what) : null)));
 }
 
-// once: 了解你 is on from the start (ADR 0013); said here, paused on the 记忆 page
+// once: 了解你 is on from the start (ADR 0001); said here, paused on the 记忆 page
 function renderIntro() {
   const box = $("intro-box");
   box.hidden = !(S.state && S.state.learn_intro) || S.source === "demo";
@@ -133,7 +133,7 @@ function renderIntro() {
     "螺壳会在空闲时读你的邮件（包括你发出的），了解你的工作、常联系的人和关注的话题，只存在这台 Mac 上。可以在「记忆」里暂停。"), ok));
 }
 
-// what confirmed habits did by themselves in the last day: always shown, each undone in one click (ADR 0012 amended)
+// what confirmed habits did by themselves in the last day: always shown, each undone in one click (archived ADR 0012 amended)
 function renderAuto() {
   const box = $("auto-box");
   const done = (view && view.auto) || [];
@@ -361,7 +361,7 @@ async function override(ids, action, sample, count) {
   const remember = el("input", { type: "checkbox", id: "remember-rule", checked: !!(sample.list_id || sample.group_key) });
   const label = actionLabel(action);
   // changed to archive or trash, it is usually meant now too (issue #11): done in the same click, unless the user
-  // unticks it. Several to the trash still need 处理模式 (ADR 0016): then only the suggestion changes.
+  // unticks it. Several to the trash still need 处理模式 (ADR 0006): then only the suggestion changes.
   const op = { archive: "archive", ignore: "trash" }[action];
   const canNow = op && (op !== "trash" || count <= 1 || canWrite());
   const now = canNow ? el("input", { type: "checkbox", id: "override-now", checked: true }) : null;

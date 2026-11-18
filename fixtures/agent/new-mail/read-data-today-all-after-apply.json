@@ -1,0 +1,206 @@
+{
+  "reply": {
+    "id": 49,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "day": "2026-10-20",
+            "decide": [
+              {
+                "account": "me@example.com",
+                "category": "work",
+                "due": null,
+                "from": {
+                  "address": "team@corp.example",
+                  "name": "项目组"
+                },
+                "id": 4,
+                "late": null,
+                "subject": "项目周会",
+                "suggested": "calendar",
+                "summary_text": "周四下午三点的周会",
+                "suspicious": false,
+                "ways": [
+                  "calendar",
+                  "archive",
+                  "skip"
+                ]
+              },
+              {
+                "account": "me@example.com",
+                "category": "work",
+                "due": null,
+                "from": {
+                  "address": "li@law.example",
+                  "name": "李律师"
+                },
+                "id": 3,
+                "late": null,
+                "subject": "合同扫描件",
+                "suggested": "flag",
+                "summary_text": "律师发来合同扫描件",
+                "suspicious": false,
+                "ways": [
+                  "flag",
+                  "archive",
+                  "skip"
+                ]
+              }
+            ],
+            "handled": [
+              {
+                "account": "me@example.com",
+                "at": "2026-10-20 09:30:00",
+                "by": "read",
+                "categories": [
+                  "promotion",
+                  "other",
+                  "work"
+                ],
+                "count": 5,
+                "label": null,
+                "log_id": 1,
+                "mails": [
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-20 01:18",
+                    "from": {
+                      "address": "team@corp.example",
+                      "name": "项目组"
+                    },
+                    "id": 4,
+                    "subject": "项目周会"
+                  },
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-20 01:18",
+                    "from": {
+                      "address": "wang@school.example",
+                      "name": "王老师"
+                    },
+                    "id": 5,
+                    "subject": "答辩时间确认"
+                  },
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-19 22:54",
+                    "from": {
+                      "address": "li@law.example",
+                      "name": "李律师"
+                    },
+                    "id": 3,
+                    "subject": "合同扫描件"
+                  },
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-19 20:30",
+                    "from": {
+                      "address": "news@shop.example",
+                      "name": "某某商城"
+                    },
+                    "id": 1,
+                    "subject": "双十一预告"
+                  },
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-19 20:30",
+                    "from": {
+                      "address": "news@weekly.example",
+                      "name": "周刊"
+                    },
+                    "id": 2,
+                    "subject": "本周精选"
+                  }
+                ],
+                "more": 0,
+                "ok": true,
+                "op": "read",
+                "senders": [
+                  {
+                    "address": "news@shop.example",
+                    "name": "某某商城"
+                  },
+                  {
+                    "address": "news@weekly.example",
+                    "name": "周刊"
+                  },
+                  {
+                    "address": "li@law.example",
+                    "name": "李律师"
+                  },
+                  {
+                    "address": "team@corp.example",
+                    "name": "项目组"
+                  },
+                  {
+                    "address": "wang@school.example",
+                    "name": "王老师"
+                  }
+                ],
+                "undoable": true,
+                "undone": false
+              }
+            ],
+            "picked": 0,
+            "replies": 0
+          },
+          "uri": "data/today?account=all"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 49,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/today?account=all"
+    }
+  }
+}

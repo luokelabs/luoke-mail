@@ -1,6 +1,6 @@
 {
   "reply": {
-    "id": 15,
+    "id": 34,
     "jsonrpc": "2.0",
     "result": {
       "content": [
@@ -35,7 +35,7 @@
                 {
                   "component": "Text",
                   "id": "u1792460400-t2",
-                  "text": "按你的习惯自动归档 1 封"
+                  "text": "按习惯自动归档 1 封"
                 },
                 {
                   "component": "Text",
@@ -79,7 +79,7 @@
     }
   },
   "request": {
-    "id": 15,
+    "id": 34,
     "jsonrpc": "2.0",
     "method": "tools/call",
     "params": {
@@ -115,7 +115,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

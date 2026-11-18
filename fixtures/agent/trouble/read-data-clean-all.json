@@ -1,0 +1,111 @@
+{
+  "reply": {
+    "id": 26,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "archive": null,
+            "subscriptions": {
+              "checked_at": "2026-10-20 09:30",
+              "days": 60,
+              "model_check": {
+                "of": 1,
+                "problem_code": "model_unreachable",
+                "reason": "model_error",
+                "unchecked": 1
+              },
+              "model_note": "无法连接模型服务，请确认模型服务已启动。本次建议仅依据收信和阅读情况。",
+              "scanned": 4,
+              "senders": [
+                {
+                  "account": "me@example.com",
+                  "address": "news@shop.example",
+                  "count": 3,
+                  "decision": null,
+                  "domain": "shop.example",
+                  "group": "no_way",
+                  "key": "list:promo.shop.example",
+                  "kind": null,
+                  "last": "2026-10-19 20:30",
+                  "mailto": null,
+                  "method": null,
+                  "name": "某某商城",
+                  "one_click": false,
+                  "per_week": 0.3,
+                  "read": 0,
+                  "reply_keyword": null,
+                  "rule": null,
+                  "size": 938,
+                  "still_sending": false,
+                  "subjects": [
+                    "双十一预告",
+                    "双十一预告",
+                    "周末促销"
+                  ],
+                  "suspicious": false,
+                  "unsubscribe_url": null,
+                  "verdict": "filter"
+                }
+              ]
+            }
+          },
+          "uri": "data/clean?account=all"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 26,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/clean?account=all"
+    }
+  }
+}

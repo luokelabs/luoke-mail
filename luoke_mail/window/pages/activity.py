@@ -17,13 +17,12 @@ def pager(p: kit.Page, view: dict, total: int, unit: str = "条", key: str = "at
 
 
 def _entry(p: kit.Page, src: str, e: dict) -> str:
+    """One step a line, its 撤销 on the right (设计规范 §18.2)."""
     mail = e.get("mail") or {}
-    lines = [p.text((e.get("detail") or "") + ("（已撤销）" if e.get("undone") else ""), "body"),
-             p.text(" · ".join(x for x in ((e.get("ts") or "")[5:16], mail.get("from"), mail.get("subject")) if x),
-                    "caption")]
-    if e.get("undoable"):
-        lines.append(p.row(p.do("撤销", "/api/undo", {"source": src, "log_id": e["id"]})))
-    return p.card(*lines)
+    return p.item([p.text((e.get("detail") or "") + ("（已撤销）" if e.get("undone") else ""), "strong"),
+                   p.text(" · ".join(x for x in ((e.get("ts") or "")[5:16], mail.get("from"), mail.get("subject")) if x),
+                          "caption")],
+                  [p.do("撤销", "/api/undo", {"source": src, "log_id": e["id"]}, icon="undo-2") if e.get("undoable") else None])
 
 
 def build(w, p: kit.Page, view: dict) -> None:
@@ -40,9 +39,11 @@ def build(w, p: kit.Page, view: dict) -> None:
         p.add(p.text("暂无处理记录。", "caption"))
         return
     p.reserve = 6
+    lines = []
     for e in screen(p, view, entries):
         if not p.room(8):
             break
-        p.add(_entry(p, src, e))
+        lines.append(_entry(p, src, e))
+    p.add(p.list(lines))
     p.reserve = 0
     pager(p, view, len(entries))

@@ -1,6 +1,6 @@
 """螺壳 (luoke-agent): what luoke-mail tells the user through the agent, and what the agent may do for them.
 
-The tool protocol is luoke-agent's docs/工具协议.md (top-level ADR 0006): a subset of MCP over a Unix socket in the
+The tool protocol is luoke-agent's docs/工具协议.md (top-level archived ADR 0006): a subset of MCP over a Unix socket in the
 data folder (`run/agent.sock`), served by the luoke-mail process that holds the instance lock.
 
 - **outbox** (`luoke://luoke-mail/outbox`): the state of what luoke-mail wants to say now, not a stream. Per
@@ -19,12 +19,12 @@ data folder (`run/agent.sock`), served by the luoke-mail process that holds the 
   pages, `page/mailboxes`, `page/activity` (what was done, each with its undo) and `page/rules`. Read when opened, not
   sent as news. Editing rules and connecting a mailbox stay on luoke-mail's own page (`service.ui`): a mailbox's
   code is typed only there.
-- **needs-access**: no mailbox yet, one low item with 去设置; put down, it stays down.
+- **needs-access**: no mailbox yet, one low item with 打开设置; put down, it stays down.
 - Never through the agent: unsubscribing (it talks to a third party), switching processing mode on (the
   user's own setting). Processing mode is asked for only when a plan moves several messages to the trash or junk
-  (top-level ADR 0016); background sorting only makes plans here.
+  (top-level ADR 0006); background sorting only makes plans here.
 
-On since the agent ships (beta 2; off in the first release, top-level ADR 0008): the manifest declares the
+On since the agent ships (beta 2; off in the first release, top-level archived ADR 0008): the manifest declares the
 capabilities, `LUOKE_MAIL_AGENT=0` turns the socket off. In the app the socket turns away callers that don't look
 like 螺壳's agent core (`Callers`): the tap mark is the caller's word until the agent signs taps. This keeps out
 ordinary programs and connections made by mistake, not a program in the user's account set on posing as the agent.
@@ -46,6 +46,7 @@ from .mailbox import MailError, parse_message, real_mid
 
 ACCESSORY = "luoke-mail"
 NEEDS_YOU = ("reply", "schedule", "follow_up")
+SUBJECT = 120                              # a subject on a card's row: the window cuts it to one line and keeps the rest in the tooltip
 SHOWN = 8                                  # messages with their own row on a card; the rest in one row
 LISTENING = 600                            # the agent read the outbox this recently: luoke-mail's own notes wait
 QUIET = 86400                              # mail the user chose to leave alone: not brought up again on its own for a day
@@ -55,30 +56,29 @@ HITS = 20                                  # search results unless the agent ask
 MAX_HITS = 50
 # what a flag means is in its reason, under the heading; a flag is often a notice or an ad (2026-11-06: 70 of 205
 # reasons said nothing of a scam), so the heading doesn't call it one
-HEADINGS = {"new-mail": "这批邮件我打算这样处理", "suspicious": "这封邮件判为可疑",
-            "suspicious-old": "这几封邮件也判为可疑", "tidy": "这些邮件打算整理"}
+HEADINGS = {"new-mail": "新邮件的处理方案", "suspicious": "判为可疑的邮件",
+            "suspicious-old": "其他判为可疑的邮件", "tidy": "待整理的邮件"}
 STILL_HERE = 0.9                           # a loose row's plan stays while this much of its mail is still waiting
-UNDONE = {"draft": "{} 封草稿删掉了", "archive": "{} 封回到收件箱", "trash": "{} 封回到收件箱", "spam": "{} 封回到收件箱",
-          "flag": "{} 封的星标去掉了"}
-DONE = {"archive": "归档", "trash": "删除", "spam": "移到垃圾邮件", "flag": "加星标", "draft": "写好草稿"}
+UNDONE = {"draft": "删除草稿 {} 封", "archive": "移回收件箱 {} 封", "trash": "移回收件箱 {} 封", "spam": "移回收件箱 {} 封",
+          "flag": "取消星标 {} 封"}
+DONE = {"archive": "归档", "trash": "删除", "spam": "移到垃圾邮件", "flag": "加星标", "draft": "写草稿"}
 OPTIONS = {
-    "reply": [("draft", "写草稿"), ("flag", "加星标"), ("archive", "归档"), ("keep", "先不动")],
-    "schedule": [("flag", "加星标"), ("archive", "归档"), ("keep", "先不动")],
-    "follow_up": [("flag", "加星标"), ("archive", "归档"), ("keep", "先不动")],
+    "reply": [("draft", "写草稿"), ("flag", "加星标"), ("archive", "归档"), ("keep", "暂不处理")],
+    "schedule": [("flag", "加星标"), ("archive", "归档"), ("keep", "暂不处理")],
+    "follow_up": [("flag", "加星标"), ("archive", "归档"), ("keep", "暂不处理")],
 }
-SUSPICIOUS = [("spam", "移到垃圾邮件"), ("keep", "先不动")]     # never unsubscribe: it confirms the address
+SUSPICIOUS = [("spam", "移到垃圾邮件"), ("keep", "暂不处理")]     # never unsubscribe: it confirms the address
 # A flag can be wrong (2026-11-06: a 9B flagged dozens of real notices), and a tap on 按这个处理 takes what is
-# selected: so 先不动 is, and moving a message is the user's own pick.
+# selected: so 暂不处理 is, and moving a message is the user's own pick.
 SUSPICIOUS_PICK = "keep"
 SUSPICIOUS_NEW = 2 * 86400                 # received this recently: a card of its own, urgent
 SUSPICIOUS_URGENT = 3                      # at most this many such cards; more, and older, share one card that waits
-ANY_MAIL = [("archive", "归档"), ("trash", "删除"), ("keep", "先不动")]
+ANY_MAIL = [("archive", "归档"), ("trash", "删除"), ("keep", "暂不处理")]
 # 「今天」's template (protocol §4 later additions, luoke-mail#81): a choice's icon, a button's words for what it does
 ICONS = {"draft": "pencil-line", "flag": "star", "archive": "archive", "trash": "trash-2", "spam": "shield-alert",
          "keep": "circle-minus"}
-DOING = {"flag": "加星标", "draft": "写草稿", "archive": "归档", "trash": "删除", "spam": "移到垃圾邮件"}
-DONE_GROUP = {"flag": "已加星标 {n} 封", "draft": "已写好草稿 {n} 封", "archive": "已归档 {n} 封",
-              "trash": "{n} 封移到「已删除」", "spam": "已移到垃圾邮件 {n} 封"}
+DONE_GROUP = {"flag": "已加星标 {n} 封", "draft": "已生成草稿 {n} 封", "archive": "已归档 {n} 封",
+              "trash": "已移到「已删除」 {n} 封", "spam": "已移到垃圾邮件 {n} 封"}
 PART_LABEL = {"new-mail": "新邮件", "todo": "新邮件", "tidy": "整理", "sus": "可疑邮件", "suspicious": "可疑邮件"}
 PAGES = {"accounts": "settings", "rules": "rules"}     # service.ui's page ids -> the page's own
 OPENS_SOMETHING = ("mail_open", "mail_open_settings", "mail_open_page", "mail_open_calendar", "mail_show",
@@ -104,6 +104,14 @@ def _who(it: dict) -> str:
     return _plain(it.get("from_name") or it.get("from_addr") or "", 24)
 
 
+def _strong(r: dict, query: str) -> bool:
+    """A hit that matches by itself (protocol §1b): the query is in the subject, or is the sender -- their name or
+    address, the whole of it. Only mentioned in the body isn't."""
+    q = query.lower()
+    return bool(q) and (q in (r.get("subject") or "").lower()
+                        or q in (" ".join(str(r.get("from_name") or "").split()).lower(), str(r.get("from_addr") or "").lower()))
+
+
 def _received(items: list[dict]) -> str | None:
     """When the newest of these arrived, for an outbox item's `created`: the agent shows it, and the time the card
     was made says nothing (2026-11-06: 174 cards at 09:27)."""
@@ -122,22 +130,31 @@ def _due_badge(due: str | None) -> tuple[str, str | None] | None:
     if len(day) != 10:
         return None
     today = time.strftime("%Y-%m-%d")
+    shown = day[5:] if day[:4] == today[:4] else day       # another year's date with its year
     if day < today:
-        return f"{day[5:]} 已过", "danger"
+        return f"{shown} 已过", "danger"
     if day == today:
         return "今天截止", "warning"
     if day == time.strftime("%Y-%m-%d", time.localtime(time.time() + 86400)):
         return "明天截止", "warning"
-    return f"{day[5:]} 截止", None
+    return f"{shown} 截止", None
+
+
+def _row_due(dues, today: str | None = None) -> str | None:
+    """The deadline of a row of alike mail (a bank's statement each month is one row): the nearest one not yet past,
+    else the latest. The earliest was a year-old statement's, shown as 「已过」 (2026-11-17)."""
+    days = sorted(str(d) for d in dues if d)
+    if not days:
+        return None
+    today = today or time.strftime("%Y-%m-%d")
+    return next((d for d in days if d[:10] >= today), days[-1])
 
 
 def _apply_words(entries: dict, part: str | None = None) -> str:
-    """The apply button says what its tap does with the picks the card starts with: 「加星标 4 · 写草稿 1」."""
-    n: dict[str, int] = {}
-    for e in entries.values():
-        if part is None or e.get("part") == part:
-            n[e["selected"]] = n.get(e["selected"], 0) + len(e["ids"])
-    return " · ".join(f"{DOING[v]} {n[v]}" for v in DOING if n.get(v)) or "按选的处理"
+    """The apply button says how many messages it covers: 「处理这 5 封」. Not what it does to each: the user can change
+    the picks on the rows above, and a label built from the picks the card started with went stale (2026-11-14)."""
+    n = sum(len(e["ids"]) for e in entries.values() if part is None or e.get("part") == part)
+    return "处理这封" if n == 1 else f"处理这 {n} 封" if n else "按所选处理"     # one: no number beside 「查看全部 N 封」
 
 
 def _subtitled(messages: list, text: str) -> list:
@@ -227,7 +244,7 @@ class Callers:
         core = os.path.realpath(os.path.join(app, "Contents", "Resources", "python", "bin", "python3"))
         if desktop.process_path(pid) != core or desktop.process_path(desktop.parent_pid(pid) or 0) != main:
             return False
-        return (inside and info.get("CFBundleIdentifier") == memory.HUB_DEV_ID) or self._signed(app)
+        return (inside and memory.hub_dev_build(info.get("CFBundleIdentifier"))) or self._signed(app)
 
     def _signed(self, app: str) -> bool:
         try:
@@ -263,20 +280,23 @@ def _features() -> frozenset:
 
 
 def _look(pid: str, it: dict | None = None) -> dict:
-    """在邮件助手里看: the window's 收件箱 page (§5 agent.open_page), at this one mail when the core opens a page at
+    """在邮件助手中查看: the window's 收件箱 page (§5 agent.open_page), at this one mail when the core opens a page at
     one (§4 pageArgs); an older core has the tool open the browser page."""
-    return _see(pid, "在邮件助手里看", one=it)
+    return _see(pid, "在邮件助手中查看", one=it)
 
 
-def _see(pid: str, label: str, *, one: dict | None = None, acct: str | None = None, lst: str | None = None) -> dict:
-    """A button to the window's 收件箱: at one mail (`one`), or at a mailbox's list (`acct`, `lst`: needs, suspicious),
-    on a core that opens a page with args; else at the page as it is. An older core has the browser page opened."""
+def _see(pid: str, label: str, *, one: dict | None = None, acct: str | None = None, lst: str | None = None,
+         part: str | None = None) -> dict:
+    """A button to the window's 收件箱: at one mail (`one`), at a mailbox's list (`acct`, `lst`: needs, suspicious),
+    or at the mail of this card's `part` (data/inbox?plan=), on a core that opens a page with args; else at the page
+    as it is. An older core has the browser page opened."""
     f = _features()
     if "openPage" not in f:
         return cards.button(label, "mail_open", {"plan_id": pid})
     ctx: dict = {"page": "inbox"}
     if "pageArgs" in f and (one or acct):
-        ctx["args"] = {"id": str(one["id"])} if one else {"box": acct, **({"list": lst} if lst else {})}
+        ctx["args"] = ({"id": str(one["id"])} if one else {"box": acct, "plan": pid, "part": part} if part
+                       else {"box": acct, **({"list": lst} if lst else {})})
     return cards.button(label, "agent.open_page", ctx, icon="inbox")
 
 
@@ -287,7 +307,7 @@ def _new_template() -> bool:
 
 def _to_settings(label: str = "打开设置", *, primary: bool = False) -> dict:
     if "openPage" in _features():
-        return cards.button(label, "agent.open_page", {"page": "settings"}, primary=primary)
+        return cards.button(label, "agent.open_page", {"page": "legacy-settings"}, primary=primary)
     return cards.button(label, "mail_open_settings", primary=primary)
 
 
@@ -383,6 +403,8 @@ class Agent:
         s.tool("mail_open_page", self.open_page, title="打开邮件助手",
                input_schema={"type": "object", "properties": {"page": {"type": "string"}}})
         s.tool("mail_disconnect", self.disconnect, title="到设置里移除邮箱", read_only=False)
+        from . import agent_data           # noqa: PLC0415 -- the raw data the window builds pages from (ADR 0002)
+        agent_data.register(s, self.app)
         s.on_the_mac(*OPENS_SOMETHING)
         try:
             self.server = s.start(path or socket_path())
@@ -443,21 +465,21 @@ class Agent:
         if not state:
             self.store.cache_set("", "agent_mailbox_asked", "open")
             at = self.store.cache_get("", "agent_mailbox_asked")[1]
-        said = "连上邮箱，新邮件就能在这里分拣好。授权码在邮件助手自己的页面里填，只存在这台 Mac 的钥匙串里。"
+        said = "连接邮箱后，新邮件在此分拣。授权码在邮件助手的页面中填写，仅保存在本机的钥匙串中。"
         card = cards.Card("needs-mailbox")
-        card.heading("还没连邮箱")
+        card.heading("未连接邮箱")
         card.text(said, caption=True)
-        card.buttons(_to_settings("去设置", primary=True) if "secureField" in _features()
-                     else cards.button("去设置", "mail_open_page", {"page": "accounts"}, primary=True))
+        card.buttons(_to_settings("打开设置", primary=True) if "secureField" in _features()
+                     else cards.button("打开设置", "mail_open_page", {"page": "accounts"}, primary=True))
         return {"id": NEEDS_MAILBOX, "kind": "needs-access", "urgency": "low", "permission": "mailbox", "deadline": None,
-                "expires": None, "created": _iso(at), "why_now": "连上邮箱才能分拣", "title": "还没连邮箱", "summary": said,
+                "expires": None, "created": _iso(at), "why_now": "连接邮箱后才能分拣", "title": "未连接邮箱", "summary": said,
                 "card": card.messages()}
 
     def permissions(self) -> dict:
         return {"mailbox": "granted" if self.app.mail_accounts() else "ask"}
 
     # ---- the main window: the count, and the base pages (protocol §1a) -----------------------------------
-    def _waiting(self, acct: str) -> dict:
+    def waiting(self, acct: str) -> dict:
         """What waits for the user in this mailbox. Mail they chose to leave alone doesn't: it is theirs to come back to."""
         quiet = self._quiet(acct)
         pending = [it for it in self._pending(acct) if it["id"] not in quiet]
@@ -467,20 +489,23 @@ class Agent:
 
     @staticmethod
     def _tally(needs: int, suspicious: int, rest: int) -> str:
-        return "，".join(w for w in (f"{needs} 封要你处理" if needs else "", f"{suspicious} 封可疑" if suspicious else "",
-                                    f"{rest} 封可以整理" if rest else "") if w)
+        return "，".join(w for w in (f"{needs} 封待处理" if needs else "", f"{suspicious} 封可疑" if suspicious else "",
+                                    f"{rest} 封待整理" if rest else "") if w)
 
     def summary(self) -> dict:
         """`count` is what the user has to answer: mail that needs them and mail that looks suspicious; what only
-        could be tidied, or was done by habit, is in the line and not in the count."""
+        could be tidied, or was done by habit, is in the line and not in the count. The same in numbers
+        (`connected`, `needs`, `suspicious`, `tidy`, `auto_today`), for the window to word (top-level ADR 0002)."""
         accts = self.app.mail_accounts()
         if not accts:
-            return {"count": 0, "text": "还没连邮箱"}
-        waiting = [self._waiting(acct) for acct in accts]
+            return {"count": 0, "text": "未连接邮箱", "connected": False, "needs": 0, "suspicious": 0, "tidy": 0,
+                    "auto_today": 0}
+        waiting = [self.waiting(acct) for acct in accts]
         needs, suspicious, rest = (sum(len(w[k]) for w in waiting) for k in ("needs", "suspicious", "rest"))
         done = sum(len(e["item_ids"]) for acct in accts for e in self._auto_logs(acct))
-        line = "，".join(w for w in (self._tally(needs, suspicious, rest), f"今天自动处理了 {done} 封" if done else "") if w)
-        return {"count": needs + suspicious, "text": line or "没有要你处理的邮件"}
+        line = "，".join(w for w in (self._tally(needs, suspicious, rest), f"今日自动处理 {done} 封" if done else "") if w)
+        return {"count": needs + suspicious, "text": line or "无待处理邮件", "connected": True, "needs": needs,
+                "suspicious": suspicious, "tidy": rest, "auto_today": done}
 
     def _offer(self, acct: str, kind: str, entries: dict, loose: tuple = ()) -> dict | None:
         """The plan for these messages and these choices: the same id while they stay the same. One the user
@@ -527,7 +552,7 @@ class Agent:
         return out
 
     def _quiet(self, acct: str) -> set:
-        """Mail the user chose 先不动 for lately: not a new thing to say on its own."""
+        """Mail the user chose 暂不处理 for lately: not a new thing to say on its own."""
         q = self.store.cache_get(acct, "agent_quiet")[0] or {}
         return {int(i) for i, t in q.items() if time.time() - t < QUIET}
 
@@ -560,10 +585,10 @@ class Agent:
         it = row[0]
         options = OPTIONS[it["action"]] if len(row) == 1 else [o for o in OPTIONS[it["action"]] if o[0] != "draft"]
         selected = _reply_pick(it) if it["action"] == "reply" and len(row) == 1 else "flag"
-        dues = sorted(x["due_date"] for x in row if x.get("due_date"))
-        who, subject = _who(it), _plain(it.get("subject"), 40) + (f"（共 {len(row)} 封）" if len(row) > 1 else "")
+        due = _row_due(x.get("due_date") for x in row)
+        who, subject = _who(it), _plain(it.get("subject"), SUBJECT) + (f"（共 {len(row)} 封）" if len(row) > 1 else "")
         e = {"ids": [x["id"] for x in row], "allowed": [v for v, _ in options], "selected": selected, "options": options,
-             "who": who, "subject": subject, "label": f"{who}：{subject}", "due": dues[0] if dues else None,
+             "who": who, "subject": subject, "label": f"{who}：{subject}", "due": due,
              "was": _was(row), "detail": _plain(it.get("summary"), 120)}
         if part:
             e["part"] = part
@@ -573,7 +598,7 @@ class Agent:
 
     @staticmethod
     def _sus_entry(it: dict, part: str | None = None) -> dict:
-        who, subject = _who(it), _plain(it.get("subject"), 40)
+        who, subject = _who(it), _plain(it.get("subject"), SUBJECT)
         e = {"ids": [it["id"]], "allowed": ["spam", "keep"], "selected": SUSPICIOUS_PICK, "options": SUSPICIOUS,
              "who": who, "subject": subject, "label": f"{who}：{subject}", "was": _was([it]),
              "detail": _plain(it.get("reason") or it.get("summary"), 120)}
@@ -589,23 +614,34 @@ class Agent:
             senders[_who(it)] = senders.get(_who(it), 0) + 1
         top = [w for w, _ in sorted(senders.items(), key=lambda kv: -kv[1])[:3] if w]
         return {"ids": [it["id"] for it in rest], "allowed": ["suggested", "keep"], "selected": "keep",
-                "options": [("suggested", "照建议处理"), ("keep", "先不动")], "archive": archive,
-                "trash": len(rest) - archive, "label": "这些邮件打算整理", "part": "tidy", "was": _was(rest),
-                "detail": ("多是" + "、".join(top) + ("等" if len(senders) > 3 else "")) if top else ""}
+                "options": [("suggested", "按建议处理"), ("keep", "暂不处理")], "archive": archive,
+                "trash": len(rest) - archive, "label": "待整理的邮件", "part": "tidy", "was": _was(rest),
+                "detail": ("来自 " + "、".join(top) + (" 等" if len(senders) > 3 else "")) if top else ""}
+
+    def _box(self, acct: str) -> str:
+        """The mailbox as cards name it: the name the user gave it (设置 · 账号「显示为」), else the address."""
+        for m in self.app.cfg["accounts"]:
+            if str(m.get("address") or "").lower() == acct and m.get("name"):
+                return str(m["name"])
+        return acct
 
     def _calendars(self, acct: str, pid: str, entries: dict, part: str | None = None) -> tuple[dict, list]:
         """加入日程 for the rows with an event: on the row itself (the template), else under the card (up to 3)."""
         keys = [k for k, e in entries.items() if e.get("event") and (part is None or e.get("part") == part)]
         new = _new_template()
         made = {}
+        today = time.strftime("%Y-%m-%d")
         for k in keys[:SHOWN if new else 3]:
             it = self.store.get(entries[k]["event"])
+            # an event already past is not offered (owner 11-16: 加入日程 for 11-14 on 11-16)
+            if it and str((it.get("event") or {}).get("date") or today)[:10] < today:
+                continue
             if it and it.get("state") == "pending":
                 made[k] = self._calendar_button(acct, pid, k, it, alone=len(keys) == 1, compact=new)
         return (made, []) if new else ({}, list(made.values()))
 
     def _left_alone(self, acct: str, rows: list[list[dict]]) -> bool:
-        """Every message on these rows was left alone lately (先不动): not brought up again by itself. New mail that
+        """Every message on these rows was left alone lately (暂不处理): not brought up again by itself. New mail that
         needs the user brings them back with it."""
         return {it["id"] for row in rows for it in row} <= self._quiet(acct)
 
@@ -625,35 +661,35 @@ class Agent:
             return None
         pid = plan["plan_id"]
         mail = [it for row in shown for it in row]
-        dues = sorted(it["due_date"] for it in mail if it.get("due_date"))
+        dues = sorted(e["due"] for e in plan["entries"].values() if e.get("due"))      # each row's own (_row_due)
         heads = "；".join(f"{_who(row[0])}：{_plain(row[0].get('summary') or row[0].get('subject'), 40)}" for row in shown[:2])
         quiet = self._quiet(acct)
-        total = sum(1 for it in high if it["id"] not in quiet)          # as summary's count: 先不动 isn't waiting
+        total = sum(1 for it in high if it["id"] not in quiet)          # as summary's count: 暂不处理 isn't waiting
         more = max(total - sum(1 for it in mail if it["id"] not in quiet), 0)
         return {"id": f"new-mail/{pid}", "kind": "new-mail", "urgency": "normal",
                 "deadline": f"{dues[0]}T23:59:00" if dues else None, "created": _received(mail) or _iso(plan["created_at"]),
-                "why_now": f"分拣好了，{total} 封要你先处理" + (f"，最早的要在 {dues[0]} 前回" if dues else ""),
-                "title": f"{total} 封邮件要你处理{label}",
-                "summary": _plain(heads + (f"；还有 {more} 封" if more else "") + "。", 300),
+                "why_now": f"分拣完成，{total} 封待处理" + (f"，最早一封需在 {dues[0]} 前回复" if dues else ""),
+                "title": f"{total} 封待处理邮件{label}",
+                "summary": _plain(heads + (f"；另有 {more} 封" if more else "") + "。", 300),
                 "card": self._decide_card(pid, acct, plan["entries"])}
 
     def _decide_card(self, pid: str, acct: str, entries: dict, note: str | None = None, update: bool = False) -> list:
         on_row, under = self._calendars(acct, pid, entries)
         n = sum(len(e["ids"]) for e in entries.values())
-        total = len(self._waiting(acct)["needs"])
+        total = len(self.waiting(acct)["needs"])
         if total > n:
             see = _see(pid, f"查看全部 {total} 封", acct=acct, lst="needs")
         else:
             see = _look(pid, {"id": next(iter(entries.values()))["ids"][0]}) if n == 1 else \
-                _see(pid, "在邮件助手里看", acct=acct, lst="needs")
-        msgs = cards.plan_card(pid, f"{n} 封要处理", self._rows(entries, extra=on_row), apply_event="mail_apply_plan",
-                               plan_id=pid, apply_label=_apply_words(entries), note=note, badge=acct,
+                _see(pid, "在邮件助手中查看", acct=acct, lst="needs")
+        msgs = cards.plan_card(pid, f"{n} 封待处理", self._rows(entries, extra=on_row), apply_event="mail_apply_plan",
+                               plan_id=pid, apply_label=_apply_words(entries), note=note, badge=self._box(acct),
                                extra_buttons=under + [see] + ([_to_settings()] if note else []), update=update,
                                id_prefix=f"s{int(time.time())}-" if update else "", features=_features())
-        return _subtitled(msgs, acct)
+        return _subtitled(msgs, self._box(acct))
 
     def _mailbox(self, acct: str, pending: list[dict], older: list[dict], label: str) -> dict | None:
-        """「顺便看看」: one card per mailbox, in parts -- 待处理 (what needs the user and isn't high today), 可以整理
+        """「顺便看看」: one card per mailbox, in parts -- 待处理 (what needs the user and isn't high today), 待整理
         (what the model would archive or delete: one decision, and the button says how many it moves; 2026-11-06 one
         tap on a card about 8 messages moved 1,715), 判为可疑 (older mail that looks suspicious, folded: a flag can be
         wrong). One plan for the card; a part's buttons name the part, and a tap does only that part. The mail to tidy
@@ -677,7 +713,7 @@ class Agent:
         n_todo = sum(len(e["ids"]) for e in entries.values() if e.get("part") == "todo")
         tidy = entries.get("tidy")
         tally = "，".join(w for w in (f"{n_todo} 封待处理" if n_todo else "",
-                                     f"{len(tidy['ids'])} 封可以整理" if tidy else "",
+                                     f"{len(tidy['ids'])} 封待整理" if tidy else "",
                                      f"{len(older)} 封判为可疑" if older else "") if w)
         heads = [f"{e['who']}：{e['subject']}" for e in entries.values() if e.get("part") == "todo"][:2]
         if tidy:
@@ -685,9 +721,9 @@ class Agent:
         newer = sum(1 for it in rest if it["id"] not in set(tidy["ids"])) if tidy else 0
         mail = [it for row in todo for it in row] + [it for it in rest if not tidy or it["id"] in set(tidy["ids"])] + older[:SHOWN]
         return {"id": f"mailbox/{pid}", "kind": "mailbox", "urgency": "low", "deadline": None,
-                "created": _received(mail) or _iso(plan["created_at"]), "why_now": "不急，有空时看看",
+                "created": _received(mail) or _iso(plan["created_at"]), "why_now": "不紧急",
                 "title": tally + label,
-                "summary": _plain("；".join(heads) + (f"；之后又分拣好 {newer} 封，下一张再说" if newer else "") + "。", 300),
+                "summary": _plain("；".join(heads) + (f"；另有 {newer} 封新分拣的邮件，列在下一张卡片" if newer else "") + "。", 300),
                 "card": self._mailbox_card(pid, acct, entries)}
 
     def _mailbox_card(self, pid: str, acct: str, entries: dict, note: str | None = None, note_part: str | None = None,
@@ -696,41 +732,42 @@ class Agent:
         todo = {k: e for k, e in entries.items() if e.get("part") == "todo"}
         if todo:
             on_row, under = self._calendars(acct, pid, entries, "todo")
-            n, total = sum(len(e["ids"]) for e in todo.values()), len(self._waiting(acct)["needs"])
-            see = _see(pid, f"查看全部 {total} 封" if total > n else "在邮件助手里看", acct=acct, lst="needs")
+            n, total = sum(len(e["ids"]) for e in todo.values()), len(self.waiting(acct)["needs"])
+            see = _see(pid, f"查看全部 {total} 封" if total > n else "在邮件助手中查看", acct=acct, lst="needs")
             parts.append({"part": "todo", "icon": "inbox", "title": "待处理", "items": self._rows(entries, "todo", on_row),
                           "buttons": [cards.button(_apply_words(entries, "todo"), "mail_apply_plan",
                                                    {"plan_id": pid, "part": "todo", "choices": cards.CHOICES},
                                                    primary=True, icon="check")] + under + [see]})
         tidy = entries.get("tidy")
         if tidy:
-            later = "批量删除前，要先在邮件助手的设置里开启处理模式。" if tidy["trash"] > 1 and not self.app.cfg["mode"]["write"] else ""
-            parts.append({"part": "tidy", "icon": "archive", "title": "可以整理",
+            later = "批量删除需要在邮件助手的设置中开启处理模式。" if tidy["trash"] > 1 and not self.app.cfg["mode"]["write"] else ""
+            see = _see(pid, "查看邮件", acct=acct, part="tidy")     # which ones, before a tap moves them
+            parts.append({"part": "tidy", "icon": "archive", "title": "待整理",
                           "note": "".join(w for w in (tidy["detail"] + "。" if tidy["detail"] else "", later) if w) or None,
                           "buttons": [cards.button(_tidy_words(tidy), "mail_apply_plan",
                                                    {"plan_id": pid, "part": "tidy", "choices": {"tidy": ["suggested"]}},
                                                    primary=True, icon="archive"),
-                                      cards.button("先不动", "mail_apply_plan",
+                                      cards.button("暂不处理", "mail_apply_plan",
                                                    {"plan_id": pid, "part": "tidy", "choices": {"tidy": ["keep"]}},
-                                                   icon="circle-minus")]})
+                                                   icon="circle-minus"), see]})
         sus = {k: e for k, e in entries.items() if e.get("part") == "sus"}
         if sus:
             shown = sum(len(e["ids"]) for e in sus.values())
             n = max(len(self._split_suspicious(acct)[1]), shown)
-            parts.append({"part": "sus", "icon": "shield-alert", "title": "判为可疑", "collapsed": f"{n} 封，都先不动",
+            parts.append({"part": "sus", "icon": "shield-alert", "title": "判为可疑", "collapsed": f"{n} 封，均暂不处理",
                           "items": self._rows(entries, "sus"),
                           "buttons": [cards.button(_apply_words(entries, "sus"), "mail_apply_plan",
                                                    {"plan_id": pid, "part": "sus", "choices": cards.CHOICES},
                                                    primary=True, icon="check"),
-                                      _see(pid, f"其余 {n - shown} 封去邮件助手看" if n > shown else "在邮件助手里看",
+                                      _see(pid, f"在邮件助手中查看其余 {n - shown} 封" if n > shown else "在邮件助手中查看",
                                            acct=acct, lst="suspicious")]})
         for p in parts:
             if p.pop("part") == note_part and note:
                 p["note"], p["collapsed"] = note, None
                 p["buttons"].append(_to_settings())
-        msgs = cards.mailbox_card(pid, "邮箱", parts, badge=acct, update=update,
+        msgs = cards.mailbox_card(pid, "邮箱", parts, badge=self._box(acct), update=update,
                                   id_prefix=f"s{int(time.time())}-" if update else "", features=_features())
-        return _subtitled(msgs, acct)
+        return _subtitled(msgs, self._box(acct))
 
     def _card_for(self, plan: dict, note: str | None = None, part: str | None = None) -> list:
         """A plan's card again, with a note (the plan stays, and the user's picks: the data model isn't sent)."""
@@ -748,8 +785,8 @@ class Agent:
         """加入日程. `compact`: on the mail's own row, the date and time, 加入日程 in its tooltip (the template)."""
         ev = it.get("event") or {}
         when = " ".join(w for w in (str(ev.get("date") or "")[5:], ev.get("start") or "") if w)
-        if compact:
-            title, extra = when or "加入日程", {"icon": "calendar-plus", "tooltip": "加入日程"}
+        if compact:     # the button says what it does, then when (owner 11-16: a bare 「11-14 13:30」 doesn't read as 加入日程)
+            title, extra = (f"加入日程 · {when}" if when else "加入日程"), {"icon": "calendar-plus", "tooltip": "加入日程"}
         else:
             title, extra = ("加入日程" if alone else f"加入日程：{when or _plain(_who(it), 10)}"), {}   # the subject is on the row above
         try:
@@ -784,7 +821,7 @@ class Agent:
             pid = plan["plan_id"]
             keep.add(pid)
             out.append({"id": f"suspicious/{pid}", "kind": "suspicious", "urgency": "urgent", "deadline": None,
-                        "created": _received([it]) or _iso(plan["created_at"]), "why_now": "判为可疑，拿不准就别点里面的链接",
+                        "created": _received([it]) or _iso(plan["created_at"]), "why_now": "判为可疑：确认来源前，请勿打开其中的链接",
                         "title": "可疑邮件「" + _plain(f"{_who(it)}：{it.get('subject') or ''}", 54) + "」" + label,
                         "summary": _plain(f"{_who(it)}：{it.get('subject') or ''}", 200),
                         "card": self._suspicious_card(pid, key, it, acct)})
@@ -811,7 +848,7 @@ class Agent:
             card.text(detail, caption=True)
         spam = cards.button("移到垃圾邮件", "mail_apply_plan", {"plan_id": pid, "choices": {key: ["spam"]}},
                             **({"icon": "shield-alert", "variant": "destructive"} if new else {}))
-        keep = cards.button("先不动", "mail_apply_plan", {"plan_id": pid, "choices": {key: ["keep"]}},
+        keep = cards.button("暂不处理", "mail_apply_plan", {"plan_id": pid, "choices": {key: ["keep"]}},
                             **({"icon": "circle-minus"} if new else {}))
         look = _look(pid, it)
         card.buttons(spam, keep, look if new else {k: v for k, v in look.items() if k != "icon"})
@@ -819,7 +856,7 @@ class Agent:
             card.subtitle = f"{who} · {subject}" if who else subject
         return card.messages()
 
-    # ---- what was done unasked (protocol §8a, ADR 0016) --------------------------------------------------
+    # ---- what was done unasked (protocol §8a, ADR 0006) --------------------------------------------------
     def _auto_logs(self, acct: str) -> list[dict]:
         """Today's work done by habit, still standing, that the user hasn't put down. Once a batch was said, a newer
         one replaces it: the card stays while it is the latest thing to say."""
@@ -853,7 +890,7 @@ class Agent:
         count = sum(len(e["item_ids"]) for e in logs)
         heading = f"已自动处理 {count} 封"                # by habit, and in 螺壳's own mailbox
         return {"id": f"auto-done/{plan['plan_id']}", "kind": "auto-done", "urgency": "normal", "deadline": None,
-                "created": _iso(plan["created_at"]), "why_now": "这些是自动做的，不对可以撤销", "title": heading + label,
+                "created": _iso(plan["created_at"]), "why_now": "已自动处理，可撤销", "title": heading + label,
                 "summary": _plain("；".join(e.get("detail") or "" for e in logs), 300),
                 "card": self._auto_card(plan["plan_id"], logs, heading)}
 
@@ -871,7 +908,7 @@ class Agent:
         if item == NEEDS_MAILBOX:
             if state != "shown":
                 self.store.cache_set("", "agent_mailbox_asked", "down")
-            return {"text": "好的"}
+            return {"text": "已记录"}
         plan = self.store.plan_get(item.split("/", 1)[-1])
         if plan and plan["state"] == "open":
             if plan["kind"] == "auto-done":
@@ -880,29 +917,29 @@ class Agent:
                 self.store.plan_set(plan["plan_id"], shown_at=time.strftime("%Y-%m-%d %H:%M:%S"))
             else:
                 self.store.plan_set(plan["plan_id"], state="dismissed")
-        return {"text": "好的"}
+        return {"text": "已记录"}
 
     # ---- carrying a plan out ---------------------------------------------------------------------------
     def apply_plan(self, args: dict, meta: dict) -> dict:
         pid, choices, part = str(args.get("plan_id") or ""), args.get("choices"), args.get("part")
         plan = self.store.plan_get(pid)
         if not plan or plan["state"] != "open":
-            raise ToolError("stale", "这批邮件已经处理过了，或者已经有了变化。")
+            raise ToolError("stale", "这批邮件已处理，或内容已变化。")
         if not isinstance(choices, dict) or set(choices) - set(plan["entries"]):
-            raise ToolError("invalid", "选项不在卡片给出的范围里。")
+            raise ToolError("invalid", "选项不在卡片提供的范围内。")
         if part is not None and not any(e.get("part") == part for e in plan["entries"].values()):
-            raise ToolError("invalid", "选项不在卡片给出的范围里。")
+            raise ToolError("invalid", "选项不在卡片提供的范围内。")
         picked = {}
         for key, e in plan["entries"].items():
             if part is not None and e.get("part") != part:
                 continue                           # another part of the mailbox's card: its own button does it
             v = choices.get(key, [e["selected"]])
             if not isinstance(v, list) or len(v) != 1 or v[0] not in e["allowed"]:
-                raise ToolError("invalid", "选项不在卡片给出的范围里。")
+                raise ToolError("invalid", "选项不在卡片提供的范围内。")
             picked[key] = v[0]
         acct = plan["account"]
         if acct not in self.app.mail_accounts():
-            raise ToolError("stale", "这个邮箱已经不在邮件助手里了。")
+            raise ToolError("stale", "该邮箱已从邮件助手中移除。")
         groups: dict[str, list[int]] = {}
         kept = []
         for key, choice in picked.items():
@@ -919,10 +956,10 @@ class Agent:
                     kept.append(i)
                 else:
                     groups.setdefault(op, []).append(i)
-        # several to the trash or junk can't be taken back: that waits for the user's own setting (ADR 0016)
+        # several to the trash or junk can't be taken back: that waits for the user's own setting (ADR 0006)
         if len(groups.get("trash", [])) + len(groups.get("spam", [])) > 1 and not self.app.cfg["mode"]["write"]:
-            raise ToolError("needs_setup", "先在邮件助手的设置里开启处理模式。",     # the plan stays, the user's picks too
-                            card=self._card_for(plan, "批量删除前，先在邮件助手的设置里开启处理模式，再回来点。", part))
+            raise ToolError("needs_setup", "需要在邮件助手的设置中开启处理模式。",     # the plan stays, the user's picks too
+                            card=self._card_for(plan, "批量删除需要在邮件助手的设置中开启处理模式，开启后重新操作。", part))
         self.store.plan_set(pid, state="running")
         acts = self.app.actions(acct)
         logs, said, failed = [], [], []
@@ -943,23 +980,23 @@ class Agent:
                 except (engines.EngineError, ActionError) as ex:
                     failed.append(str(ex))
             if len(drafts) > len(failed):
-                said.append(f"已写好 {len(drafts) - len(failed)} 封草稿，放在草稿箱，请检查后自行发送")
+                said.append(f"已生成 {len(drafts) - len(failed)} 封草稿，存于草稿箱，请检查后自行发送")
             if odd:
-                said.append(f"其中 {odd} 封草稿里有原信没有的联系方式，发出前请核对")
+                said.append(f"其中 {odd} 封草稿含有原信中没有的联系方式，发送前请核对")
         except Exception as ex:  # noqa: BLE001 - whatever stopped it, the plan must not stay "running"
             self.store.plan_set(pid, state="done" if logs else "open", logs=logs)
             if not logs:
-                raise ToolError("failed", str(ex) if isinstance(ex, (MailError, ActionError)) else "没能处理，请稍后再试。")
-            failed.append(str(ex) if isinstance(ex, (MailError, ActionError)) else "其余的没能处理")
+                raise ToolError("failed", str(ex) if isinstance(ex, (MailError, ActionError)) else "处理失败，请稍后重试。")
+            failed.append(str(ex) if isinstance(ex, (MailError, ActionError)) else "其余邮件处理失败")
         if groups.get("_handled"):
-            said.append(f"{len(groups['_handled'])} 封已经处理过，没再动")
+            said.append(f"{len(groups['_handled'])} 封已处理，未改动")
         if groups.get("_changed"):
-            said.append(f"{len(groups['_changed'])} 封在邮件助手里改过，没再动")
+            said.append(f"{len(groups['_changed'])} 封已在邮件助手中修改，未改动")
         if failed:
-            said.append("另有没做成的：" + failed[0])
-        text = ("；".join(said) or "都先不动。").rstrip("。") + "。"
+            said.append("另有失败项：" + failed[0])
+        text = ("；".join(said) or "均暂不处理。").rstrip("。") + "。"
         self.store.plan_set(pid, state="done", logs=logs)
-        if kept:                                   # 先不动: left alone, and not brought up again on its own
+        if kept:                                   # 暂不处理: left alone, and not brought up again on its own
             q = self.store.cache_get(acct, "agent_quiet")[0] or {}
             q = {i: t for i, t in q.items() if time.time() - t < QUIET}
             q.update({str(i): time.time() for i in kept})
@@ -969,7 +1006,7 @@ class Agent:
         if "doneGroup" in _features() and len(ops) == 1 and not (failed or kept or groups.get("_handled") or groups.get("_changed")):
             op = ops.pop()                         # 「已经替你做了」: one line per mailbox and result (protocol §4)
             group = cards.done_group(f"{acct}/{op}", DONE_GROUP[op], sum(entry["n"] for entry in logs),
-                                     label=PART_LABEL.get(part or plan["kind"]), badge=acct)
+                                     label=PART_LABEL.get(part or plan["kind"]), badge=self._box(acct))
         card = cards.result_card(pid, text, undo_event="mail_undo" if logs else None, undo_context={"execution_id": pid},
                                  group=group)
         return {"text": text, "card": card, "done": True}
@@ -982,7 +1019,7 @@ class Agent:
             return self._undo_log(pid[4:])
         plan = self.store.plan_get(pid)
         if not plan or plan["state"] != "done" or not plan["logs"]:
-            raise ToolError("stale", "这次处理已经撤销过了，或者没有可撤销的。")
+            raise ToolError("stale", "该处理已撤销，或无可撤销的内容。")
         acts = self.app.actions(plan["account"], write=False)
         back: dict[str, int] = {}
         for entry in reversed(plan["logs"]):
@@ -992,9 +1029,12 @@ class Agent:
                 acts.undo(entry["log"])
             except (MailError, ActionError) as ex:
                 raise ToolError("failed", str(ex))
-            words = UNDONE.get(entry["op"], "{} 封回到原来的样子")
+            words = UNDONE.get(entry["op"], "恢复 {} 封")
             back[words] = back.get(words, 0) + entry["n"]
-        self.store.plan_set(pid, state="undone", logs=[])
+        # the mail is back where it was, so the question is open again: the same plan (its id comes from the mail and
+        # the choices, unchanged) is offered again on the next outbox read, the user's picks kept (2026-11-17: a plan
+        # kept as undone was never offered again, and the mail was left only in the inbox's 待处理)
+        self.store.plan_set(pid, state="open", logs=[], shown_at=None)
         text = "已撤销：" + "，".join(w.format(n) for w, n in back.items() if n) + "。" if any(back.values()) else "已撤销。"
         out = {"text": text, "done": True}
         surface = (meta.get(USER_ACTION) or {}).get("surfaceId")
@@ -1006,7 +1046,7 @@ class Agent:
         """One line of 处理记录 taken back, as the page's 撤销 does: App.undo tells the memory when a habit did it."""
         e = self.store.log_entry(int(log_id)) if log_id.isdigit() else None
         if not e or e["undone"] or not e["undo"] or e["account"] not in self.app.mail_accounts():
-            raise ToolError("stale", "这次处理已经撤销过了，或者没有可撤销的。")
+            raise ToolError("stale", "该处理已撤销，或无可撤销的内容。")
         try:
             r = self.app.undo(e["account"], e["id"])
         except (MailError, ActionError, ValueError) as ex:
@@ -1017,7 +1057,7 @@ class Agent:
         """One habit's batch back: App.undo tells the memory, as a counter-example, and it isn't done to them again."""
         e = self.store.log_entry(int(log_id)) if log_id.isdigit() else None
         if not e or e["action"] != "auto" or e["undone"] or e["account"] not in self.app.mail_accounts():
-            raise ToolError("stale", "这次处理已经撤销过了，或者没有可撤销的。")
+            raise ToolError("stale", "该处理已撤销，或无可撤销的内容。")
         try:
             r = self.app.undo(e["account"], e["id"])
         except (MailError, ActionError, ValueError) as ex:
@@ -1037,7 +1077,7 @@ class Agent:
         query = " ".join(str(args.get("query") or "").split())
         since, until = (str(args.get(k) or "")[:16].replace("T", " ") for k in ("since", "until"))
         if not (query or since or until):
-            return {"text": "没有要搜的内容。", "hits": [], "card": []}
+            return {"text": "搜索内容为空。", "hits": [], "card": []}
         try:
             limit = min(max(int(args.get("limit") or HITS), 1), MAX_HITS)
         except (TypeError, ValueError):
@@ -1046,7 +1086,7 @@ class Agent:
         rows = [(acct, r) for acct in self.app.mail_accounts() for r in self.store.search(acct, words, since, until, limit)]
         rows.sort(key=lambda x: x[1]["date"] or "", reverse=True)
         hits = [self._hit(acct, r, query) for acct, r in rows[:limit]]
-        return {"text": f"找到 {len(hits)} 封邮件。" if hits else "没有找到邮件。", "hits": hits, "card": []}
+        return {"text": f"找到 {len(hits)} 封邮件。" if hits else "未找到邮件。", "hits": hits, "card": []}
 
     @staticmethod
     def _hit(acct: str, r: dict, query: str) -> dict:
@@ -1055,13 +1095,13 @@ class Agent:
         return {"id": ident, "source": acct, "kind": "mail", "title": _plain(r.get("subject"), 80) or "（无主题）",
                 "line": who + ("（可疑）" if r.get("suspicious") else ""), "date": (r.get("date") or "")[:10],
                 "snippet": _snippet(r, query.split()),
-                "strong": bool(query) and query.lower() in (r.get("subject") or "").lower(),
+                "strong": _strong(r, query),
                 "actions": [{"name": "mail_show", "title": "打开", "args": {"id": ident}, "primary": True}]}
 
     def _hit_mail(self, ident) -> tuple[str, str, dict | None]:
         acct, _, mid = str(ident or "").partition("|")
         if acct not in self.app.mail_accounts() or not mid:
-            raise ToolError("stale", "找不到这封邮件了。")
+            raise ToolError("stale", "未找到该邮件。")
         return acct, mid, self.store.mail_by_id(acct, mid)
 
     def show(self, args: dict, meta: dict) -> dict:
@@ -1069,15 +1109,15 @@ class Agent:
         gid = self.store.gmail_id(acct, mid)
         if self.app.provider(acct) == "gmail" and (gid or real_mid(mid)):     # a made-up Message-ID finds nothing
             desktop.open_url(providers.gmail_message_url(self.app.address(acct), mid, gid))
-            return {"text": "已在浏览器里打开这封邮件。"}
+            return {"text": "已在浏览器中打开该邮件。"}
         self._page("inbox")
-        return {"text": "已在浏览器里打开邮件助手。"}
+        return {"text": "已在浏览器中打开邮件助手。"}
 
     # ---- for the conversation: reading, and a plan on a card. Mail text is data; only the user's tap acts --
     def read(self, args: dict, meta: dict) -> dict:
         acct, mid, m = self._hit_mail(args.get("id"))
         if not m:
-            raise ToolError("stale", "找不到这封邮件了。")
+            raise ToolError("stale", "未找到该邮件。")
         body = m.get("body")
         if body is None:                       # old mail: only its headers are here; read as ever, nothing marked read
             try:
@@ -1087,7 +1127,7 @@ class Agent:
                 raise ToolError("not_ready", str(ex))
             parsed = parse_message(raw) if raw else {}
             if parsed.get("message_id") != mid:
-                raise ToolError("stale", "找不到这封邮件了。")
+                raise ToolError("stale", "未找到该邮件。")
             body = parsed.get("body")
         return {"text": f"邮件：{_plain(m.get('subject'), 60)}", "untrusted": True, "mail": {
             "from": _who(m), "address": m.get("from_addr"), "subject": memory.mask(m.get("subject")), "date": m.get("date"),
@@ -1097,26 +1137,26 @@ class Agent:
     def plan(self, args: dict, meta: dict) -> dict:
         ids = args.get("ids")
         if not isinstance(ids, list) or not ids:
-            raise ToolError("invalid", "没有选中邮件。")
+            raise ToolError("invalid", "未选择邮件。")
         found = [self._hit_mail(i) for i in ids[:PLAN_MOST]]
         accts = {a for a, _, _ in found}
         if len(accts) > 1:
-            raise ToolError("invalid", "一次只能处理一个邮箱里的邮件。")
+            raise ToolError("invalid", "每次仅能处理一个邮箱中的邮件。")
         acct = accts.pop()
         entries = {}
         for _, _, it in found:
             if it and it.get("state") == "pending" and "id" in it:
                 entries[f"m{it['id']}"] = self._choices(it)
         if not entries:
-            raise ToolError("stale", "这些邮件已经处理过了，或者不在收件箱里。")
+            raise ToolError("stale", "这些邮件已处理，或不在收件箱中。")
         # new each time: the same mail may be asked about again after a plan was answered
         pid = "chat-" + hashlib.sha256(f"{sorted(entries)}{time.time()}".encode()).hexdigest()[:16]
         self.store.plan_offer(pid, acct, "chat", entries)
-        heading = f"这 {len(entries)} 封我打算这样处理"
+        heading = f"{len(entries)} 封邮件的处理方案"
         only = [it for _, _, it in found if it and it.get("state") == "pending" and "id" in it]
         return {"text": heading, "plan_id": pid, "card": cards.plan_card(
             pid, heading, self._rows(entries), apply_event="mail_apply_plan", plan_id=pid,
-            apply_label=_apply_words(entries), badge=acct, features=_features(),
+            apply_label=_apply_words(entries), badge=self._box(acct), features=_features(),
             extra_buttons=[_look(pid, only[0] if len(only) == 1 else None)])}
 
     @staticmethod
@@ -1128,7 +1168,7 @@ class Agent:
             options, selected = OPTIONS[action], _reply_pick(it) if action == "reply" else "flag"
         else:
             options, selected = ANY_MAIL, {"archive": "archive", "ignore": "trash"}.get(action, "keep")
-        who, subject = _who(it), _plain(it.get("subject"), 40)
+        who, subject = _who(it), _plain(it.get("subject"), SUBJECT)
         return {"ids": [it["id"]], "allowed": [v for v, _ in options], "selected": selected, "options": options,
                 "who": who, "subject": subject, "label": f"{who}：{subject}", "due": it.get("due_date"),
                 "detail": _plain(it.get("summary"), 120), "was": _was([it])}
@@ -1144,7 +1184,7 @@ class Agent:
         try:
             self.window.go(str(args.get("page") or ""), str(args.get("button") or ""))
         except Gone:
-            raise ToolError("stale", "页面已经变了，请再点一次。")
+            raise ToolError("stale", "页面已更新，请重新操作。")
         return {"text": "好的。"}
 
     def window_do(self, args: dict, meta: dict) -> dict:
@@ -1154,39 +1194,39 @@ class Agent:
         page, button = str(args.get("page") or ""), str(args.get("button") or "")
         ua = meta.get(USER_ACTION) or {}
         if ua.get("componentId") != button or str(ua.get("surfaceId") or "").rsplit("/", 1)[-1] != page:
-            raise ToolError("invalid", "这个操作要在页面上点按钮才能执行。")
+            raise ToolError("invalid", "该操作需要通过页面上的按钮执行。")
         try:
             out = self.window.do(page, button, {k: args[k] for k in ("fields", "choices", "checks", "secrets") if k in args},
                                  _features())
         except Gone:
-            raise ToolError("stale", "页面已经变了，请再点一次。")
+            raise ToolError("stale", "页面已更新，请重新操作。")
         except (ActionError, MailError, ValueError) as ex:
             raise ToolError("failed", str(ex))
         return out
 
     def open_mail(self, args: dict, meta: dict) -> dict:
         self._page("inbox")
-        return {"text": "已在浏览器里打开邮件助手。"}
+        return {"text": "已在浏览器中打开邮件助手。"}
 
     def open_page(self, args: dict, meta: dict) -> dict:
         self._page(PAGES.get(str(args.get("page") or ""), "inbox"))
-        return {"text": "已在浏览器里打开邮件助手。"}
+        return {"text": "已在浏览器中打开邮件助手。"}
 
     def disconnect(self, args: dict, meta: dict) -> dict:
         """Taken to the page, not done here: removing a mailbox deletes its data here, and the page asks first and
         says which mailbox."""
         self._page("settings")
-        return {"text": "已打开邮件助手的设置，请在「邮箱」里选择要移除的邮箱。"}
+        return {"text": "已打开邮件助手的设置，请在「邮箱」中选择要移除的邮箱。"}
 
     def open_settings(self, args: dict, meta: dict) -> dict:
         self._page("settings")
-        return {"text": "已在浏览器里打开邮件助手的设置。"}
+        return {"text": "已在浏览器中打开邮件助手的设置。"}
 
     def open_calendar(self, args: dict, meta: dict) -> dict:
         plan = self.store.plan_get(str(args.get("plan_id") or ""))
         entry = (plan or {}).get("entries", {}).get(str(args.get("key") or ""))
         if not entry:
-            raise ToolError("stale", "找不到这封邮件了。")
+            raise ToolError("stale", "未找到该邮件。")
         try:
             cal = self.app.actions(plan["account"], write=False).calendar(entry["ids"][0])
         except ActionError as ex:
@@ -1197,4 +1237,4 @@ class Agent:
         with open(path, "w", encoding="utf-8") as f:
             f.write(cal["ics"])
         desktop.open_url(path)                 # 「日历」 opens it; the user confirms there
-        return {"text": "已交给「日历」，请在日历里确认。"}
+        return {"text": "已交给「日历」，请在日历中确认。"}

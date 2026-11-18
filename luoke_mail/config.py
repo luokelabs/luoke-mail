@@ -25,10 +25,10 @@ DEFAULTS = {
     "mode": {"write": False},
     "auto": {"enabled": False, "every": 30},       # background sorting (minutes between runs), see background.py
     "power": {"level": "full"},                    # 功耗: full / balanced / quiet, see engines.set_power
-    "learn": {"on": True, "enabled_at": None},     # 从邮件中了解你: on by default (ADR 0013), the person's switch (learner.py)
+    "learn": {"on": True, "enabled_at": None},     # 从邮件中了解你: on by default (ADR 0001), the person's switch (learner.py)
     # whose turn it is in a conversation (threads.py): reads the sent folder too; on by default, can be turned off
     "threads": {"on": True},
-    # what was sorted is marked read (ADR 0016, 2026-10-19): the unread count in the mail app is what
+    # what was sorted is marked read (ADR 0006, 2026-10-19): the unread count in the mail app is what
     # the user has yet to look at, here or in 今日处理. Can be turned off in 设置
     "flow": {"mark_read": True},
 }

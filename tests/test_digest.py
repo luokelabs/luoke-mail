@@ -365,7 +365,7 @@ class MemoryTests(unittest.TestCase):
         with self.assertRaises(ValueError):                                     # the whole memory: not from here
             r.app.curator.memory_change({"source": "mailbox", "op": "forget_all"})
         page = r.app.curator.memory_change({"source": "mailbox", "op": "forget_mine"})
-        self.assertEqual([n["text"] for n in page["fact"]], ["我是产品经理"])   # what the user said stays (ADR 0009);
+        self.assertEqual([n["text"] for n in page["fact"]], ["我是产品经理"])   # what the user said stays (archived ADR 0009);
         self.assertEqual([n["text"] for n in page["interest"] + page["proposed"]], ["本地大模型"])  # what was learnt from mail went; the
         self.assertTrue(luoke_ime.records(topic="ime-commit"))                  # input method's stays
         wrote = r.app.mem.record("user", "statement", "发出的邮件：本周周报", topic="sent-mail")
@@ -377,7 +377,7 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual([n["text"] for n in r.app.mem.notes(kinds=["interest"], status=["active", "proposed", "observed"])], ["本地大模型"])
 
     def test_what_the_user_said_is_theirs_whichever_page_it_was_said_on(self):
-        """ADR 0009: the user's words about understandings belong to the memory (luoke-mem), even when said on the
+        """archived ADR 0009: the user's words about understandings belong to the memory (luoke-mem), even when said on the
         mail assistant's page; the page still calls them 「你填写的」 and forgetting the mail assistant keeps them."""
         r = DigestRig(self)
         mem_own = memory.Memory(r.app.mem.path, tool="luoke-mem")              # what luoke-mem keeps in its own name
@@ -392,41 +392,26 @@ class MemoryTests(unittest.TestCase):
         page = r.app.curator.memory_change({"source": "mailbox", "op": "forget_mine"})
         self.assertEqual([n["text"] for n in page["fact"]], ["我住在杭州"])
 
-    def test_the_whole_memory_opens_in_luoke_mems_own_page(self):
-        import types
+    def test_a_copy_of_the_data_has_no_whole_memory_entry(self):
+        """On a copy (LUOKE_MAIL_HOME), 螺壳's memory page would show the real memory, not the copy: no entry, even
+        with 主控 there. luoke-mem's own page (luoke_mem.ui), used here before, is going away (11-12)."""
         from unittest import mock
         r = DigestRig(self)
-        real = memory.luoke_mem.__dict__.pop("ui", None)                       # as with luoke-mem before 0.6
-        self.addCleanup(lambda: real and setattr(memory.luoke_mem, "ui", real))
-        with mock.patch.dict(sys.modules, {"luoke_mem.ui": None}):
-            self.assertFalse(r.app.curator.memory_view("mailbox")["whole"])      # no entry
-        asked = []
-
-        def ensure(path=None):
-            asked.append(path)
-            if len(asked) > 1:
-                raise RuntimeError("did not start in time")
-            return "http://127.0.0.1:9/?t=x"
-        fake = types.ModuleType("luoke_mem.ui")
-        fake.ensure = ensure
-        with mock.patch.dict(sys.modules, {"luoke_mem.ui": fake}):
-            self.assertTrue(r.app.curator.memory_view("mailbox")["whole"])
-            self.assertFalse(r.app.curator.memory_view("demo")["whole"])        # the demo's memory: not there
-            self.assertEqual(r.app.curator.open_whole({"source": "mailbox"}), {"url": "http://127.0.0.1:9/?t=x"})
-            self.assertEqual(asked, [r.app.mem.path])                           # the file luoke-mail uses (a copy here)
-            with self.assertRaises(ValueError):                                 # did not come up: said in plain words
-                r.app.curator.open_whole({"source": "mailbox"})
+        opened = []
+        with mock.patch.object(memory, "memory_entry", lambda: memory.MEMORY_URL), \
+                mock.patch("luoke_mail.desktop.open_url", opened.append):
+            self.assertNotEqual(r.app.mem.path, memory.luoke_mem.default_path())
+            self.assertFalse(r.app.curator.memory_view("mailbox")["whole"])
             with self.assertRaises(ValueError):
-                r.app.curator.open_whole({"source": "demo"})
-        memory.luoke_mem.__dict__.pop("ui", None)                                # the fake must not stay behind
+                r.app.curator.open_whole({"source": "mailbox"})
+        self.assertEqual(opened, [])
 
     def test_the_app_opens_the_memory_the_user_installed(self):
-        """In 螺壳邮件助手.app on the user's own memory, 「查看整份记忆」 is 螺壳记忆 itself, as from the input method
+        """On the user's own memory (the app, or run from source), 「查看整份记忆」 is 螺壳记忆 itself, as from the input method
         and the agent -- not the page of the library the app carries (boundary audit, 2026-10-16). From beta1 it is
-        part of 螺壳主控 (luoke://memory, ADR 0003 amended); with a 主控 from before, the separate app (open -b)."""
+        part of 螺壳主控 (luoke://memory, archived ADR 0003 amended); with a 主控 from before, the separate app (open -b)."""
         from unittest import mock
-        r = DigestRig(self)
-        r.app.hub_only = True
+        r = DigestRig(self)                                  # the app or a source run: the same, on the real file
         home = tempfile.mkdtemp()
         opened, urls = [], []
         system, mine = os.path.join(home, "sys-Applications"), os.path.join(home, "Applications")
@@ -462,7 +447,7 @@ class MemoryTests(unittest.TestCase):
             self.assertFalse(r.app.curator.memory_view("demo")["whole"])
 
     def test_a_code_in_a_title_is_masked_and_the_rest_kept(self):
-        """ADR 0013: credentials are a security matter -- hidden where they stand; nothing else is held back."""
+        """ADR 0001: credentials are a security matter -- hidden where they stand; nothing else is held back."""
         r = DigestRig(self)
         add_pieces(r.app, 1, "2026-05", local=1)
         it = r.app.store.digest_candidates(ME)[0]
@@ -482,7 +467,7 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual(page["message"], "")
 
     def test_a_note_rewritten_with_health_words_is_marked_and_still_shown_here(self):
-        """ADR 0013: no category is hidden from a tool on the user's own machine; it is only marked."""
+        """ADR 0001: no category is hidden from a tool on the user's own machine; it is only marked."""
         r = DigestRig(self)
         page = r.app.curator.memory_change({"source": "mailbox", "op": "add", "kind": "fact", "text": "我每周跑步三次"})
         page = r.app.curator.memory_change({"source": "mailbox", "op": "revise", "id": page["fact"][0]["id"],
@@ -498,7 +483,7 @@ class MemoryTests(unittest.TestCase):
         self.assertFalse(any("482913" in n["text"] for n in page["fact"]))      # masked, not refused
 
     def test_other_tools_kinds_are_shown_here_too(self):
-        """ADR 0013: the 记忆 page shows every kind, the input method's 常用说法 included."""
+        """ADR 0001: the 记忆 page shows every kind, the input method's 常用说法 included."""
         r = DigestRig(self)
         luoke_ime = memory.Memory(r.app.mem.path, tool="luoke-ime")             # another tool, the same file
         self.addCleanup(luoke_ime.close)
@@ -821,7 +806,7 @@ class ProfileTests(unittest.TestCase):
         self.assertIsNone(r.app.profiler.due(ME))
 
     def test_written_with_learning_paused_too(self):
-        """ADR 0013: the user's own things are recorded whether 了解你 is on or paused."""
+        """ADR 0001: the user's own things are recorded whether 了解你 is on or paused."""
         r = self.rig()
         self.learning(r, on=False)
         self.sent(r, ["本地大模型分享会安排"])

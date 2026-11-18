@@ -59,6 +59,9 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual([(j["name"], j["command"]) for j in m["jobs"]],
                          [(n, ["-m", "luoke_mail", "--job", n]) for n in server.IDLE_JOBS])
         self.assertEqual(sorted(k for ks in server.IDLE_JOBS.values() for k in ks), sorted(server.App.IDLE_KINDS))
+        # the window's 任务 rail names each by its title (luoke-agent, 11-16: three rows of 「后台整理」)
+        self.assertEqual({j["name"]: j.get("title") for j in m["jobs"]},
+                         {"clean": "旧邮件分析", "digest": "挑选精选内容", "learn": "从邮件中学习偏好"})
         self.assertEqual(m["commands"]["uninstall"], ["-m", "luoke_mail", "--forget-secrets"])
         with open(os.path.join(os.path.dirname(HERE), "pyproject.toml"), encoding="utf-8") as f:
             self.assertIn(f'version = "{__version__}"', f.read())

@@ -6,7 +6,7 @@
       "_meta": {
         "io.modelcontextprotocol/serverInfo": {
           "name": "luoke-mail",
-          "version": "$VERSION"
+          "version": "0.19.71"
         }
       },
       "capabilities": {
@@ -51,7 +51,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

@@ -1,6 +1,6 @@
 """Background sorting: every N minutes read new mail, sort it, and send a notification when something
 needs the user (reply / add to calendar / follow up). What it changes in the mailbox can all be taken back
-(top-level ADR 0016): sorted mail is marked read, confirmed habits archive / mark read / label, and in 螺壳's
+(top-level ADR 0006): sorted mail is marked read, confirmed habits archive / mark read / label, and in 螺壳's
 own mailbox sorted mail is archived or trashed -- each listed in 今日处理 and in the operation log. It never
 trashes, marks as junk or unsubscribes in the user's own mailbox, and never sends. What rules say to archive or
 trash still waits for the user's one click in the page.
@@ -15,7 +15,7 @@ import datetime as dt
 import threading
 import time
 
-from . import desktop, engines, triage
+from . import desktop, engines, problems, triage
 from .mailbox import KeychainLocked, MailError
 from .store import now
 
@@ -24,6 +24,7 @@ INTERVALS = (15, 30, 60, 120)        # minutes
 FIRST_RUN_DELAY = 60                 # seconds after start-up: let the model service come up after login
 REPORT_AFTER = 2                     # mailbox failures in a row before the user is told
 NOTIFY_WITHIN_DAYS = 3               # only mail that arrived lately is news (a wider window sorts older mail too)
+LAST_NUMBERS = ("new", "needs_you", "auto", "unanalyzed")    # a run's result in numbers (`last`), added up over mailboxes
 TITLE = "螺壳邮件助手"
 
 
@@ -94,13 +95,17 @@ class AutoSync:
         sts = [(a, self.state(a)) for a in accts]
         tries = [st.get("last_try") for _, st in sts if st.get("last_try")]
         lasts = [(a, st["last"]) for a, st in sts if st.get("last")]
+        # each mailbox's in numbers (`accounts`), for the window to word; a run before 2026-11-17 has only its text
+        each = [{"account": a, **{k: l.get(k) for k in ("at", "ok", "problem_code", "unanalyzed_why", "cut_at", "cut_of")
+                                  + LAST_NUMBERS}} for a, l in lasts]
         if not lasts:
             last = None
         elif len(accts) == 1:
-            last = lasts[0][1]
+            last = {**lasts[0][1], "accounts": each}
         else:
             last = {"at": max(l["at"] for _, l in lasts), "ok": all(l["ok"] for _, l in lasts),
-                    "text": "；".join(f"{self.app.address(a)}：{l['text']}" for a, l in lasts)}
+                    "text": "；".join(f"{self.app.address(a)}：{l['text']}" for a, l in lasts),
+                    **{k: sum(l.get(k) or 0 for _, l in lasts) for k in LAST_NUMBERS}, "accounts": each}
         return {"last_try": min(tries) if len(tries) == len(accts) and tries else None, "last": last}
 
     def due(self) -> bool:
@@ -124,7 +129,8 @@ class AutoSync:
         except KeychainLocked as ex:          # the Mac is locked (the model service's key): next round, quietly
             for acct in accts:
                 st = self.state(acct)
-                st.update(last_try=self.clock(), last={"at": now()[:16], "ok": False, "text": str(ex)})
+                st.update(last_try=self.clock(), last={"at": now()[:16], "ok": False, "text": str(ex),
+                                                       "problem_code": problems.code_of(ex)})
                 self.save(acct, st)
             return {}
         total: dict = {}
@@ -155,13 +161,13 @@ class AutoSync:
         try:
             stats = app.sync_mailbox(acct, job, analyze=model_up)
         except KeychainLocked as ex:          # the Mac is locked: nobody to tell, nothing wrong -- next round
-            st["last"] = {"at": now()[:16], "ok": False, "text": str(ex)}
+            st["last"] = {"at": now()[:16], "ok": False, "text": str(ex), "problem_code": problems.code_of(ex)}
             self.save(acct, st)
             return {}
         except MailError as ex:
             st["fails"] = (st.get("fails") or 0) + 1
             problem = str(ex)
-            st["last"] = {"at": now()[:16], "ok": False, "text": problem}
+            st["last"] = {"at": now()[:16], "ok": False, "text": problem, "problem_code": problems.code_of(ex)}
             if st["fails"] >= REPORT_AFTER and st.get("reported") != problem:
                 app.desktop.notify(TITLE, "无法连接邮箱" + at, problem)
                 st["reported"] = problem
@@ -172,8 +178,8 @@ class AutoSync:
         notes = []
         waiting = len(store.unanalyzed(acct))
         model_failed = waiting and (not model_up or (stats["errors"] and not stats["by_model"]))
+        hub = app.cfg["engine"].get("via") == "hub"
         if model_failed:
-            hub = app.cfg["engine"].get("via") == "hub"
             why = (("螺壳没有运行。打开后，下次整理时会继续分析。" if hub else "本机模型服务未运行。启动后，下次整理时会继续分析。")
                    if not model_up else next((it["error"] for it in store.unanalyzed(acct) if it.get("error")), "模型未返回结果。"))
             if not st.get("model_reported"):
@@ -193,6 +199,8 @@ class AutoSync:
             subtitle, body = describe(fresh)
             app.desktop.notify(TITLE, subtitle + at, body)
         auto = stats.pop("auto", None) or []
+        cut_at, cut_of = stats.pop("cut_at", None), stats.pop("cut_of", None)     # one mailbox's: not to add up
+        done_auto = sum(a["count"] for a in auto)
         if auto:                                   # done unasked: always told, with where to undo it
             n = sum(a["count"] for a in auto)
             words = "、".join(dict.fromkeys(a["name"] for a in auto))
@@ -214,13 +222,19 @@ class AutoSync:
         cleaned = app.clean_note(acct)                  # 清理's old inbox mail all judged: once (luoke-mail#33)
         if cleaned and not quiet:
             app.desktop.notify(TITLE, cleaned[0] + at, cleaned[1])
-        daily = app.review.daily_note(acct)            # 今日处理, once each evening (ADR 0016)
+        daily = app.review.daily_note(acct)            # 今日处理, once each evening (ADR 0006)
         if daily and not quiet:
             app.desktop.notify(TITLE, daily[0] + at, daily[1])
         if stats["new"]:
             notes.insert(0, f"新邮件 {stats['new']} 封" + (f"，{len(fresh)} 封需要处理" if fresh else ""))
         if stats.get("cut"):
             notes.append(stats["cut"])                  # read in part: kept, the next round goes on (luoke-mail#19)
-        st["last"] = {"at": now()[:16], "ok": not model_failed, "text": "；".join(notes) or "没有新邮件"}
+        st["last"] = {"at": now()[:16], "ok": not model_failed, "text": "；".join(notes) or "没有新邮件",
+                      # the same in numbers, for the window to word (top-level ADR 0002)
+                      "new": stats["new"], "needs_you": len(fresh), "auto": done_auto,
+                      "unanalyzed": waiting if model_failed else 0,
+                      "unanalyzed_why": ("hub_not_running" if hub else "model_not_running") if model_failed and not model_up
+                      else "model_error" if model_failed else None,
+                      "cut_at": cut_at, "cut_of": cut_of}
         self.save(acct, st)
         return {**stats, "needs_you": len(fresh)}

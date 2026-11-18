@@ -1,0 +1,217 @@
+{
+  "id": "trouble",
+  "normalised": {
+    "$TMPDIR": "录的时候的临时目录",
+    "000000000001…": "方案编号（new-mail-…、suspicious-…、auto-done-… 后面的 16 位十六进制），按在本场景里出现的先后编号",
+    "resources/read": "contents[0].text 解开成了 JSON 值；线上是 JSON 文字",
+    "~/.luoke-mail": "LUOKE_MAIL_HOME（临时目录）"
+  },
+  "produced": {
+    "changes": [],
+    "fixture": [
+      "LUOKE_MAIL_HOME 指到新建的临时目录；假邮箱是 tests/fakes.py 的 FakeIMAP（gmail），假模型是 FakeChat，分拣和草稿的答复写在 scripts/record_agent_fixtures.py 的 `MAILS` 里",
+      "连上了假邮箱 me@example.com（Gmail，处理模式开着）",
+      "收件箱里放了：双十一预告、周末促销、双十一预告、答辩时间确认",
+      "2026-10-20T01:30:00Z 同步了一次（App.sync_mailbox：真的读信、分拣、做习惯里的事）",
+      "模型的地址换成没有服务的端口，跑了一次订阅体检（App.start_subscriptions）：某某商城的 3 封要模型看，模型连不上",
+      "邮箱改成拒绝登录（Gmail 的 AUTHENTICATIONFAILED），用户点了一次同步（App.start_sync），任务停在 login_refused"
+    ],
+    "mcp": "真的 App 和 agent.sock（luoke_mail/agent.py），一个常驻的服务；时钟由录制脚本的 `Clock` 停住",
+    "tz": "Asia/Shanghai",
+    "user_action_at": "点按时的 at 是那一步的时钟，按 Asia/Shanghai 写"
+  },
+  "situation": "订阅体检时本机模型连不上，某某商城没让模型看过；之后邮箱的授权码被拒，用户点的同步停了。",
+  "steps": [
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "server/discover",
+      "file": "server-discover.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "列工具（agent 认 readOnlyHint）",
+      "file": "tools-list.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "列资源",
+      "file": "resources-list.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读 outbox（每分钟一次）",
+      "file": "read-outbox.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读概览（侧栏的计数和一句话）",
+      "file": "read-summary.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读权限的状态",
+      "file": "read-permissions.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/today",
+      "file": "read-page-today.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/inbox",
+      "file": "read-page-inbox.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/digest",
+      "file": "read-page-digest.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/clean",
+      "file": "read-page-clean.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/legacy-settings",
+      "file": "read-page-legacy-settings.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/activity",
+      "file": "read-page-activity.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/rules",
+      "file": "read-page-rules.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/subs",
+      "file": "read-page-subs.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/sweep",
+      "file": "read-page-sweep.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读基础页 page/piece",
+      "file": "read-page-piece.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/accounts",
+      "file": "read-data-accounts.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/today，所有邮箱",
+      "file": "read-data-today-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/today，一个邮箱（me@example.com）",
+      "file": "read-data-today-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/inbox，所有邮箱",
+      "file": "read-data-inbox-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/inbox，一个邮箱（me@example.com）",
+      "file": "read-data-inbox-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/digest，所有邮箱",
+      "file": "read-data-digest-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/digest，一个邮箱（me@example.com）",
+      "file": "read-data-digest-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/digest?range=today，所有邮箱",
+      "file": "read-data-digest-today-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/digest?range=today，一个邮箱（me@example.com）",
+      "file": "read-data-digest-today-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/clean，所有邮箱",
+      "file": "read-data-clean-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/clean，一个邮箱（me@example.com）",
+      "file": "read-data-clean-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/settings",
+      "file": "read-data-settings.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/activity，所有邮箱",
+      "file": "read-data-activity-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/activity，一个邮箱（me@example.com）",
+      "file": "read-data-activity-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/providers",
+      "file": "read-data-providers.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/old，一个邮箱（me@example.com）收件箱里的旧邮件",
+      "file": "read-data-old.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/old?scope=archive，一个邮箱（me@example.com）归档的邮件",
+      "file": "read-data-old-archive.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/inbox?plan=…&part=tidy，这张卡片要整理的",
+      "file": "read-data-inbox-plan.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/job：停下的同步任务",
+      "file": "read-data-job.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/sender：邮箱正忙，封数还没查完（history_state: pending）",
+      "file": "read-data-sender-pending.json"
+    },
+    {
+      "clock": "2026-10-20T01:31:00Z",
+      "do": "读原始数据 data/sender：再读时查完了，邮箱拒绝登录（history_state: error）",
+      "file": "read-data-sender-error.json"
+    }
+  ],
+  "title": "模型连不上、邮箱被拒",
+  "window": [
+    "`data/clean` 的 `subscriptions.model_check`：`reason: model_error`、`problem_code: model_unreachable`、`unchecked` 和 `of`；`model_note` 是原来的句子。",
+    "`data/accounts` 这个邮箱 `status: needs_auth`、`error_code: login_refused`；`data/job` 停下的同步 `status: error`、`error_code: login_refused`。窗口照代号写字，没有代号时退回原文。",
+    "`data/sender` 某某商城：邮箱正忙时 `history_state: pending`、没有 `history`；再读时 `history_state: error`、`history_error_code: login_refused`。发件人的其余字段两次都在。"
+  ]
+}

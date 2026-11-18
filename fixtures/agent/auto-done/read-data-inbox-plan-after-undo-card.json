@@ -1,0 +1,106 @@
+{
+  "reply": {
+    "id": 64,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "counts": {
+              "archived": 0,
+              "direct": 1,
+              "needs": 0,
+              "reply": 0,
+              "suspicious": 0,
+              "unsorted": 0
+            },
+            "cursor": null,
+            "items": [
+              {
+                "account": "me@example.com",
+                "action": "ignore",
+                "ask_text": "促销",
+                "date": "2026-10-19 18:06",
+                "draft": false,
+                "due": null,
+                "due_soon": false,
+                "flagged": false,
+                "from": {
+                  "address": "news@shop.example",
+                  "name": "某某商城"
+                },
+                "id": 3,
+                "kind": "direct",
+                "open_url": "https://mail.google.com/mail/u/?authuser=me@example.com#all/000000000006",
+                "overdue": false,
+                "priority": "low",
+                "subject": "周末促销",
+                "suspicious": false
+              }
+            ],
+            "list": "plan",
+            "more": false,
+            "plan": {
+              "id": "mailbox-000000000004-06d033ec",
+              "part": "tidy",
+              "state": "open"
+            }
+          },
+          "uri": "data/inbox?account=me%40example.com&part=tidy&plan=mailbox-000000000004-06d033ec"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 64,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/inbox?account=me%40example.com&part=tidy&plan=mailbox-000000000004-06d033ec"
+    }
+  }
+}

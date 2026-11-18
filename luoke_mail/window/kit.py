@@ -22,6 +22,17 @@ BIG_PAGE = 400                  # §4 bigPages: a page (not a card) on a core th
 MAX_TEXT = 2000
 ICONS = frozenset({"mail", "calendar", "warning", "check", "close", "trash", "archive", "star", "reply", "clock",
                    "info", "person", "link", "memory", "question", "lightbulb"})
+# §4 lucide: the names a core that lists it draws (on a button: its icon, the words as its tooltip)
+LUCIDE = frozenset({"app-window", "archive", "brain", "calendar", "calendar-plus", "check", "chevron-down",
+                    "chevron-right", "circle-help", "circle-minus", "clock", "copy", "cpu", "eye", "file", "folder",
+                    "folder-open", "globe", "hard-drive", "inbox", "info", "key", "keyboard", "lightbulb", "link",
+                    "lock", "mail", "package", "pencil-line", "power", "puzzle", "refresh-cw", "reply", "settings",
+                    "shield-alert", "shield-check", "sparkles", "square-arrow-out-up-right", "star", "trash-2",
+                    "trending-up", "triangle-alert", "user", "x"})
+# added 11-13 for 设计规范 §18 (luoke-agent 5204efc): only on a core that says it has them -- a name a core does not
+# know leaves the whole page undrawn
+LATER_ICONS = frozenset({"undo-2", "history", "thumbs-up", "thumbs-down", "mail-x", "bell-off"})
+LATER_ICONS_FEATURE = "lucide2"
 DO, GO = "mail_do", "mail_view"   # the two tools a page's buttons call (agent.py)
 
 
@@ -53,9 +64,15 @@ class Page:
         self._n = 0
         self.actions: Dict[str, dict] = {}        # button id -> {"kind": "do" | "go", ...}
         self.reserve = 0                          # components kept back for what a page adds last
+        self.sections = False                     # each Column at the top a card of its own (§4 pageSections)
 
     def can(self, feature: str) -> bool:
         return feature in self.features
+
+    def drawn(self, icon: Optional[str]) -> bool:
+        """This core draws the icon by that name (§4 lucide, and the names added since)."""
+        return bool(icon) and self.can("lucide") and (
+            icon in LUCIDE or (icon in LATER_ICONS and self.can(LATER_ICONS_FEATURE)))
 
     # ---- components -----------------------------------------------------------------------------------
     def _id(self, kind: str) -> str:
@@ -95,18 +112,41 @@ class Page:
         return self.text(text, "caption", limit)
 
     def icon(self, name: str) -> str:
-        if name not in ICONS:
+        if name not in ICONS and not self.drawn(name):
             raise ValueError(name)
         return self._put({"id": self._id("i"), "component": "Icon", "name": name})
 
     def divider(self) -> str:
         return self._put({"id": self._id("d"), "component": "Divider"})
 
-    def row(self, *children: Optional[str]) -> str:
-        return self._put({"id": self._id("r"), "component": "Row", "children": [c for c in children if c]})
+    def row(self, *children: Optional[str], justify: Optional[str] = None) -> str:
+        comp = {"id": self._id("r"), "component": "Row", "children": [c for c in children if c]}
+        if justify:
+            comp["justify"] = justify
+        return self._put(comp)
 
-    def column(self, *children: Optional[str]) -> str:
-        return self._put({"id": self._id("c"), "component": "Column", "children": [c for c in children if c]})
+    def column(self, *children: Optional[str], collapsed: Optional[str] = None) -> str:
+        """`collapsed`: shown folded, as this one line, where the core draws it (§4 collapsed); open elsewhere."""
+        comp = {"id": self._id("c"), "component": "Column", "children": [c for c in children if c]}
+        if collapsed and self.can("collapsed"):
+            comp["collapsed"] = plain(collapsed, 200)
+        return self._put(comp)
+
+    def item(self, left: Sequence[Optional[str]], right: Sequence[Optional[str]] = (), *,
+             open: Optional[str] = None) -> str:
+        """One item a line (设计规范 §18.1): its words on the left, its buttons on the right -- drawn as their icons
+        (§4 itemIcons, 11-12). `open`: one of its buttons, pressed by a tap on the whole line (§4 rowOpen); the
+        window draws no button for it then, an older one draws it as it is."""
+        comp = {"id": self._id("r"), "component": "Row", "justify": "spaceBetween",
+                "children": [self.column(*left)] + [b for b in (*right, open) if b]}
+        if open and self.can("rowOpen"):
+            comp["open"] = open
+        return self._put(comp)
+
+    def submit(self, field: str, button: str) -> None:
+        """Return in the text field `field` presses `button` (§4 fieldSubmit); the window draws no button then."""
+        if self.can("fieldSubmit"):
+            next(c for c in self._components if c["id"] == field)["submit"] = button
 
     def list(self, children: Sequence[str]) -> str:
         return self._put({"id": self._id("l"), "component": "List", "children": [c for c in children if c]})
@@ -118,15 +158,32 @@ class Page:
     def add(self, *ids: Optional[str]) -> None:
         self._top.extend(i for i in ids if i)
 
+    def mark(self) -> int:
+        return len(self._top)
+
+    def fold(self, mark: int, collapsed: str) -> None:
+        """What was added since `mark`, folded into one line (§4 collapsed) where the core draws it; as it is else."""
+        if not self.can("collapsed") or len(self._top) <= mark:
+            return
+        inside = self._top[mark:]
+        del self._top[mark:]
+        self._top.append(self.column(*inside, collapsed=collapsed))
+
     # ---- inputs: their values come back in the press's context ----------------------------------------
-    def choice(self, key: str, label: str, options: Sequence[Tuple[str, str]], selected: str) -> str:
+    def choice(self, key: str, label: str, options: Sequence[Tuple[str, str]], selected: str,
+               icons: Optional[Dict[str, str]] = None) -> str:
+        """`selected`: what is suggested -- picked already, so being picked is what says it (设计规范 §18.1).
+        `icons`: an option's icon where the core draws them (§4 optionIcons, lucide)."""
         values = [v for v, _ in options]
         if selected not in values:
             raise ValueError(f"{selected} 不在选项里")
         self._data.setdefault("choices", {})[key] = [selected]
         self._data.setdefault("_allowed", {})[key] = values
+        draw_icons = icons and self.can("optionIcons") and self.can("lucide")
         return self._put({"id": self._id("p"), "component": "ChoicePicker", "label": label,
-                          "options": [{"label": lbl, "value": v} for v, lbl in options],
+                          "options": [{"label": lbl, "value": v,
+                                       **({"icon": icons[v]} if draw_icons and self.drawn(icons.get(v)) else {})}
+                                      for v, lbl in options],
                           "value": {"path": f"/choices/{key}"}})
 
     def checkbox(self, key: str, label: str, value: bool = False) -> str:
@@ -149,20 +206,35 @@ class Page:
         return self._put(comp)
 
     # ---- buttons --------------------------------------------------------------------------------------
-    def _button(self, label: str, event: str, context: dict, variant: Optional[str], bid: Optional[str] = None) -> str:
+    def _button(self, label: str, event: str, context: dict, variant: Optional[str], bid: Optional[str] = None,
+                icon: Optional[str] = None, tip: Optional[str] = None) -> str:
+        """`icon`: drawn with it where the core has the name (§4 lucide); in a line's buttons only the icon shows
+        and the words are its tooltip (§4 itemIcons, 11-12). `tip`: the tooltip when it says more than the words."""
         bid = bid or self._id("b")
         tid = self._put({"id": bid + "-t", "component": "Text", "text": plain(label, 60)})
-        comp = {"id": bid, "component": "Button", "child": tid, "action": {"event": {"name": event, "context": context}}}
+        child = tid
+        if self.drawn(icon):
+            iid = self._put({"id": bid + "-i", "component": "Icon", "name": icon})
+            child = self._put({"id": bid + "-r", "component": "Row", "children": [iid, tid]})
+        comp = {"id": bid, "component": "Button", "child": child, "action": {"event": {"name": event, "context": context}}}
         if variant:
             comp["variant"] = variant
+        if (tip or child != tid) and self.can("tooltip"):
+            comp["tooltip"] = plain(tip or label, 200)
         return self._put(comp)
 
+    @staticmethod
+    def _variant(primary: bool, quiet: bool) -> Optional[str]:
+        return "primary" if primary else ("borderless" if quiet else None)
+
     def do(self, label: str, op: str, args: Optional[dict] = None, *, inputs: Sequence[str] = (),
-           primary: bool = False, quiet: bool = False, confirm: Optional[str] = None) -> str:
+           primary: bool = False, quiet: bool = False, confirm: Optional[str] = None, sure: Optional[str] = None,
+           icon: Optional[str] = None, tip: Optional[str] = None) -> str:
         """A button that changes something: `op` is one of window.OPS, `args` its arguments as they will be sent.
         `inputs` names the page's inputs it reads ("fields", "choices", "checks"): their values come back in the
         press and fill args' {"$input": "<kind>/<key>"} placeholders. Only on the user's tap (protocol §5).
-        `confirm`: the press first shows this on the page with 确认 / 取消 (the window has no dialogs)."""
+        `confirm`: what the press asks first. A core that draws §4 confirm asks it under the button (`sure` its
+        title, else 「<label>？」); an older one gets it on the page with 确认 / 取消 (Window._frame)."""
         if confirm and "secrets" in inputs:
             raise ValueError("填了授权码的按钮不能先确认：确认之前它会留在窗口里")      # Window.confirming keeps args
         bid = self._id("b")
@@ -172,26 +244,37 @@ class Page:
                 raise ValueError(f"这一页没有 {kind}")
             ctx[kind] = {k: {"path": f"/secrets/{k}"} for k in self._data[kind]} if kind == "secrets" \
                 else {"path": f"/{kind}"}
-        self._button(label, DO, ctx, "primary" if primary else ("borderless" if quiet else None), bid)
+        self._button(label, DO, ctx, self._variant(primary, quiet), bid, icon, tip)
+        native = bool(confirm) and self.can("confirm")
+        if native:
+            words = plain(label, 60)
+            next(c for c in self._components if c["id"] == bid)["confirm"] = {
+                "title": plain(sure or f"{words}？", 200), "text": str(confirm)[:MAX_TEXT], "label": words}
         self.actions[bid] = {"kind": "do", "op": op, "args": dict(args or {}), "inputs": list(inputs),
-                             "label": label, "confirm": confirm}
+                             "label": label, "confirm": None if native else confirm}
         return bid
 
-    def go(self, label: str, view: dict, *, primary: bool = False, quiet: bool = True) -> str:
+    def go(self, label: str, view: dict, *, primary: bool = False, quiet: bool = True, icon: Optional[str] = None,
+           tip: Optional[str] = None) -> str:
         """A button that only changes what the page shows (which mailbox, which list, the next screen, one mail
         opened): `view` is merged into the page's view. Read-only, no tap needed."""
         bid = self._id("b")
-        self._button(label, GO, {"page": self.page, "button": bid}, "primary" if primary else ("borderless" if quiet else None), bid)
+        self._button(label, GO, {"page": self.page, "button": bid}, self._variant(primary, quiet), bid, icon, tip)
         self.actions[bid] = {"kind": "go", "view": dict(view)}
         return bid
 
-    def open(self, label: str, args: Optional[dict] = None, *, page: Optional[str] = None, quiet: bool = True) -> str:
+    def open(self, label: str, args: Optional[dict] = None, *, page: Optional[str] = None, quiet: bool = True,
+             primary: bool = False, icon: Optional[str] = None) -> Optional[str]:
         """The window opens a page of this app (§5 agent.open_page), with `args` when the core takes them (§4
-        pageArgs): read as `page/<id>?<键>=<值>`. No args clears what the page was opened with."""
+        pageArgs): read as `page/<id>?<键>=<值>`. No args clears what the page was opened with. `primary`: the one
+        thing to press in its part of the page (luoke-agent 11-12: how it is drawn is the window's). None on a core
+        that cannot open pages (§4 openPage)."""
+        if not self.can("openPage"):
+            return None
         ctx: Dict[str, Any] = {"page": page or self.page}
         if args and self.can("pageArgs"):
             ctx["args"] = {k: str(v) for k, v in args.items()}
-        return self._button(label, "agent.open_page", ctx, "borderless" if quiet else None)
+        return self._button(label, "agent.open_page", ctx, self._variant(primary, quiet), icon=icon)
 
     def refresh(self, seconds: int, row: Optional[str] = None) -> None:
         """Read this page again in `seconds` while it is in view (§4 pageRefresh) -- a job in progress. Not on a
@@ -227,6 +310,8 @@ class Page:
     def messages(self) -> List[dict]:
         data = {k: v for k, v in self._data.items() if not k.startswith("_")}
         root: Dict[str, Any] = {"id": "root", "component": "Column", "children": list(self._top)}
+        if self.sections and self.can("pageSections"):
+            root["layout"] = "sections"
         if self._refreshes():
             root["refresh"] = self._refresh[0]
         out = [{"version": VERSION, "createSurface": {"surfaceId": self.page, "catalogId": CATALOG}},

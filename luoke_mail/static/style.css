@@ -1,6 +1,6 @@
-/* 螺壳邮件助手 -- luoke-brand 界面设计规范 v1 (ui/DESIGN.md): tokens, type, components, layout. Plain CSS; the
-   values follow brand's sample (ui/src/index.css, ui/src/components/ui/). Light by default, dark with the system
-   or when the user picks it (data-theme on <html>). */
+/* 螺壳邮件助手 -- 螺壳应用界面规范 v2 (§2's 工作台 tokens, warm in dark too): tokens,
+   type, components, layout. Plain CSS; layout and components follow brand's v1 sample (ui/src/index.css,
+   ui/src/components/ui/). Light by default, dark with the system or when the user picks it (data-theme on <html>). */
 :root {
   --background: #FCFAF7;
   --foreground: #2B1A12;
@@ -21,7 +21,7 @@
   --warning: #A86A12;
   --warning-soft: #FBF0D9;
   --destructive: #C2412D;
-  --destructive-soft: color-mix(in srgb, #C2412D 10%, transparent);
+  --destructive-soft: #F9ECEA;
   --ring: #9C8E85;
   --radius: 12px;
   --shadow-xs: 0 1px 2px rgb(43 26 18 / 0.05);
@@ -31,20 +31,20 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #111111; --foreground: #FAFAF9; --card: #1A1A1A; --sidebar: #161616;
-    --primary: #F5F5F4; --primary-foreground: #141414; --muted: #232323; --secondary: #262626; --accent: #262626;
-    --muted-foreground: #B8B8B6; --border: #2A2A2A; --input: #3A3A3A; --brand: #F2707F; --brand-soft: #3B1F24;
+    --background: #1F1511; --foreground: #FBF3E8; --card: #2C1F19; --sidebar: #261A15;
+    --primary: #FDF4E4; --primary-foreground: #2B1A12; --muted: #372720; --secondary: #372720; --accent: #372720;
+    --muted-foreground: #BBA596; --border: #3B2A22; --input: #4A382E; --brand: #F2707F; --brand-soft: #4A2329;
     --success: #5CC98A; --success-soft: #16301F; --warning: #E8B45A; --warning-soft: #33280F; --destructive: #F07A66;
-    --destructive-soft: color-mix(in srgb, #F07A66 14%, transparent); --ring: #8C8079; --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
+    --destructive-soft: #472C24; --ring: #8C8079; --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --background: #111111; --foreground: #FAFAF9; --card: #1A1A1A; --sidebar: #161616;
-  --primary: #F5F5F4; --primary-foreground: #141414; --muted: #232323; --secondary: #262626; --accent: #262626;
-  --muted-foreground: #B8B8B6; --border: #2A2A2A; --input: #3A3A3A; --brand: #F2707F; --brand-soft: #3B1F24;
+  --background: #1F1511; --foreground: #FBF3E8; --card: #2C1F19; --sidebar: #261A15;
+  --primary: #FDF4E4; --primary-foreground: #2B1A12; --muted: #372720; --secondary: #372720; --accent: #372720;
+  --muted-foreground: #BBA596; --border: #3B2A22; --input: #4A382E; --brand: #F2707F; --brand-soft: #4A2329;
   --success: #5CC98A; --success-soft: #16301F; --warning: #E8B45A; --warning-soft: #33280F; --destructive: #F07A66;
-  --destructive-soft: color-mix(in srgb, #F07A66 14%, transparent); --ring: #8C8079; --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
+  --destructive-soft: #472C24; --ring: #8C8079; --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
   color-scheme: dark;
 }
 
@@ -212,7 +212,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--r
 input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); width: 16px; height: 16px; margin: 0; }
 /* lucide chevrons for selects and disclosure rows (brand DESIGN.md §6) */
 select { appearance: none; -webkit-appearance: none; padding: 0 34px 0 12px; background-repeat: no-repeat; background-position: right 10px center; background-size: 16px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2378716c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237A6558' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
 summary { list-style: none; cursor: pointer; }
 summary::-webkit-details-marker { display: none; }
 summary::before { content: ""; display: inline-block; width: 16px; height: 16px; margin-right: 8px; vertical-align: -3px; background: currentColor;
@@ -655,11 +655,11 @@ html:not(.kbd) select:focus { border-color: var(--input, var(--border)); }
   .set-row:has(> .set-icon) .set-act { justify-content: flex-start; align-self: start; margin-top: 8px; }
 }
 
-/* ---- review fixes (ops/docs/ui-brand-polish-review-2026-10-22) ------------------------------------------------ */
+/* ---- review fixes (the brand polish review, 2026-10-22) ------------------------------------------------ */
 .rule-form.form.inline { display: grid; }                       /* the inline flex won over the form's own grid */
 /* the select chevron follows the theme */
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B8B8B6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); } }
-:root[data-theme="dark"] select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B8B8B6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23BBA596' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); } }
+:root[data-theme="dark"] select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23BBA596' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
 /* folded: what is running still shows, as a pulsing dot */
 .shell.folded .rail-activity:not([hidden]) { display: grid; justify-items: center; margin: 0; padding: 6px; }
 .shell.folded .rail-activity .ra-title { font-size: 0; gap: 0; }

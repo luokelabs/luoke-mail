@@ -1,0 +1,973 @@
+{
+  "reply": {
+    "id": 42,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "legacy-settings"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g15-d1",
+                      "g15-t2",
+                      "g15-k13",
+                      "g15-t14",
+                      "g15-r16",
+                      "g15-d17",
+                      "g15-t18",
+                      "g15-r21",
+                      "g15-d22",
+                      "g15-t23",
+                      "g15-t24",
+                      "g15-p25",
+                      "g15-r27",
+                      "g15-c85"
+                    ],
+                    "component": "Column",
+                    "id": "root"
+                  },
+                  {
+                    "component": "Divider",
+                    "id": "g15-d1"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t2",
+                    "text": "账号",
+                    "variant": "h4"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b3-t",
+                    "text": "设为螺壳自己的邮箱"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b3",
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b3-t",
+                    "component": "Button",
+                    "confirm": {
+                      "label": "设为螺壳自己的邮箱",
+                      "text": "把 me@example.com 设为螺壳自己的邮箱：这个邮箱的邮件分析后会直接处理，该归档的归档，该删的删除；可疑的和要你处理的留在收件箱。每封都列在「今日处理」里，可以撤销；删除的，在邮箱清空「已删除」之前都能撤销。只用于专给螺壳的邮箱，不要设在日常用的邮箱上。",
+                      "title": "设为螺壳自己的邮箱？"
+                    },
+                    "id": "g15-b3",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b4-t",
+                    "text": "修改授权码…"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b4",
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g15-b4-t",
+                    "component": "Button",
+                    "id": "g15-b4",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "TextField",
+                    "id": "g15-f5",
+                    "label": "显示名",
+                    "submit": "g15-b6",
+                    "value": {
+                      "path": "/fields/name0"
+                    }
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b6-t",
+                    "text": "保存名字"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b6",
+                          "fields": {
+                            "path": "/fields"
+                          },
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b6-t",
+                    "component": "Button",
+                    "id": "g15-b6"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t7",
+                    "text": "me@example.com",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t8",
+                    "text": "Gmail · IMAP",
+                    "variant": "caption"
+                  },
+                  {
+                    "children": [
+                      "g15-f5",
+                      "g15-b6"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r9"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b10-t",
+                    "text": "移除"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b10",
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b10-t",
+                    "component": "Button",
+                    "confirm": {
+                      "label": "移除",
+                      "text": "移除 me@example.com：螺壳不再读这个邮箱，并删掉本机存的授权码，以及它的分析结果、规则、清理和精选记录、操作记录。邮箱里的邮件和关于你的记忆不受影响。可以重新连接，但删掉的记录找不回来。",
+                      "title": "移除？"
+                    },
+                    "id": "g15-b10",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g15-b4",
+                      "g15-b3",
+                      "g15-b10"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r11"
+                  },
+                  {
+                    "children": [
+                      "g15-t7",
+                      "g15-t8",
+                      "g15-r9",
+                      "g15-r11"
+                    ],
+                    "component": "Column",
+                    "id": "g15-c12"
+                  },
+                  {
+                    "child": "g15-c12",
+                    "component": "Card",
+                    "id": "g15-k13"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t14",
+                    "text": "推荐给螺壳一个专用邮箱，把订阅、通知转发过去，由它自动整理。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b15-t",
+                    "text": "添加邮箱…"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b15",
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g15-b15-t",
+                    "component": "Button",
+                    "id": "g15-b15"
+                  },
+                  {
+                    "children": [
+                      "g15-b15"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r16"
+                  },
+                  {
+                    "component": "Divider",
+                    "id": "g15-d17"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t18",
+                    "text": "规则",
+                    "variant": "h4"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t19",
+                    "text": "还没有规则：告诉螺壳某类邮件以后怎么处理。"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b20-t",
+                    "text": "管理规则"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "page": "rules"
+                        },
+                        "name": "agent.open_page"
+                      }
+                    },
+                    "child": "g15-b20-t",
+                    "component": "Button",
+                    "id": "g15-b20"
+                  },
+                  {
+                    "children": [
+                      "g15-t19",
+                      "g15-b20"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r21"
+                  },
+                  {
+                    "component": "Divider",
+                    "id": "g15-d22"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t23",
+                    "text": "提醒",
+                    "variant": "h4"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t24",
+                    "text": "已关闭：开启后定时整理，有要你处理的邮件时发通知。"
+                  },
+                  {
+                    "component": "ChoicePicker",
+                    "id": "g15-p25",
+                    "label": "整理间隔",
+                    "options": [
+                      {
+                        "label": "每 15 分钟",
+                        "value": "15"
+                      },
+                      {
+                        "label": "每 30 分钟",
+                        "value": "30"
+                      },
+                      {
+                        "label": "每 1 小时",
+                        "value": "60"
+                      },
+                      {
+                        "label": "每 2 小时",
+                        "value": "120"
+                      }
+                    ],
+                    "value": {
+                      "path": "/choices/every"
+                    }
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b26-t",
+                    "text": "开启"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b26",
+                          "choices": {
+                            "path": "/choices"
+                          },
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b26-t",
+                    "component": "Button",
+                    "confirm": {
+                      "label": "开启",
+                      "text": "开启后台自动整理：按选好的间隔同步并分析新邮件；有要回复、加日程或跟进的邮件时通知你，每晚 20:00 发一条「今天处理了 N 封」；标为已读，按你确认过的习惯归档或加标签，都能在「今日处理」里撤销。不会删除邮件、退订或发信。第一次通知时，请在系统提示里选「允许」。",
+                      "title": "开启？"
+                    },
+                    "id": "g15-b26",
+                    "variant": "primary"
+                  },
+                  {
+                    "children": [
+                      "g15-b26"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r27"
+                  },
+                  {
+                    "component": "Divider",
+                    "id": "g15-d28"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t29",
+                    "text": "分析",
+                    "variant": "h4"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t30",
+                    "text": "同步范围：同步和整理只看这个范围内的邮件"
+                  },
+                  {
+                    "component": "TextField",
+                    "id": "g15-f31",
+                    "label": "最近几天（1–365）",
+                    "value": {
+                      "path": "/fields/days"
+                    }
+                  },
+                  {
+                    "component": "TextField",
+                    "id": "g15-f32",
+                    "label": "每次最多几封（1–500）",
+                    "value": {
+                      "path": "/fields/limit"
+                    }
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b33-t",
+                    "text": "保存范围"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b33",
+                          "fields": {
+                            "path": "/fields"
+                          },
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b33-t",
+                    "component": "Button",
+                    "id": "g15-b33"
+                  },
+                  {
+                    "children": [
+                      "g15-b33"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r34"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t35",
+                    "text": "回复署名：写在回复草稿的末尾"
+                  },
+                  {
+                    "component": "TextField",
+                    "id": "g15-f36",
+                    "label": "署名（例如：小周）",
+                    "value": {
+                      "path": "/fields/signature"
+                    }
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b37-t",
+                    "text": "保存署名"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b37",
+                          "fields": {
+                            "path": "/fields"
+                          },
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b37-t",
+                    "component": "Button",
+                    "id": "g15-b37"
+                  },
+                  {
+                    "children": [
+                      "g15-b37"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r38"
+                  },
+                  {
+                    "component": "Divider",
+                    "id": "g15-d39"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t40",
+                    "text": "已读",
+                    "variant": "h4"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t41",
+                    "text": "分析过的邮件标为已读（已开启）"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b42-t",
+                    "text": "关闭"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b42",
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b42-t",
+                    "component": "Button",
+                    "id": "g15-b42"
+                  },
+                  {
+                    "children": [
+                      "g15-t41",
+                      "g15-b42"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r43"
+                  },
+                  {
+                    "component": "Divider",
+                    "id": "g15-d44"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t45",
+                    "text": "往来邮件",
+                    "variant": "h4"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t46",
+                    "text": "提醒在等对方回复的邮件（已开启）"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b47-t",
+                    "text": "关闭"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b47",
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b47-t",
+                    "component": "Button",
+                    "id": "g15-b47"
+                  },
+                  {
+                    "children": [
+                      "g15-t46",
+                      "g15-b47"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r48"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t49",
+                    "text": "会读「已发送」里最近一个月的邮件，只在本机分析。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Divider",
+                    "id": "g15-d50"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t51",
+                    "text": "处理模式",
+                    "variant": "h4"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t52",
+                    "text": "已开启：批量删除、移到垃圾邮件时，每次都需要你确认。"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b53-t",
+                    "text": "关闭"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b53",
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b53-t",
+                    "component": "Button",
+                    "id": "g15-b53"
+                  },
+                  {
+                    "children": [
+                      "g15-t52",
+                      "g15-b53"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r54"
+                  },
+                  {
+                    "component": "Divider",
+                    "id": "g15-d55"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t56",
+                    "text": "本机模型",
+                    "variant": "h4"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t57",
+                    "text": "test-model · 本机模型服务"
+                  },
+                  {
+                    "component": "Divider",
+                    "id": "g15-d58"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t59",
+                    "text": "功耗",
+                    "variant": "h4"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t60",
+                    "text": "全速（当前）",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b61-t",
+                    "text": "均衡"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b61",
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b61-t",
+                    "component": "Button",
+                    "id": "g15-b61",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b62-t",
+                    "text": "安静"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b62",
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b62-t",
+                    "component": "Button",
+                    "id": "g15-b62",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g15-t60",
+                      "g15-b61",
+                      "g15-b62"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r63"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t64",
+                    "text": "模型连续运行，速度最快，风扇可能全速转。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Divider",
+                    "id": "g15-d65"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t66",
+                    "text": "记忆",
+                    "variant": "h4"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t67",
+                    "text": "关于你 0 条 · 关注的话题 0 个",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t68",
+                    "text": "从邮件中了解你",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t69",
+                    "text": "已开启，下次空闲时继续",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b70-t",
+                    "text": "暂停"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b70",
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b70-t",
+                    "component": "Button",
+                    "id": "g15-b70",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g15-t69",
+                      "g15-b70"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r71"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t72",
+                    "text": "你的网站和博客",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t73",
+                    "text": "螺壳会读取这些网站上的文章，用来了解你关注的话题。只读取你填写的网址。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "TextField",
+                    "id": "g15-f74",
+                    "label": "网站或博客的网址（例如：https://example.com）",
+                    "value": {
+                      "path": "/fields/site"
+                    }
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b75-t",
+                    "text": "添加"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b75",
+                          "fields": {
+                            "path": "/fields"
+                          },
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b75-t",
+                    "component": "Button",
+                    "id": "g15-b75"
+                  },
+                  {
+                    "children": [
+                      "g15-b75"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r76"
+                  },
+                  {
+                    "component": "Divider",
+                    "id": "g15-d77"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t78",
+                    "text": "本机数据",
+                    "variant": "h4"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t79",
+                    "text": "账号、授权码和分析结果只保存在本机。"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t80",
+                    "text": "注意：在此系统上，授权码以明文保存在本机文件中（仅你的账户可读）。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "CheckBox",
+                    "id": "g15-x81",
+                    "label": "同时删除邮件助手写进记忆的内容",
+                    "value": {
+                      "path": "/checks/forget_memory"
+                    }
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-t82",
+                    "text": "不勾选，记忆留给其他螺壳工具用。勾选也只删邮件助手自己记下和推测的；你确认过、改过或自己写的会保留。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g15-b83-t",
+                    "text": "全部清除"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g15-b83",
+                          "checks": {
+                            "path": "/checks"
+                          },
+                          "page": "legacy-settings"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g15-b83-t",
+                    "component": "Button",
+                    "confirm": {
+                      "label": "全部清除",
+                      "text": "清除本机数据：删除邮箱授权码、模型 API Key、规则、分析结果和操作记录，并关闭后台自动整理。邮箱里的邮件不受影响。勾选了「同时删除邮件助手写进记忆的内容」的，也只删邮件助手自己记下和推测的；你确认过、改过或自己写的会保留。",
+                      "title": "全部清除？"
+                    },
+                    "id": "g15-b83"
+                  },
+                  {
+                    "children": [
+                      "g15-b83"
+                    ],
+                    "component": "Row",
+                    "id": "g15-r84"
+                  },
+                  {
+                    "children": [
+                      "g15-d28",
+                      "g15-t29",
+                      "g15-t30",
+                      "g15-f31",
+                      "g15-f32",
+                      "g15-r34",
+                      "g15-t35",
+                      "g15-f36",
+                      "g15-r38",
+                      "g15-d39",
+                      "g15-t40",
+                      "g15-r43",
+                      "g15-d44",
+                      "g15-t45",
+                      "g15-r48",
+                      "g15-t49",
+                      "g15-d50",
+                      "g15-t51",
+                      "g15-r54",
+                      "g15-d55",
+                      "g15-t56",
+                      "g15-t57",
+                      "g15-d58",
+                      "g15-t59",
+                      "g15-r63",
+                      "g15-t64",
+                      "g15-d65",
+                      "g15-t66",
+                      "g15-t67",
+                      "g15-t68",
+                      "g15-r71",
+                      "g15-t72",
+                      "g15-t73",
+                      "g15-f74",
+                      "g15-r76",
+                      "g15-d77",
+                      "g15-t78",
+                      "g15-t79",
+                      "g15-t80",
+                      "g15-x81",
+                      "g15-t82",
+                      "g15-r84"
+                    ],
+                    "collapsed": "更多设置：同步范围、署名、已读、处理模式、模型、记忆、本机数据",
+                    "component": "Column",
+                    "id": "g15-c85"
+                  }
+                ],
+                "surfaceId": "legacy-settings"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateDataModel": {
+                "path": "/",
+                "surfaceId": "legacy-settings",
+                "value": {
+                  "checks": {
+                    "forget_memory": false
+                  },
+                  "choices": {
+                    "every": [
+                      "30"
+                    ]
+                  },
+                  "fields": {
+                    "days": "30",
+                    "limit": "100",
+                    "name0": "me",
+                    "signature": "",
+                    "site": ""
+                  }
+                }
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/legacy-settings"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 42,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/legacy-settings"
+    }
+  }
+}

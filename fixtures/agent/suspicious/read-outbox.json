@@ -140,7 +140,7 @@
                         {
                           "component": "Text",
                           "id": "b10-text",
-                          "text": "先不动"
+                          "text": "暂不处理"
                         },
                         {
                           "children": [
@@ -174,7 +174,7 @@
                         {
                           "component": "Text",
                           "id": "b11-text",
-                          "text": "在邮件助手里看"
+                          "text": "在邮件助手中查看"
                         },
                         {
                           "children": [
@@ -206,7 +206,7 @@
                 "summary": "某银行：账户已冻结",
                 "title": "可疑邮件「某银行：账户已冻结」",
                 "urgency": "urgent",
-                "why_now": "判为可疑，拿不准就别点里面的链接"
+                "why_now": "判为可疑：确认来源前，请勿打开其中的链接"
               },
               {
                 "card": [
@@ -233,7 +233,7 @@
                         {
                           "component": "Text",
                           "id": "h1",
-                          "text": "1 封要处理",
+                          "text": "1 封待处理",
                           "variant": "h4"
                         },
                         {
@@ -314,7 +314,7 @@
                             },
                             {
                               "icon": "circle-minus",
-                              "label": "先不动",
+                              "label": "暂不处理",
                               "value": "keep"
                             }
                           ],
@@ -363,7 +363,7 @@
                         {
                           "component": "Text",
                           "id": "b13-text",
-                          "text": "写草稿 1"
+                          "text": "处理这封"
                         },
                         {
                           "children": [
@@ -397,7 +397,7 @@
                         {
                           "component": "Text",
                           "id": "b14-text",
-                          "text": "在邮件助手里看"
+                          "text": "在邮件助手中查看"
                         },
                         {
                           "children": [
@@ -440,9 +440,9 @@
                 "id": "new-mail/new-mail-000000000002",
                 "kind": "new-mail",
                 "summary": "王老师：王老师问答辩时间，周五前回。",
-                "title": "1 封邮件要你处理",
+                "title": "1 封待处理邮件",
                 "urgency": "normal",
-                "why_now": "分拣好了，1 封要你先处理，最早的要在 2026-10-23 前回"
+                "why_now": "分拣完成，1 封待处理，最早一封需在 2026-10-23 前回复"
               }
             ]
           },
@@ -484,7 +484,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

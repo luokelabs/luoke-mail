@@ -3,9 +3,9 @@
 Who said it decides what an inference may do (luoke-mem's principles):
 - mail the user sent is their own words: facts drawn from it take effect once two messages agree;
 - mail they received is what someone else said (and could be a scam): what is drawn from it goes to the memory,
-  which decides how sure it is (top-level ADR 0015), only from organisations that wrote several times over months;
+  which decides how sure it is (top-level ADR 0005), only from organisations that wrote several times over months;
 - what the user did shows a habit, which the memory works out from the records.
-Nothing is held back for privacy on this machine (top-level ADR 0013): only credentials -- passwords, codes, keys
+Nothing is held back for privacy on this machine (top-level ADR 0001): only credentials -- passwords, codes, keys
 and tokens, full card and ID numbers -- are masked before anything is written (memory.mask), and one-off values
 (an amount, a meeting's time) are not facts about the user. Sensitive context is marked for the memory, which
 decides what needs the user's yes. Mail text is data; instructions inside it are ignored."""
@@ -87,7 +87,7 @@ def parse_facts(content: str, count: int, topics=FACT_TOPICS) -> list[dict]:
         # an organisation's name whole (20 characters cut 「Example Cloud Services Co., Ltd.」 short: review, 10-22)
         topic, text, who = _clean(f.get("topic"), 8), _clean(f.get("text"), 60), _clean(f.get("who"), 40)
         ns = sorted({int(x) for x in (f.get("n") or []) if isinstance(x, (int, float)) and 1 <= int(x) <= count})
-        text, who = mask(text), mask(who)                          # a credential is hidden, the fact kept (ADR 0013)
+        text, who = mask(text), mask(who)                          # a credential is hidden, the fact kept (ADR 0001)
         if topic not in topics or not text or not ns:
             continue
         if topics is LIFE_TOPICS and who and text.strip(" ：:") == who:   # 「shop.example」 alone says nothing

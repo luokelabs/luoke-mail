@@ -1,14 +1,19 @@
 {
   "reply": {
-    "id": 17,
+    "id": 36,
     "jsonrpc": "2.0",
     "result": {
       "contents": [
         {
           "mimeType": "application/json",
           "text": {
+            "auto_today": 1,
+            "connected": true,
             "count": 1,
-            "text": "1 封要你处理，1 封可以整理，今天自动处理了 1 封"
+            "needs": 1,
+            "suspicious": 0,
+            "text": "1 封待处理，1 封待整理，今日自动处理 1 封",
+            "tidy": 1
           },
           "uri": "summary"
         }
@@ -17,7 +22,7 @@
     }
   },
   "request": {
-    "id": 17,
+    "id": 36,
     "jsonrpc": "2.0",
     "method": "resources/read",
     "params": {
@@ -48,7 +53,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

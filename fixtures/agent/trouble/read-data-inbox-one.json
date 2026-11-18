@@ -1,0 +1,101 @@
+{
+  "reply": {
+    "id": 21,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "counts": {
+              "archived": 0,
+              "direct": 3,
+              "needs": 1,
+              "reply": 1,
+              "suspicious": 0,
+              "unsorted": 0
+            },
+            "cursor": null,
+            "items": [
+              {
+                "account": "me@example.com",
+                "action": "reply",
+                "ask_text": "王老师问答辩时间，周五前回",
+                "date": "2026-10-20 01:18",
+                "draft": false,
+                "due": "2026-10-23",
+                "due_soon": true,
+                "flagged": false,
+                "from": {
+                  "address": "wang@school.example",
+                  "name": "王老师"
+                },
+                "id": 1,
+                "kind": "reply",
+                "open_url": "https://mail.google.com/mail/u/?authuser=me@example.com#all/000000000003",
+                "overdue": false,
+                "priority": "high",
+                "subject": "答辩时间确认",
+                "suspicious": false
+              }
+            ],
+            "list": "reply",
+            "more": false
+          },
+          "uri": "data/inbox?account=me%40example.com"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 21,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/inbox?account=me%40example.com"
+    }
+  }
+}

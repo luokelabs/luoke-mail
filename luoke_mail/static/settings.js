@@ -131,7 +131,7 @@ function renderThreadsRow(r) {
   body.append(el("p", null, "提醒在等对方回复的邮件"), el("p", { class: "hint" }, "会读「已发送」里最近一个月的邮件，只在本机分析。"));
 }
 
-// ---- what was sorted is marked read (ADR 0016): reviewed in 今日处理 -------------------------------------------
+// ---- what was sorted is marked read (ADR 0006): reviewed in 今日处理 -------------------------------------------
 function renderFlowRow(r) {
   const body = r.querySelector(".set-body"), act = r.querySelector(".set-act");
   body.textContent = "";
@@ -289,7 +289,7 @@ export function initSettings() {
   });
   ["f-limit", "f-days", "signature"].forEach((id) => $(id).addEventListener("change", saveScope));
   $("forget").addEventListener("click", async () => {
-    // the memory is the user's, shared by every luoke tool: it is kept unless they tick it (top-level ADR 0002)
+    // the memory is the user's, shared by every luoke tool: it is kept unless they tick it (top-level archived ADR 0002)
     const memory = el("input", { type: "checkbox" });
     const ok = await confirmDialog("清除本机数据", [
       el("p", null, "删除邮箱授权码、模型 API Key、规则、分析结果和操作记录，并关闭后台自动整理。邮箱里的邮件不受影响。"),

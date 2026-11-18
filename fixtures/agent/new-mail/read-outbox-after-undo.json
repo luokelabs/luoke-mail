@@ -1,6 +1,6 @@
 {
   "reply": {
-    "id": 27,
+    "id": 67,
     "jsonrpc": "2.0",
     "result": {
       "contents": [
@@ -8,6 +8,243 @@
           "mimeType": "application/json",
           "text": {
             "items": [
+              {
+                "card": [
+                  {
+                    "createSurface": {
+                      "catalogId": "ai.luoke/a2ui/agent/1",
+                      "surfaceId": "new-mail-000000000001"
+                    },
+                    "version": "v0.9"
+                  },
+                  {
+                    "updateComponents": {
+                      "components": [
+                        {
+                          "children": [
+                            "r3",
+                            "l4",
+                            "r12"
+                          ],
+                          "component": "Column",
+                          "id": "root",
+                          "subtitle": "me@example.com"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "h1",
+                          "text": "1 封待处理",
+                          "variant": "h4"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t2",
+                          "text": "me@example.com",
+                          "variant": "badge"
+                        },
+                        {
+                          "children": [
+                            "h1",
+                            "t2"
+                          ],
+                          "component": "Row",
+                          "id": "r3"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t5",
+                          "text": "王老师",
+                          "variant": "strong"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t6",
+                          "maxLines": 1,
+                          "text": "答辩时间确认"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t7",
+                          "text": "10-23 截止",
+                          "variant": "badge"
+                        },
+                        {
+                          "children": [
+                            "t5",
+                            "t6",
+                            "t7"
+                          ],
+                          "component": "Row",
+                          "id": "r8"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "t9",
+                          "maxLines": 1,
+                          "text": "王老师问答辩时间，周五前回",
+                          "variant": "caption"
+                        },
+                        {
+                          "children": [
+                            "r8",
+                            "t9"
+                          ],
+                          "component": "Column",
+                          "id": "c10"
+                        },
+                        {
+                          "component": "ChoicePicker",
+                          "id": "c-m5",
+                          "label": "王老师：答辩时间确认",
+                          "options": [
+                            {
+                              "icon": "pencil-line",
+                              "label": "写草稿",
+                              "value": "draft"
+                            },
+                            {
+                              "icon": "star",
+                              "label": "加星标",
+                              "value": "flag"
+                            },
+                            {
+                              "icon": "archive",
+                              "label": "归档",
+                              "value": "archive"
+                            },
+                            {
+                              "icon": "circle-minus",
+                              "label": "暂不处理",
+                              "value": "keep"
+                            }
+                          ],
+                          "value": {
+                            "path": "/choices/m5"
+                          }
+                        },
+                        {
+                          "children": [
+                            "c10",
+                            "c-m5"
+                          ],
+                          "component": "Row",
+                          "id": "r11",
+                          "justify": "spaceBetween"
+                        },
+                        {
+                          "children": [
+                            "r11"
+                          ],
+                          "component": "List",
+                          "id": "l4"
+                        },
+                        {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "choices": {
+                                  "path": "/choices"
+                                },
+                                "plan_id": "new-mail-000000000001"
+                              },
+                              "name": "mail_apply_plan"
+                            }
+                          },
+                          "child": "b13-row",
+                          "component": "Button",
+                          "id": "b13",
+                          "variant": "primary"
+                        },
+                        {
+                          "component": "Icon",
+                          "id": "b13-icon",
+                          "name": "check"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b13-text",
+                          "text": "处理这封"
+                        },
+                        {
+                          "children": [
+                            "b13-icon",
+                            "b13-text"
+                          ],
+                          "component": "Row",
+                          "id": "b13-row"
+                        },
+                        {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "args": {
+                                  "box": "me@example.com",
+                                  "list": "needs"
+                                },
+                                "page": "inbox"
+                              },
+                              "name": "agent.open_page"
+                            }
+                          },
+                          "child": "b14-row",
+                          "component": "Button",
+                          "id": "b14"
+                        },
+                        {
+                          "component": "Icon",
+                          "id": "b14-icon",
+                          "name": "inbox"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b14-text",
+                          "text": "查看全部 3 封"
+                        },
+                        {
+                          "children": [
+                            "b14-icon",
+                            "b14-text"
+                          ],
+                          "component": "Row",
+                          "id": "b14-row"
+                        },
+                        {
+                          "children": [
+                            "b13",
+                            "b14"
+                          ],
+                          "component": "Row",
+                          "id": "r12"
+                        }
+                      ],
+                      "surfaceId": "new-mail-000000000001"
+                    },
+                    "version": "v0.9"
+                  },
+                  {
+                    "updateDataModel": {
+                      "path": "/",
+                      "surfaceId": "new-mail-000000000001",
+                      "value": {
+                        "choices": {
+                          "m5": [
+                            "draft"
+                          ]
+                        }
+                      }
+                    },
+                    "version": "v0.9"
+                  }
+                ],
+                "created": "2026-10-20T01:18:00",
+                "deadline": "2026-10-23T23:59:00",
+                "id": "new-mail/new-mail-000000000001",
+                "kind": "new-mail",
+                "summary": "王老师：王老师问答辩时间，周五前回。",
+                "title": "1 封待处理邮件",
+                "urgency": "normal",
+                "why_now": "分拣完成，1 封待处理，最早一封需在 2026-10-23 前回复"
+              },
               {
                 "card": [
                   {
@@ -28,7 +265,7 @@
                             "g25",
                             "d26",
                             "r29",
-                            "g34"
+                            "g35"
                           ],
                           "component": "Column",
                           "id": "root",
@@ -128,7 +365,7 @@
                             },
                             {
                               "icon": "circle-minus",
-                              "label": "先不动",
+                              "label": "暂不处理",
                               "value": "keep"
                             }
                           ],
@@ -158,7 +395,7 @@
                         {
                           "component": "Text",
                           "id": "b14-text",
-                          "text": "10-22 15:00"
+                          "text": "加入日程 · 10-22 15:00"
                         },
                         {
                           "children": [
@@ -230,7 +467,7 @@
                             },
                             {
                               "icon": "circle-minus",
-                              "label": "先不动",
+                              "label": "暂不处理",
                               "value": "keep"
                             }
                           ],
@@ -281,7 +518,7 @@
                         {
                           "component": "Text",
                           "id": "b23-text",
-                          "text": "加星标 2"
+                          "text": "处理这 2 封"
                         },
                         {
                           "children": [
@@ -354,7 +591,7 @@
                         {
                           "component": "Text",
                           "id": "t28",
-                          "text": "可以整理"
+                          "text": "待整理"
                         },
                         {
                           "children": [
@@ -367,7 +604,7 @@
                         {
                           "component": "Text",
                           "id": "t30",
-                          "text": "多是某某商城、周刊。",
+                          "text": "来自 某某商城、周刊。",
                           "variant": "caption"
                         },
                         {
@@ -435,7 +672,7 @@
                         {
                           "component": "Text",
                           "id": "b33-text",
-                          "text": "先不动"
+                          "text": "暂不处理"
                         },
                         {
                           "children": [
@@ -446,9 +683,46 @@
                           "id": "b33-row"
                         },
                         {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "args": {
+                                  "box": "me@example.com",
+                                  "part": "tidy",
+                                  "plan": "mailbox-000000000002-3a316d6d"
+                                },
+                                "page": "inbox"
+                              },
+                              "name": "agent.open_page"
+                            }
+                          },
+                          "child": "b34-row",
+                          "component": "Button",
+                          "id": "b34"
+                        },
+                        {
+                          "component": "Icon",
+                          "id": "b34-icon",
+                          "name": "inbox"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b34-text",
+                          "text": "查看邮件"
+                        },
+                        {
+                          "children": [
+                            "b34-icon",
+                            "b34-text"
+                          ],
+                          "component": "Row",
+                          "id": "b34-row"
+                        },
+                        {
                           "children": [
                             "b32",
-                            "b33"
+                            "b33",
+                            "b34"
                           ],
                           "component": "Row",
                           "id": "r31"
@@ -459,7 +733,7 @@
                             "r31"
                           ],
                           "component": "Column",
-                          "id": "g34"
+                          "id": "g35"
                         }
                       ],
                       "surfaceId": "mailbox-000000000002-3a316d6d"
@@ -488,10 +762,10 @@
                 "deadline": null,
                 "id": "mailbox/mailbox-000000000002-3a316d6d",
                 "kind": "mailbox",
-                "summary": "项目组：项目周会；李律师：合同扫描件；整理：归档 1 · 删除 1，多是某某商城、周刊。",
-                "title": "2 封待处理，2 封可以整理",
+                "summary": "项目组：项目周会；李律师：合同扫描件；整理：归档 1 · 删除 1，来自 某某商城、周刊。",
+                "title": "2 封待处理，2 封待整理",
                 "urgency": "low",
-                "why_now": "不急，有空时看看"
+                "why_now": "不紧急"
               }
             ]
           },
@@ -502,7 +776,7 @@
     }
   },
   "request": {
-    "id": 27,
+    "id": 67,
     "jsonrpc": "2.0",
     "method": "resources/read",
     "params": {
@@ -533,7 +807,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

@@ -1,0 +1,122 @@
+{
+  "reply": {
+    "id": 50,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "day": "2026-10-20",
+            "decide": [],
+            "handled": [
+              {
+                "account": "me@example.com",
+                "at": "2026-10-20 09:30:00",
+                "by": "read",
+                "categories": [
+                  "work",
+                  "phishing"
+                ],
+                "count": 2,
+                "label": null,
+                "log_id": 1,
+                "mails": [
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-20 03:42",
+                    "from": {
+                      "address": "sec@bank-verify.example",
+                      "name": "某银行"
+                    },
+                    "id": 2,
+                    "subject": "账户已冻结"
+                  },
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-20 01:18",
+                    "from": {
+                      "address": "wang@school.example",
+                      "name": "王老师"
+                    },
+                    "id": 1,
+                    "subject": "答辩时间确认"
+                  }
+                ],
+                "more": 0,
+                "ok": true,
+                "op": "read",
+                "senders": [
+                  {
+                    "address": "wang@school.example",
+                    "name": "王老师"
+                  },
+                  {
+                    "address": "sec@bank-verify.example",
+                    "name": "某银行"
+                  }
+                ],
+                "undoable": true,
+                "undone": false
+              }
+            ],
+            "picked": 0,
+            "replies": 1
+          },
+          "uri": "data/today?account=me%40example.com"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 50,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/today?account=me%40example.com"
+    }
+  }
+}

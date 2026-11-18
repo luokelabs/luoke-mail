@@ -1,0 +1,342 @@
+{
+  "reply": {
+    "id": 14,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "subs"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g8-r3",
+                      "g8-t4",
+                      "g8-r8",
+                      "g8-k17"
+                    ],
+                    "component": "Column",
+                    "id": "root"
+                  },
+                  {
+                    "component": "ChoicePicker",
+                    "id": "g8-p1",
+                    "label": "体检范围",
+                    "options": [
+                      {
+                        "label": "最近 30 天",
+                        "value": "30"
+                      },
+                      {
+                        "label": "最近 60 天",
+                        "value": "60"
+                      },
+                      {
+                        "label": "最近 90 天",
+                        "value": "90"
+                      },
+                      {
+                        "label": "最近 180 天",
+                        "value": "180"
+                      },
+                      {
+                        "label": "最近 365 天",
+                        "value": "365"
+                      }
+                    ],
+                    "value": {
+                      "path": "/choices/days"
+                    }
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g8-b2-t",
+                    "text": "重新体检"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g8-b2",
+                          "choices": {
+                            "path": "/choices"
+                          },
+                          "page": "subs"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g8-b2-t",
+                    "component": "Button",
+                    "id": "g8-b2",
+                    "variant": "primary"
+                  },
+                  {
+                    "children": [
+                      "g8-p1",
+                      "g8-b2"
+                    ],
+                    "component": "Row",
+                    "id": "g8-r3"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g8-t4",
+                    "text": "2026-10-20 09:30 · 最近 60 天共 4 封邮件，来自 1 个发件人。建议处理 1 个，约占 1 KB。 无法连接模型服务，请确认模型服务已启动。本次建议仅依据收信和阅读情况。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g8-t5",
+                    "text": "建议处理（1）",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g8-b6-t",
+                    "text": "已处理（0）"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g8-b6",
+                          "page": "subs"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g8-b6-t",
+                    "component": "Button",
+                    "id": "g8-b6",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g8-b7-t",
+                    "text": "建议保留（0）"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g8-b7",
+                          "page": "subs"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g8-b7-t",
+                    "component": "Button",
+                    "id": "g8-b7",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g8-t5",
+                      "g8-b6",
+                      "g8-b7"
+                    ],
+                    "component": "Row",
+                    "id": "g8-r8"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g8-t9",
+                    "text": "某某商城",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g8-t10",
+                    "text": "无法退订 · news@shop.example · 3 封，读过 0% · 约 1 KB · 最近 2026-10-19 · 无退订方式",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g8-b11-t",
+                    "text": "以后都删除"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g8-b11",
+                          "page": "subs"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g8-b11-t",
+                    "component": "Button",
+                    "id": "g8-b11",
+                    "variant": "primary"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g8-b12-t",
+                    "text": "加入精选"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g8-b12",
+                          "page": "subs"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g8-b12-t",
+                    "component": "Button",
+                    "id": "g8-b12"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g8-b13-t",
+                    "text": "保留"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g8-b13",
+                          "page": "subs"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g8-b13-t",
+                    "component": "Button",
+                    "id": "g8-b13"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g8-b14-t",
+                    "text": "更多…"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g8-b14",
+                          "page": "subs"
+                        },
+                        "name": "mail_view"
+                      }
+                    },
+                    "child": "g8-b14-t",
+                    "component": "Button",
+                    "id": "g8-b14",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g8-b11",
+                      "g8-b12",
+                      "g8-b13",
+                      "g8-b14"
+                    ],
+                    "component": "Row",
+                    "id": "g8-r15"
+                  },
+                  {
+                    "children": [
+                      "g8-t9",
+                      "g8-t10",
+                      "g8-r15"
+                    ],
+                    "component": "Column",
+                    "id": "g8-c16"
+                  },
+                  {
+                    "child": "g8-c16",
+                    "component": "Card",
+                    "id": "g8-k17"
+                  }
+                ],
+                "surfaceId": "subs"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateDataModel": {
+                "path": "/",
+                "surfaceId": "subs",
+                "value": {
+                  "choices": {
+                    "days": [
+                      "60"
+                    ]
+                  }
+                }
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/subs"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 14,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/subs"
+    }
+  }
+}

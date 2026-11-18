@@ -1,6 +1,6 @@
 {
   "reply": {
-    "id": 13,
+    "id": 12,
     "jsonrpc": "2.0",
     "result": {
       "contents": [
@@ -19,21 +19,21 @@
                 "components": [
                   {
                     "children": [
-                      "g7-t1",
-                      "g7-t2"
+                      "g6-t1",
+                      "g6-t2"
                     ],
                     "component": "Column",
                     "id": "root"
                   },
                   {
                     "component": "Text",
-                    "id": "g7-t1",
+                    "id": "g6-t1",
                     "text": "还没有连接邮箱。",
                     "variant": "h4"
                   },
                   {
                     "component": "Text",
-                    "id": "g7-t2",
+                    "id": "g6-t2",
                     "text": "在「设置」里添加邮箱以后，螺壳对邮箱做过的每一步都会记在这里。",
                     "variant": "caption"
                   }
@@ -50,7 +50,7 @@
     }
   },
   "request": {
-    "id": 13,
+    "id": 12,
     "jsonrpc": "2.0",
     "method": "resources/read",
     "params": {
@@ -81,7 +81,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

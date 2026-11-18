@@ -1,6 +1,6 @@
 {
   "reply": {
-    "id": 25,
+    "id": 43,
     "jsonrpc": "2.0",
     "result": {
       "contents": [
@@ -19,122 +19,149 @@
                 "components": [
                   {
                     "children": [
-                      "g15-t1",
-                      "g15-k7",
-                      "g15-k13"
+                      "g16-t1",
+                      "g16-l12"
                     ],
                     "component": "Column",
                     "id": "root"
                   },
                   {
                     "component": "Text",
-                    "id": "g15-t1",
+                    "id": "g16-t1",
                     "text": "螺壳对邮箱做过的每一步，退订以外都能撤销。",
                     "variant": "caption"
                   },
                   {
                     "component": "Text",
-                    "id": "g15-t2",
+                    "id": "g16-t2",
                     "text": "已移到垃圾邮件 1 封",
-                    "variant": "body"
+                    "variant": "strong"
                   },
                   {
                     "component": "Text",
-                    "id": "g15-t3",
+                    "id": "g16-t3",
                     "text": "10-20 09:32 · 某银行 · 账户已冻结",
                     "variant": "caption"
                   },
                   {
                     "component": "Text",
-                    "id": "g15-b4-t",
+                    "id": "g16-b4-t",
                     "text": "撤销"
+                  },
+                  {
+                    "component": "Icon",
+                    "id": "g16-b4-i",
+                    "name": "undo-2"
+                  },
+                  {
+                    "children": [
+                      "g16-b4-i",
+                      "g16-b4-t"
+                    ],
+                    "component": "Row",
+                    "id": "g16-b4-r"
                   },
                   {
                     "action": {
                       "event": {
                         "context": {
-                          "button": "g15-b4",
+                          "button": "g16-b4",
                           "page": "activity"
                         },
                         "name": "mail_do"
                       }
                     },
-                    "child": "g15-b4-t",
+                    "child": "g16-b4-r",
                     "component": "Button",
-                    "id": "g15-b4"
+                    "id": "g16-b4",
+                    "tooltip": "撤销"
                   },
                   {
                     "children": [
-                      "g15-b4"
-                    ],
-                    "component": "Row",
-                    "id": "g15-r5"
-                  },
-                  {
-                    "children": [
-                      "g15-t2",
-                      "g15-t3",
-                      "g15-r5"
+                      "g16-t2",
+                      "g16-t3"
                     ],
                     "component": "Column",
-                    "id": "g15-c6"
+                    "id": "g16-c6"
                   },
                   {
-                    "child": "g15-c6",
-                    "component": "Card",
-                    "id": "g15-k7"
+                    "children": [
+                      "g16-c6",
+                      "g16-b4"
+                    ],
+                    "component": "Row",
+                    "id": "g16-r5",
+                    "justify": "spaceBetween"
                   },
                   {
                     "component": "Text",
-                    "id": "g15-t8",
+                    "id": "g16-t7",
                     "text": "分析后标为已读 2 封",
-                    "variant": "body"
+                    "variant": "strong"
                   },
                   {
                     "component": "Text",
-                    "id": "g15-t9",
+                    "id": "g16-t8",
                     "text": "10-20 09:30",
                     "variant": "caption"
                   },
                   {
                     "component": "Text",
-                    "id": "g15-b10-t",
+                    "id": "g16-b9-t",
                     "text": "撤销"
+                  },
+                  {
+                    "component": "Icon",
+                    "id": "g16-b9-i",
+                    "name": "undo-2"
+                  },
+                  {
+                    "children": [
+                      "g16-b9-i",
+                      "g16-b9-t"
+                    ],
+                    "component": "Row",
+                    "id": "g16-b9-r"
                   },
                   {
                     "action": {
                       "event": {
                         "context": {
-                          "button": "g15-b10",
+                          "button": "g16-b9",
                           "page": "activity"
                         },
                         "name": "mail_do"
                       }
                     },
-                    "child": "g15-b10-t",
+                    "child": "g16-b9-r",
                     "component": "Button",
-                    "id": "g15-b10"
+                    "id": "g16-b9",
+                    "tooltip": "撤销"
                   },
                   {
                     "children": [
-                      "g15-b10"
-                    ],
-                    "component": "Row",
-                    "id": "g15-r11"
-                  },
-                  {
-                    "children": [
-                      "g15-t8",
-                      "g15-t9",
-                      "g15-r11"
+                      "g16-t7",
+                      "g16-t8"
                     ],
                     "component": "Column",
-                    "id": "g15-c12"
+                    "id": "g16-c11"
                   },
                   {
-                    "child": "g15-c12",
-                    "component": "Card",
-                    "id": "g15-k13"
+                    "children": [
+                      "g16-c11",
+                      "g16-b9"
+                    ],
+                    "component": "Row",
+                    "id": "g16-r10",
+                    "justify": "spaceBetween"
+                  },
+                  {
+                    "children": [
+                      "g16-r5",
+                      "g16-r10"
+                    ],
+                    "component": "List",
+                    "id": "g16-l12"
                   }
                 ],
                 "surfaceId": "activity"
@@ -149,7 +176,7 @@
     }
   },
   "request": {
-    "id": 25,
+    "id": 43,
     "jsonrpc": "2.0",
     "method": "resources/read",
     "params": {
@@ -180,7 +207,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

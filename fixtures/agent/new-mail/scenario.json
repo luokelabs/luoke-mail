@@ -2,7 +2,6 @@
   "id": "new-mail",
   "normalised": {
     "$TMPDIR": "录的时候的临时目录",
-    "$VERSION": "邮件助手的版本号（server/discover、manifest.json）：每次发版都变，比对时不看",
     "000000000001…": "方案编号（new-mail-…、suspicious-…、auto-done-… 后面的 16 位十六进制），按在本场景里出现的先后编号",
     "resources/read": "contents[0].text 解开成了 JSON 值；线上是 JSON 文字",
     "~/.luoke-mail": "LUOKE_MAIL_HOME（临时目录）"
@@ -63,23 +62,18 @@
     },
     {
       "clock": "2026-10-20T01:30:00Z",
-      "do": "读基础页 page/clean",
-      "file": "read-page-clean.json"
-    },
-    {
-      "clock": "2026-10-20T01:30:00Z",
       "do": "读基础页 page/digest",
       "file": "read-page-digest.json"
     },
     {
       "clock": "2026-10-20T01:30:00Z",
-      "do": "读基础页 page/subs",
-      "file": "read-page-subs.json"
+      "do": "读基础页 page/clean",
+      "file": "read-page-clean.json"
     },
     {
       "clock": "2026-10-20T01:30:00Z",
-      "do": "读基础页 page/rules",
-      "file": "read-page-rules.json"
+      "do": "读基础页 page/legacy-settings",
+      "file": "read-page-legacy-settings.json"
     },
     {
       "clock": "2026-10-20T01:30:00Z",
@@ -88,8 +82,113 @@
     },
     {
       "clock": "2026-10-20T01:30:00Z",
-      "do": "读基础页 page/settings",
-      "file": "read-page-settings.json"
+      "do": "读基础页 page/rules",
+      "file": "read-page-rules.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/subs",
+      "file": "read-page-subs.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/sweep",
+      "file": "read-page-sweep.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/piece",
+      "file": "read-page-piece.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/accounts",
+      "file": "read-data-accounts.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/today，所有邮箱",
+      "file": "read-data-today-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/today，一个邮箱（me@example.com）",
+      "file": "read-data-today-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/inbox，所有邮箱",
+      "file": "read-data-inbox-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/inbox，一个邮箱（me@example.com）",
+      "file": "read-data-inbox-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/digest，所有邮箱",
+      "file": "read-data-digest-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/digest，一个邮箱（me@example.com）",
+      "file": "read-data-digest-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/digest?range=today，所有邮箱",
+      "file": "read-data-digest-today-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/digest?range=today，一个邮箱（me@example.com）",
+      "file": "read-data-digest-today-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/clean，所有邮箱",
+      "file": "read-data-clean-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/clean，一个邮箱（me@example.com）",
+      "file": "read-data-clean-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/settings",
+      "file": "read-data-settings.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/activity，所有邮箱",
+      "file": "read-data-activity-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/activity，一个邮箱（me@example.com）",
+      "file": "read-data-activity-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/providers",
+      "file": "read-data-providers.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/old，一个邮箱（me@example.com）收件箱里的旧邮件",
+      "file": "read-data-old.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/old?scope=archive，一个邮箱（me@example.com）归档的邮件",
+      "file": "read-data-old-archive.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/inbox?plan=…&part=tidy，这张卡片要整理的",
+      "file": "read-data-inbox-plan.json"
     },
     {
       "clock": "2026-10-20T01:35:00Z",
@@ -118,23 +217,18 @@
     },
     {
       "clock": "2026-10-20T01:35:00Z",
-      "do": "读基础页 page/clean",
-      "file": "read-page-clean-after-apply.json"
-    },
-    {
-      "clock": "2026-10-20T01:35:00Z",
       "do": "读基础页 page/digest",
       "file": "read-page-digest-after-apply.json"
     },
     {
       "clock": "2026-10-20T01:35:00Z",
-      "do": "读基础页 page/subs",
-      "file": "read-page-subs-after-apply.json"
+      "do": "读基础页 page/clean",
+      "file": "read-page-clean-after-apply.json"
     },
     {
       "clock": "2026-10-20T01:35:00Z",
-      "do": "读基础页 page/rules",
-      "file": "read-page-rules-after-apply.json"
+      "do": "读基础页 page/legacy-settings",
+      "file": "read-page-legacy-settings-after-apply.json"
     },
     {
       "clock": "2026-10-20T01:35:00Z",
@@ -143,8 +237,113 @@
     },
     {
       "clock": "2026-10-20T01:35:00Z",
-      "do": "读基础页 page/settings",
-      "file": "read-page-settings-after-apply.json"
+      "do": "读基础页 page/rules",
+      "file": "read-page-rules-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读基础页 page/subs",
+      "file": "read-page-subs-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读基础页 page/sweep",
+      "file": "read-page-sweep-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读基础页 page/piece",
+      "file": "read-page-piece-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/accounts",
+      "file": "read-data-accounts-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/today，所有邮箱",
+      "file": "read-data-today-all-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/today，一个邮箱（me@example.com）",
+      "file": "read-data-today-one-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/inbox，所有邮箱",
+      "file": "read-data-inbox-all-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/inbox，一个邮箱（me@example.com）",
+      "file": "read-data-inbox-one-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/digest，所有邮箱",
+      "file": "read-data-digest-all-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/digest，一个邮箱（me@example.com）",
+      "file": "read-data-digest-one-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/digest?range=today，所有邮箱",
+      "file": "read-data-digest-today-all-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/digest?range=today，一个邮箱（me@example.com）",
+      "file": "read-data-digest-today-one-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/clean，所有邮箱",
+      "file": "read-data-clean-all-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/clean，一个邮箱（me@example.com）",
+      "file": "read-data-clean-one-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/settings",
+      "file": "read-data-settings-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/activity，所有邮箱",
+      "file": "read-data-activity-all-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/activity，一个邮箱（me@example.com）",
+      "file": "read-data-activity-one-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/providers",
+      "file": "read-data-providers-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/old，一个邮箱（me@example.com）收件箱里的旧邮件",
+      "file": "read-data-old-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/old?scope=archive，一个邮箱（me@example.com）归档的邮件",
+      "file": "read-data-old-archive-after-apply.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "读原始数据 data/inbox?plan=…&part=tidy，这张卡片要整理的",
+      "file": "read-data-inbox-plan-after-apply.json"
     },
     {
       "clock": "2026-10-20T01:36:00Z",
@@ -173,23 +372,18 @@
     },
     {
       "clock": "2026-10-20T01:36:00Z",
-      "do": "读基础页 page/clean",
-      "file": "read-page-clean-after-undo.json"
-    },
-    {
-      "clock": "2026-10-20T01:36:00Z",
       "do": "读基础页 page/digest",
       "file": "read-page-digest-after-undo.json"
     },
     {
       "clock": "2026-10-20T01:36:00Z",
-      "do": "读基础页 page/subs",
-      "file": "read-page-subs-after-undo.json"
+      "do": "读基础页 page/clean",
+      "file": "read-page-clean-after-undo.json"
     },
     {
       "clock": "2026-10-20T01:36:00Z",
-      "do": "读基础页 page/rules",
-      "file": "read-page-rules-after-undo.json"
+      "do": "读基础页 page/legacy-settings",
+      "file": "read-page-legacy-settings-after-undo.json"
     },
     {
       "clock": "2026-10-20T01:36:00Z",
@@ -198,24 +392,134 @@
     },
     {
       "clock": "2026-10-20T01:36:00Z",
-      "do": "读基础页 page/settings",
-      "file": "read-page-settings-after-undo.json"
+      "do": "读基础页 page/rules",
+      "file": "read-page-rules-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读基础页 page/subs",
+      "file": "read-page-subs-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读基础页 page/sweep",
+      "file": "read-page-sweep-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读基础页 page/piece",
+      "file": "read-page-piece-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/accounts",
+      "file": "read-data-accounts-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/today，所有邮箱",
+      "file": "read-data-today-all-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/today，一个邮箱（me@example.com）",
+      "file": "read-data-today-one-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/inbox，所有邮箱",
+      "file": "read-data-inbox-all-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/inbox，一个邮箱（me@example.com）",
+      "file": "read-data-inbox-one-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/digest，所有邮箱",
+      "file": "read-data-digest-all-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/digest，一个邮箱（me@example.com）",
+      "file": "read-data-digest-one-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/digest?range=today，所有邮箱",
+      "file": "read-data-digest-today-all-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/digest?range=today，一个邮箱（me@example.com）",
+      "file": "read-data-digest-today-one-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/clean，所有邮箱",
+      "file": "read-data-clean-all-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/clean，一个邮箱（me@example.com）",
+      "file": "read-data-clean-one-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/settings",
+      "file": "read-data-settings-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/activity，所有邮箱",
+      "file": "read-data-activity-all-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/activity，一个邮箱（me@example.com）",
+      "file": "read-data-activity-one-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/providers",
+      "file": "read-data-providers-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/old，一个邮箱（me@example.com）收件箱里的旧邮件",
+      "file": "read-data-old-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/old?scope=archive，一个邮箱（me@example.com）归档的邮件",
+      "file": "read-data-old-archive-after-undo.json"
+    },
+    {
+      "clock": "2026-10-20T01:36:00Z",
+      "do": "读原始数据 data/inbox?plan=…&part=tidy，这张卡片要整理的",
+      "file": "read-data-inbox-plan-after-undo.json"
     },
     {
       "clock": "2026-10-20T01:37:00Z",
-      "do": "用户在「邮箱」卡片的「可以整理」点「归档 1 · 删除 1」",
+      "do": "用户在「邮箱」卡片的「待整理」点「归档 1 · 删除 1」",
       "file": "call-mail_apply_plan-tidy.json"
     },
     {
       "clock": "2026-10-20T01:37:00Z",
       "do": "整理完再读 outbox",
       "file": "read-outbox-after-tidy.json"
+    },
+    {
+      "clock": "2026-10-20T01:37:00Z",
+      "do": "整理完再点「查看邮件」：这张卡片已经点过（handled），没有要列的",
+      "file": "read-data-inbox-plan-after-tidy.json"
     }
   ],
   "title": "新邮件分拣好了",
   "window": [
-    "两件（luoke-mail#81，「今天」的新模板）：`new-mail`、`normal`，在「要你决定」：只放优先级高、没过期限的（这里是王老师那封），标题「1 封要处理」后面一个邮箱地址的标签，一行发件人（加粗）、主题和截止的标签，选择框带图标；主按钮写清做什么（「写草稿 1」），旁边「查看全部 3 封」（`agent.open_page` 到 `inbox`，`args` 是 `box` 和 `list: needs`，收件箱切到这个邮箱、开着「需要你处理」）。",
-    "`mailbox`、`low`，在「顺便看看」：一个邮箱一张「邮箱」，分块：「待处理」（周会、合同，每封一个选择框；周会那行右边一个「10-22 15:00」加入日程的按钮，`agent.open_url`，悬停提示「加入日程」），「可以整理」（一句「多是…」，按钮「归档 1 · 删除 1」「先不动」）。有较早的可疑邮件时还有「判为可疑」一块，`collapsed` 先收起。每块的按钮上下文带 `part`，只做这一块。",
+    "两件（luoke-mail#81，「今天」的新模板）：`new-mail`、`normal`，在「要你决定」：只放优先级高、没过期限的（这里是王老师那封），标题「1 封待处理」后面一个邮箱地址的标签，一行发件人（加粗）、主题和截止的标签，选择框带图标；主按钮写清做什么（「写草稿 1」），旁边「查看全部 3 封」（`agent.open_page` 到 `inbox`，`args` 是 `box` 和 `list: needs`，收件箱切到这个邮箱、开着「要你处理」）。",
+    "`mailbox`、`low`，在「顺便看看」：一个邮箱一张「邮箱」，分块：「待处理」（周会、合同，每封一个选择框；周会那行右边一个「10-22 15:00」加入日程的按钮，`agent.open_url`，悬停提示「加入日程」），「待整理」（一句「来自…」，按钮「归档 1 · 删除 1」「暂不处理」）。有较早的可疑邮件时还有「判为可疑」一块，`collapsed` 先收起。每块的按钮上下文带 `part`，只做这一块。",
     "点「写草稿 1」把 `/choices` 换成当时的选项转给 `mail_apply_plan`：答复带 `done: true`，卡片换成结果和 [撤销]（结果只有一种时 root 带 `group`，「已经替你做了」里同一个邮箱、同一种结果合成一行），这一件从 outbox 撤下。",
     "点 [撤销]（`mail_undo`，参数是方案编号）：邮件回到收件箱，答复带 `done: true`。同一批不再出方案（用户答过了），所以概览还数着它们、outbox 里没有，见下面「要对齐的」。",
     "「邮箱」卡片上点「归档 1 · 删除 1」（上下文 `{\"plan_id\", \"part\": \"tidy\", \"choices\": {\"tidy\": [\"suggested\"]}}`）：只整理这一块，卡片换成结果和 [撤销]；下一次读 outbox，「邮箱」卡片重出，只剩「待处理」。"

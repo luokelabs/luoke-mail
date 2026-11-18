@@ -1,7 +1,8 @@
 """精选 in the window: what the browser page's 精选 shows (Curator.view), a screen at a time.
 
-Three shelves as on the browser page -- 精选 (the last seven days, then each earlier month), 收藏, 已归档 -- and the
-精选来源 as a fourth list. 收藏 / 没兴趣 go to the memory (/api/digest/feedback); 归档 only puts a piece aside.
+设计规范 §18.2: no list of topics -- the pieces picked (the last seven days, then each earlier month), each its title
+and a sentence; a tap on the line opens it; on its right 多来点这类 / 少来点这类, which go to the memory
+(/api/digest/feedback; 多来点 keeps it under 收藏 too). 收藏, 已归档 and the 精选来源 are a tap away below them.
 Opening a piece is recorded (/api/digest/open) on the user's tap; its links (https only) open through the window.
 What a press just took off the list is said at the top with 撤销, as the browser card says it in place."""
 from __future__ import annotations
@@ -13,7 +14,6 @@ from .common import mailbox_row, per, running
 
 SCREEN = 8            # pieces on one screen: a card with its buttons is up to 16 components (§4: 200)
 SHELVES = [("picks", "精选"), ("saved", "收藏"), ("archived", "已归档"), ("sources", "精选来源")]
-FEW_TOPICS = 8
 
 
 def _day(date: str) -> str:
@@ -29,21 +29,6 @@ def _month(m: str) -> str:
         return f"{m[:4]} 年 {int(m[5:7])} 月"
     except ValueError:
         return m
-
-
-def _taste(p: kit.Page, v: dict) -> None:
-    """关注的话题 / 不感兴趣: what the picks go by, changed on the 记忆 page."""
-    interests = [n.get("text") or "" for n in v.get("interests") or []]
-    dislikes = [n.get("text") or "" for n in v.get("dislikes") or []]
-    if interests:
-        more = f" 等 {len(interests)} 个" if len(interests) > FEW_TOPICS else ""
-        p.add(p.text("关注的话题：" + "、".join(interests[:FEW_TOPICS]) + more, "caption"))
-    if dislikes:
-        p.add(p.text("不感兴趣：" + "、".join(dislikes[:FEW_TOPICS]), "caption"))
-    note = "按你的阅读和反馈归纳。" if interests else "暂时按热度挑选，读得多了会按你的口味挑。"
-    where = "在「记忆」中修改。" if interests or dislikes else \
-        ("在「设置」里添加你的网站或博客。" if not (v.get("profile") or {}).get("sites") else "在「记忆」中添加。")
-    p.add(p.text(note + where, "caption"))
 
 
 def _reading(p: kit.Page, src: str, v: dict) -> None:
@@ -80,7 +65,7 @@ def _just_done(w, p: kit.Page, src: str, acct: str) -> None:
     for rec in said:
         it = store.digest_item(int(rec.get("ref") or 0))
         if it and it["account"] == acct and it.get("feedback") == "dismissed":
-            p.add(p.row(p.text(f"已标记没兴趣：{it['title']}", "caption"),
+            p.add(p.row(p.text(f"已记下，少来点这类：{it['title']}", "caption"),
                         p.do("撤销", "/api/digest/feedback", {"source": src, "id": it["id"], "value": None}, quiet=True)))
     for it in store.digest_archived(acct, limit=1):
         if (it.get("archived_at") or "") >= since:
@@ -127,6 +112,23 @@ def _card(p: kit.Page, src: str, it: dict, shelf: str) -> str:
                  p.do("没兴趣", "/api/digest/feedback", {**one, "value": "dismissed"}, quiet=True)]
     lines.append(p.row(*acts))
     return p.card(*lines)
+
+
+def _line(p: kit.Page, src: str, it: dict) -> str:
+    """设计规范 §18.2: a piece is its title and a sentence; a tap on the line opens it; on the right, more like this
+    (it goes to 收藏 too) and less like this. What is said goes to the memory (/api/digest/feedback)."""
+    one = {"source": src, "id": it["id"]}
+    saved = it.get("feedback") == "useful"
+    # the line opens the piece's own page (its site on its button, seen before going); an older core records the
+    # opening here and says the links at the top (_just_done)
+    opens = p.open("打开", {"id": it["id"]}, page="piece") if p.can("pageArgs") else \
+        p.do("打开", "/api/digest/open", one) if _has_link(it) else None
+    return p.item([p.text(it.get("title") or "（无标题）", "strong"),
+                   p.text(it["summary"], "caption", 300) if it.get("summary") else None],
+                  [p.do("不用多来了" if saved else "多来点这类", "/api/digest/feedback",
+                        {**one, "value": None if saved else "useful"}, icon="thumbs-up"),
+                   p.do("少来点这类", "/api/digest/feedback", {**one, "value": "dismissed"}, icon="thumbs-down")],
+                  open=opens)
 
 
 def _rows(v: dict, shelf: str) -> list:
@@ -189,14 +191,16 @@ def build(w, p: kit.Page, view: dict) -> None:
     if src == "demo":
         p.add(p.text("示例数据，不会更改邮箱。", "caption"))
     _just_done(w, p, src, acct)
-    _taste(p, v)
     _reading(p, src, v)
     shelf = view.get("shelf") if view.get("shelf") in dict(SHELVES) else "picks"
     counts = {"saved": len(v.get("saved") or []), "archived": len(v.get("archived") or []),
               "sources": len(v.get("sources") or [])}
-    p.add(p.row(*[p.text(label + (f"（{counts[k]}）" if k in counts else ""), "h5") if k == shelf
-                  else p.go(label + (f"（{counts[k]}）" if k in counts else ""), {"shelf": k, "at": 0})
-                  for k, label in SHELVES]))
+    # no counts (设计规范 §18.1 第 2 条); a shelf with nothing on it is not offered
+    offered = [(k, label) for k, label in SHELVES if k == shelf or k == "picks" or counts.get(k)]
+    shelves = p.row(*[p.text(label, "caption") if k == shelf else p.go(label, {"shelf": k, "at": 0})
+                      for k, label in offered]) if len(offered) > 1 else None
+    if shelf != "picks":                              # the other shelves on top while one is open, else below
+        p.add(shelves)
     at = max(0, int(view.get("at") or 0))
     p.reserve = 6
     if shelf == "sources":
@@ -218,13 +222,23 @@ def build(w, p: kit.Page, view: dict) -> None:
     elif at == 0 and not v.get("week"):
         p.add(p.text("最近 7 天", "h5"),
               p.text("最近 7 天没有值得一看的内容。" if v.get("week_total") else "最近 7 天没有新的订阅邮件。", "caption"))
-    part = None
+    part, lines = None, []
     for head, wait, it in rows[at:at + n]:
         if not p.room(18):
             break
+        if shelf != "picks":
+            p.add(_card(p, src, it, shelf))
+            continue
         if head and head != part:
+            if lines:
+                p.add(p.list(lines))
+                lines = []
             part = head
             p.add(p.text(head, "h5"), p.text(wait, "caption") if wait else None)
-        p.add(_card(p, src, it, shelf))
+        lines.append(_line(p, src, it))
+    if lines:
+        p.add(p.list(lines))
     p.reserve = 0
     _more(p, at, len(rows))
+    if shelf == "picks":
+        p.add(shelves)

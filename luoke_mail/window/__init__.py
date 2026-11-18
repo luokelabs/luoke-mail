@@ -37,7 +37,8 @@ OPS = frozenset({
     "/api/digest/source", "/api/rules", "/api/rules/delete", "/api/rules/filter-preview",
     "/api/memory", "/api/memory/site", "/api/memory/learn", "/api/learn/intro-seen",
     "/api/mode", "/api/power", "/api/threads", "/api/flow", "/api/auto", "/api/auto/notify-settings",
-    "/api/auto/test-notify", "/api/profile", "/api/mail/own", "/api/mail/remove", "/api/forget",
+    "/api/auto/test-notify", "/api/profile", "/api/mail/own", "/api/mail/remove", "/api/mail/name", "/api/forget",
+    "/api/old/keep",
 })
 
 
@@ -71,7 +72,7 @@ def _connect_mail(w: "Window", args: dict, features: frozenset) -> dict:
     this one press, goes to the keychain (App.save_mail) and nowhere else -- not into a note, a view or an answer."""
     if "secureField" not in features:
         raise ValueError("这个窗口不能填授权码，请在浏览器里添加邮箱。")
-    form = w.views.setdefault("settings", {})
+    form = w.views.setdefault("legacy-settings", {})
     form["typed"] = str(args.get("address") or "").strip()[:200]     # the address, to show again if it fails
     saved = w.app.save_mail({k: args.get(k) for k in ("key", "provider", "address", "secret", "host", "port")})
     form["add"] = saved["key"]                                        # saved: a retry changes this one
@@ -107,9 +108,68 @@ def _downloads(name: str) -> str:
     return path
 
 
+DECIDE = frozenset({"flag", "archive", "trash", "spam", "skip", "calendar"})
+
+
+def _decide(w: "Window", args: dict, features: frozenset) -> dict:
+    """今日's 「按选择处理」: each mail as the user left its choice (the suggestion, picked already). One step per mail,
+    as a press on its own button would be; what can be taken back is taken back together (undo_all)."""
+    src = args.get("source")
+    picks = args.get("picks") or {}
+    logs, done, problems = [], 0, []
+    for key, op in picks.items():
+        if op not in DECIDE:
+            raise ValueError("选项不在页面给出的范围里。")
+        try:
+            if op == "calendar":
+                _calendar(w, {"source": src, "id": int(key)}, features)
+                done += 1
+                continue
+            r = w.app.items_act(src, [int(key)], op)
+        except (MailError, ActionError, ValueError) as ex:
+            problems.append(str(ex))
+            continue
+        done += len(r.get("done") or [int(key)]) if r.get("ok", True) else 0
+        if r.get("log_id") and r.get("ok", True) and op != "skip":
+            logs.append(r["log_id"])
+    if problems and not done:
+        raise ValueError(problems[0])
+    text = f"处理好了 {done} 封。" + (f"另有 {len(problems)} 封没处理成：{problems[0]}" if problems else "")
+    return {"message": text, "log_ids": logs}
+
+
+def _undo_all(w: "Window", args: dict, features: frozenset) -> dict:
+    """撤销 for a press that took several steps (_decide): each one, newest first."""
+    src = args.get("source")
+    for log_id in reversed([int(x) for x in args.get("log_ids") or []]):
+        w.app.undo(src, log_id)
+    return {"message": "已撤销。"}
+
+
+def _unsubscribe_all(w: "Window", args: dict, features: frozenset) -> dict:
+    """清理's 「全部退订」: one-click unsubscribes, one sender after another (the browser page's button for each)."""
+    src = args.get("source")
+    done, problems = 0, []
+    for key in args.get("keys") or []:
+        try:
+            r = w.app.sender_act({"source": src, "key": key, "op": "unsubscribe"})
+        except (MailError, ActionError, ValueError) as ex:
+            problems.append(str(ex))
+            continue
+        if r.get("ok", True) and r.get("status") == "unsubscribed":
+            done += 1
+        elif r.get("status") == "unsubscribe_opened":     # the sender refused the one click: its page, a tap away
+            problems.append("对方不接受一键退订，要在订阅体检里打开它的退订网页")
+        else:
+            problems.append(r.get("message") or "退订没有成功。")
+    if problems and not done:
+        raise ValueError(problems[0])
+    return {"message": f"已退订 {done} 个。" + (f"另有 {len(problems)} 个没退成：{problems[0]}" if problems else "")}
+
+
 # what only the window does (not a browser route)
 LOCAL = {"calendar": _calendar, "open_browser": _open_browser, "connect_mail": _connect_mail,
-         "gmail_filters": _gmail_filters}
+         "gmail_filters": _gmail_filters, "decide": _decide, "undo_all": _undo_all, "unsubscribe_all": _unsubscribe_all}
 
 
 # what a page says after a change whose route answers without a sentence (the browser page says it in its toast)
@@ -175,9 +235,12 @@ class Window:
         note = self.notes.get(p.page)
         if note:
             undo = note.get("undo")
-            p.add(p.row(p.text(note["text"]),
-                        p.do("撤销", "/api/undo", {"source": undo[0], "log_id": undo[1]}, quiet=True) if undo else None,
-                        p.go("知道了", {"_clear_note": True})))
+            back = None
+            if undo and isinstance(undo[1], list):
+                back = p.do("撤销", "undo_all", {"source": undo[0], "log_ids": undo[1]}, quiet=True)
+            elif undo:
+                back = p.do("撤销", "/api/undo", {"source": undo[0], "log_id": undo[1]}, quiet=True)
+            p.add(p.row(p.text(note["text"]), back, p.go("知道了", {"_clear_note": True})))
 
     # ---- presses -----------------------------------------------------------------------------------------
     def _find(self, page: str, button: str) -> dict:
@@ -220,8 +283,9 @@ class Window:
             raise
         text = out.get("message") or out.get("text") or SAID.get(act["op"]) or (
             "已开始，进度在页面上方。" if out.get("job") or out.get("id") and out.get("kind") else "好了。")
-        undo = (args.get("source") or self.source(page), out["log_id"]) if out.get("log_id") and out.get("ok", True) \
-            and act["op"] != "/api/undo" else None
+        src = args.get("source") or self.source(page)
+        undo = (src, out["log_id"]) if out.get("log_id") and out.get("ok", True) and act["op"] != "/api/undo" else \
+            (src, list(out["log_ids"])) if out.get("log_ids") else None
         self.notes[page] = {"text": text, "undo": undo, "at": time.time()}
         return {"text": text, **({"job": out["job"]} if isinstance(out.get("job"), str) else {}),
                 **({"file": out["file"]} if isinstance(out.get("file"), dict) else {})}

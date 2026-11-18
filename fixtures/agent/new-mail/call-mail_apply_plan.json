@@ -1,11 +1,11 @@
 {
   "reply": {
-    "id": 15,
+    "id": 35,
     "jsonrpc": "2.0",
     "result": {
       "content": [
         {
-          "text": "已写好 1 封草稿，放在草稿箱，请检查后自行发送。",
+          "text": "已生成 1 封草稿，存于草稿箱，请检查后自行发送。",
           "type": "text"
         }
       ],
@@ -27,14 +27,14 @@
                     "key": "me@example.com/draft",
                     "label": "新邮件",
                     "n": 1,
-                    "text": "已写好草稿 {n} 封"
+                    "text": "已生成草稿 {n} 封"
                   },
                   "id": "root"
                 },
                 {
                   "component": "Text",
                   "id": "res-t1",
-                  "text": "已写好 1 封草稿，放在草稿箱，请检查后自行发送。"
+                  "text": "已生成 1 封草稿，存于草稿箱，请检查后自行发送。"
                 },
                 {
                   "action": {
@@ -72,7 +72,7 @@
     }
   },
   "request": {
-    "id": 15,
+    "id": 35,
     "jsonrpc": "2.0",
     "method": "tools/call",
     "params": {
@@ -108,7 +108,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

@@ -1,6 +1,6 @@
 {
   "reply": {
-    "id": 11,
+    "id": 14,
     "jsonrpc": "2.0",
     "result": {
       "contents": [
@@ -19,16 +19,16 @@
                 "components": [
                   {
                     "children": [
-                      "g5-r3",
-                      "g5-t4",
-                      "g5-t5"
+                      "g8-r3",
+                      "g8-t4",
+                      "g8-t5"
                     ],
                     "component": "Column",
                     "id": "root"
                   },
                   {
                     "component": "ChoicePicker",
-                    "id": "g5-p1",
+                    "id": "g8-p1",
                     "label": "体检范围",
                     "options": [
                       {
@@ -58,14 +58,14 @@
                   },
                   {
                     "component": "Text",
-                    "id": "g5-b2-t",
+                    "id": "g8-b2-t",
                     "text": "开始体检"
                   },
                   {
                     "action": {
                       "event": {
                         "context": {
-                          "button": "g5-b2",
+                          "button": "g8-b2",
                           "choices": {
                             "path": "/choices"
                           },
@@ -74,28 +74,28 @@
                         "name": "mail_do"
                       }
                     },
-                    "child": "g5-b2-t",
+                    "child": "g8-b2-t",
                     "component": "Button",
-                    "id": "g5-b2",
+                    "id": "g8-b2",
                     "variant": "primary"
                   },
                   {
                     "children": [
-                      "g5-p1",
-                      "g5-b2"
+                      "g8-p1",
+                      "g8-b2"
                     ],
                     "component": "Row",
-                    "id": "g5-r3"
+                    "id": "g8-r3"
                   },
                   {
                     "component": "Text",
-                    "id": "g5-t4",
+                    "id": "g8-t4",
                     "text": "还没体检过。",
                     "variant": "h5"
                   },
                   {
                     "component": "Text",
-                    "id": "g5-t5",
+                    "id": "g8-t5",
                     "text": "设好天数，点「开始体检」。",
                     "variant": "caption"
                   }
@@ -126,7 +126,7 @@
     }
   },
   "request": {
-    "id": 11,
+    "id": 14,
     "jsonrpc": "2.0",
     "method": "resources/read",
     "params": {
@@ -157,7 +157,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

@@ -1,6 +1,6 @@
 {
   "reply": {
-    "id": 20,
+    "id": 40,
     "jsonrpc": "2.0",
     "result": {
       "contents": [
@@ -19,86 +19,155 @@
                 "components": [
                   {
                     "children": [
-                      "g11-r3",
-                      "g11-t4",
-                      "g11-r7"
+                      "g14-c5",
+                      "g14-c10",
+                      "g14-r13"
                     ],
                     "component": "Column",
-                    "id": "root"
+                    "id": "root",
+                    "layout": "sections"
                   },
                   {
                     "component": "Text",
-                    "id": "g11-t1",
-                    "text": "收件箱中的旧邮件",
+                    "id": "g14-t1",
+                    "text": "可以退订",
                     "variant": "h5"
                   },
                   {
                     "component": "Text",
-                    "id": "g11-b2-t",
-                    "text": "已归档的邮件"
+                    "id": "g14-t2",
+                    "text": "还没检查过你的订阅。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-b3-t",
+                    "text": "检查订阅"
                   },
                   {
                     "action": {
                       "event": {
                         "context": {
-                          "button": "g11-b2",
-                          "page": "clean"
-                        },
-                        "name": "mail_view"
-                      }
-                    },
-                    "child": "g11-b2-t",
-                    "component": "Button",
-                    "id": "g11-b2",
-                    "variant": "borderless"
-                  },
-                  {
-                    "children": [
-                      "g11-t1",
-                      "g11-b2"
-                    ],
-                    "component": "Row",
-                    "id": "g11-r3"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g11-t4",
-                    "text": "收件箱里超过 30 天的邮件。加了星标或「收藏」「重要」这类标签的不会动。",
-                    "variant": "caption"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g11-t5",
-                    "text": "还没有读取这些邮件。",
-                    "variant": "caption"
-                  },
-                  {
-                    "component": "Text",
-                    "id": "g11-b6-t",
-                    "text": "读取邮件"
-                  },
-                  {
-                    "action": {
-                      "event": {
-                        "context": {
-                          "button": "g11-b6",
+                          "button": "g14-b3",
                           "page": "clean"
                         },
                         "name": "mail_do"
                       }
                     },
-                    "child": "g11-b6-t",
+                    "child": "g14-b3-t",
                     "component": "Button",
-                    "id": "g11-b6",
-                    "variant": "primary"
+                    "id": "g14-b3",
+                    "variant": "borderless"
                   },
                   {
                     "children": [
-                      "g11-t5",
-                      "g11-b6"
+                      "g14-t2",
+                      "g14-b3"
                     ],
                     "component": "Row",
-                    "id": "g11-r7"
+                    "id": "g14-r4"
+                  },
+                  {
+                    "children": [
+                      "g14-t1",
+                      "g14-r4"
+                    ],
+                    "component": "Column",
+                    "id": "g14-c5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-t6",
+                    "text": "可以归档",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-t7",
+                    "text": "还没看过收件箱里的旧邮件。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-b8-t",
+                    "text": "看一遍"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g14-b8",
+                          "page": "clean"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g14-b8-t",
+                    "component": "Button",
+                    "id": "g14-b8",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g14-t7",
+                      "g14-b8"
+                    ],
+                    "component": "Row",
+                    "id": "g14-r9"
+                  },
+                  {
+                    "children": [
+                      "g14-t6",
+                      "g14-r9"
+                    ],
+                    "component": "Column",
+                    "id": "g14-c10"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-b11-t",
+                    "text": "订阅体检"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "page": "subs"
+                        },
+                        "name": "agent.open_page"
+                      }
+                    },
+                    "child": "g14-b11-t",
+                    "component": "Button",
+                    "id": "g14-b11",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g14-b12-t",
+                    "text": "清理旧邮件"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "page": "sweep"
+                        },
+                        "name": "agent.open_page"
+                      }
+                    },
+                    "child": "g14-b12-t",
+                    "component": "Button",
+                    "id": "g14-b12",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g14-b11",
+                      "g14-b12"
+                    ],
+                    "component": "Row",
+                    "id": "g14-r13"
                   }
                 ],
                 "surfaceId": "clean"
@@ -113,7 +182,7 @@
     }
   },
   "request": {
-    "id": 20,
+    "id": 40,
     "jsonrpc": "2.0",
     "method": "resources/read",
     "params": {
@@ -144,7 +213,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

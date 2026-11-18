@@ -123,6 +123,23 @@ class ServerTests(unittest.TestCase):
         del self.app.open_mailbox
 
     # ---- workbench (demo inbox) ---------------------------------------------------------------
+    def test_suspicious_mail_from_a_grouped_sender_is_listed_on_its_own(self):
+        """A suspicious mail is never put in a group; one from a sender whose other mail is grouped (a fake of a
+        shop's newsletter) used to be in neither the group nor the list, while 可疑 counted it (11-18)."""
+        st = self.app.store
+        for n, bad in ((1, False), (2, False), (3, True)):
+            iid, _ = st.upsert_message("demo", {"message_id": f"<g{n}@shop.example>", "subject": f"推送 {n}",
+                                                "from_addr": "news@shop.example", "group_key": "list:promo.shop.example"})
+            st.set_suggestion(iid, {"action": "archive", "suspicious": bad}, "model")
+        view = self.app.list_items("demo")
+        listed = [e["item"]["subject"] for e in view["entries"] if e["type"] == "item"]
+        grouped = [m["subject"] for e in view["entries"] if e["type"] == "group" for m in e["items"]
+                   if e["key"].startswith("list:promo.shop.example|")]
+        self.assertIn("推送 3", listed)
+        self.assertEqual(sorted(grouped), ["推送 1", "推送 2"])
+        shown = sum(1 for it in [e["item"] for e in view["entries"] if e["type"] == "item"] + view["due"] if it["suspicious"])
+        self.assertEqual(view["counts"]["suspicious"], shown)                   # each one counted is listed
+
     def test_demo_workbench_end_to_end(self):
         def reply(body):
             text = body["messages"][1]["content"]
@@ -217,6 +234,16 @@ class ServerTests(unittest.TestCase):
         self.assertFalse(any(x["value"] == "promo.mall.example" for x in rules["rules"]))
         _, view = self.req("GET", "/api/subscriptions?source=demo")
         self.assertIsNone({r["key"]: r for r in view["senders"]}["list:promo.mall.example"]["decision"])
+
+        # 移回建议处理 takes the rule the decision made with it (it stayed, 11-15); undone, both come back
+        self.req("POST", "/api/senders/act", {"source": "demo", "key": "list:promo.mall.example", "op": "archive_rule"})
+        _, r = self.req("POST", "/api/senders/act", {"source": "demo", "key": "list:promo.mall.example", "op": "reset"})
+        self.assertIn("并删除了对应的规则", r["message"])
+        _, rules = self.req("GET", "/api/rules?source=demo")
+        self.assertFalse(any(x["value"] == "promo.mall.example" for x in rules["rules"]))
+        self.req("POST", "/api/undo", {"source": "demo", "log_id": r["log_id"]})
+        _, rules = self.req("GET", "/api/rules?source=demo")
+        self.assertTrue(any(x["value"] == "promo.mall.example" for x in rules["rules"]))
 
         # suspicious senders are never unsubscribed
         status, r = self.req("POST", "/api/senders/act", {"source": "demo", "key": "from:security@icbc-verify.example", "op": "unsubscribe"})

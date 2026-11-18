@@ -16,6 +16,7 @@ import agent_a2ui as a2ui  # noqa: E402
 from fakes import FakeChat  # noqa: E402
 from test_background import triage_reply  # noqa: E402
 from test_old_mail import ME, mail  # noqa: E402
+from test_agent import said  # noqa: E402
 from test_window import WindowRig  # noqa: E402
 from luoke_mail import memory  # noqa: E402
 from luoke_mail.window.pages import activity, rules, today  # noqa: E402
@@ -30,40 +31,54 @@ class PagesRig(WindowRig):
         w = self.w = self.r.app.agent.window
         w.builders = {**w.builders, "today": today.build, "rules": rules.build, "activity": activity.build}
 
-    def page(self, name: str) -> "a2ui.Surface":
-        messages = self.w.draw(name)
-        self.assertEqual(a2ui.validate(messages), [], name)
-        return a2ui.build(messages)
-
     def buttons(self, s) -> list:
-        return [s.components[c["child"]].get("text") for c in s.components.values() if c.get("component") == "Button"]
+        return [said(s.components, cid) for cid, c in s.components.items() if c.get("component") == "Button"]
 
     def item(self, subject: str) -> dict:
         return next(it for it in self.r.app.store.items(ME, None, None) if it["subject"] == subject)
 
 
 class TodayTests(PagesRig):
-    def test_the_day_lists_each_message_and_what_became_of_it(self):
+    """设计规范 §18.2: what was done for the user on top, then the few to decide, then a line for the replies."""
+
+    def test_what_was_done_comes_first_then_what_to_decide_then_the_replies(self):
         s = self.page("today")
         words = self.texts(s)
-        for w in ("答辩时间确认", "等你处理", "可疑", "已读，留在收件箱", "今天"):
+        for w in ("今天替你处理了 3 封", "已读，留在收件箱", "要你定的", "账户已冻结", "合同扫描件", "还有 1 封等你回复。"):
             self.assertIn(w, words)
+        self.assertLess(words.index("今天替你处理了"), words.index("要你定的"))
+        self.assertLess(words.index("要你定的"), words.index("等你回复"))
+        self.assertNotIn("等你处理", words)                                  # no heading of what waits (§18.1)
+        self.assertNotIn("答辩时间确认", words)                              # a reply is answered in the inbox
         self.assertNotIn("482913", words)                                    # a code from mail is masked
         self.assertTrue(self.r.app.store.cache_get(ME, "review_seen")[0])     # looked at: the badge clears
-        self.assertFalse(self.press("today", "昨天").is_error)
-        self.assertIn("这一天没有处理过的邮件。", self.texts(self.page("today")))
-        self.press("today", "今天")
-        self.assertIn("答辩时间确认", self.texts(self.page("today")))
+        pickers = [c for c in s.components.values() if c.get("component") == "ChoicePicker"]
+        self.assertEqual([o["label"] for o in pickers[0]["options"]], ["移到垃圾邮件", "留在收件箱"])   # suspicious first
+        for c in pickers:                                                    # the suggestion, picked already
+            self.assertEqual(s.data["choices"][c["value"]["path"].split("/")[-1]], [c["options"][0]["value"]])
+        self.assertIsNone(self.press("today", "去收件箱"))
+        self.assertEqual(self.opened["inbox"], {"box": ME, "list": "reply"})
 
-    def test_the_header_filters_to_one_group(self):
-        s = self.page("today")
-        label = next(b for b in self.buttons(s) if b.startswith("等你处理 "))
-        self.press("today", label)
-        words = self.texts(self.page("today"))
-        self.assertIn("答辩时间确认", words)
-        self.assertNotIn("本周精选", words)                                  # 留在收件箱 is another group
-        self.press("today", next(b for b in self.buttons(self.page("today")) if b.startswith("全部 ")))
-        self.assertIn("本周精选", self.texts(self.page("today")))
+    def test_the_choices_are_carried_out_together_and_taken_back_together(self):
+        contract, meeting = self.item("合同扫描件"), self.item("项目周会")
+        r = self.press("today", "按选择处理", choices={f"a{contract['id']}": ["archive"], f"a{meeting['id']}": ["skip"]})
+        self.assertFalse(r.is_error, r.text)
+        self.assertIn("处理好了 3 封", r.text)
+        inbox = self.r.inbox()
+        self.assertNotIn("合同扫描件", inbox)
+        self.assertNotIn("账户已冻结", inbox)                                # its suggestion: 移到垃圾邮件
+        self.assertIn("项目周会", inbox)                                     # 留在收件箱
+        self.assertNotIn("要你定的", self.texts(self.page("today")))
+        self.assertFalse(self.press("today", "撤销").is_error)
+        inbox = self.r.inbox()
+        self.assertIn("合同扫描件", inbox)
+        self.assertIn("账户已冻结", inbox)
+
+    def test_at_most_three_to_decide_a_day(self):
+        with mock.patch.object(today, "DECIDE_AT_MOST", 2):
+            words = self.texts(self.page("today"))
+        self.assertIn("另有 1 封在收件箱里。", words)
+        self.assertNotIn("项目周会", words)                                  # suspicious first, then what is late
 
     def test_a_habits_work_is_undone_from_the_page(self):
         self.r.srv._add("INBOX", mail(90, "周末促销", "某某商城 <news@shop.example>", 0, "promo.shop.example"), set())
@@ -77,26 +92,18 @@ class TodayTests(PagesRig):
             self.assertIn("周末促销", self.r.inbox())
             self.assertIn("已撤销，邮件回到收件箱", self.texts(self.page("today")))
 
-    def test_marked_unread_and_changed_in_place(self):
-        it = self.item("合同扫描件")
+    def test_marked_read_is_taken_back_to_unread(self):
+        it = self.item("本周精选")
         self.r.app.store.set_fields(it["id"], read_by_us="2026-11-09 09:00:00")
-        r = self.press("today", "标为未读", on="合同扫描件")
+        r = self.press("today", "撤销", on="本周精选")
         self.assertFalse(r.is_error, r.text)
         self.assertEqual(self.r.app.store.get(it["id"])["read_by_us"], "unread")
-        self.assertNotIn("标为未读", [b for b in self.buttons(self.page("today"))])
-        self.press("today", "改为…", on="合同扫描件")
-        self.assertIn("改好了", self.buttons(self.page("today")))
-        r = self.press("today", "改好了", on="合同扫描件", choices={f"a{it['id']}": ["archive"]})
-        self.assertFalse(r.is_error, r.text)
-        self.assertIn("已改为「归档」", r.text)
-        self.assertEqual(self.r.app.store.get(it["id"])["action"], "archive")
-        self.assertNotIn("改好了", self.buttons(self.page("today")))         # the picker closes once it is changed
 
-    def test_unread_mail_from_before_has_its_own_section(self):
-        self.r.app.store.set_fields(self.item("答辩时间确认")["id"], older=1)
+    def test_unread_mail_from_before_is_one_line(self):
+        self.r.app.store.set_fields(self.item("本周精选")["id"], older=1)
         words = self.texts(self.page("today"))
-        self.assertIn("以前的未读", words)
-        self.assertIn("以前一直没读的邮件，螺壳看过并标为已读。", " ".join(words.split()))
+        self.assertIn("以前一直没读的 1 封，螺壳看过，标为已读。", words)
+        self.assertIn("今天替你处理了 2 封", words)
 
 
 class RulesTests(PagesRig):
@@ -107,13 +114,23 @@ class RulesTests(PagesRig):
         self.assertEqual([(x["kind"], x["value"]) for x in self.r.app.store.rules(ME)], [("sender", "news@weekly.example")])
         text = "发件人「news@weekly.example」→ 归档"
         self.assertIn(text, self.texts(self.page("rules")))
-        self.press("rules", "删除", on=text)
-        self.assertEqual(len(self.r.app.store.rules(ME)), 1)                 # not yet: the page asks first
-        self.assertIn(f"删除规则：{text}？", self.texts(self.page("rules")))
-        self.assertFalse(self.press("rules", "确认").is_error)
+        s = self.page("rules")
+        delete = s.components[self.in_card(s, "删除", text)]
+        self.assertEqual(delete["confirm"]["text"], f"删除规则：{text}？")      # the window asks first (§4 confirm)
+        self.assertFalse(self.press("rules", "删除", on=text).is_error)
         self.assertEqual(self.r.app.store.rules(ME), [])
         self.assertFalse(self.press("rules", "撤销").is_error)
         self.assertEqual(len(self.r.app.store.rules(ME)), 1)
+
+    def test_a_list_rule_is_named_by_who_sends_the_list(self):
+        """The audit 11-11: a list rule showed its List-Id, a run of hex. It shows the list's sender; a list with
+        no mail here keeps its id."""
+        for value in ("promo.shop.example", "0f3a9c.list-id.example"):
+            self.r.app.store.add_rule(ME, "list", value, "archive")
+        words = self.texts(self.page("rules"))
+        self.assertIn("邮件列表「某某商城」→ 归档", words)
+        self.assertNotIn("「promo.shop.example」", words)
+        self.assertIn("邮件列表「0f3a9c.list-id.example」→ 归档", words)
 
     def test_an_incomplete_rule_is_refused(self):
         r = self.press("rules", "添加", fields={"value": " "}, choices={"kind": ["sender"], "action": ["archive"]})
@@ -141,9 +158,9 @@ class RulesTests(PagesRig):
         for n in range(25):
             self.r.app.add_rule({"source": ME, "kind": "domain", "value": f"d{n}.example", "action": "ignore"})
         s = self.page("rules")
-        self.assertIn("第 1–10 条，共 25 条", self.texts(s))
+        self.assertIn("第 1–20 条，共 25 条", self.texts(s))                 # §4 bigPages: twice as many
         self.press("rules", "下一页")
-        self.assertIn("第 11–20 条，共 25 条", self.texts(self.page("rules")))
+        self.assertIn("第 21–25 条，共 25 条", self.texts(self.page("rules")))
 
 
 class ActivityTests(PagesRig):
@@ -163,9 +180,9 @@ class ActivityTests(PagesRig):
         for n in range(60):
             self.r.app.store.log(ME, "rule", [], True, f"第 {n} 步", [{"kind": "noop"}])
         s = self.page("activity")
-        self.assertIn("第 1–10 条，共 50 条", self.texts(s))
+        self.assertIn("第 1–20 条，共 50 条", self.texts(s))
         self.press("activity", "下一页")
-        self.assertIn("第 11–20 条，共 50 条", self.texts(self.page("activity")))
+        self.assertIn("第 21–40 条，共 50 条", self.texts(self.page("activity")))
 
 
 class EmptyTests(PagesRig):

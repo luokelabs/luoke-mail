@@ -227,25 +227,19 @@ function entry(n, proposed) {
   return row;
 }
 
-// luoke-mem's own page for the whole memory: a tab is opened at once (a tab opened after waiting may be blocked),
-// then sent to the page once it is up
+// the whole memory: 螺壳 opens its window on the memory page (luoke://memory), or 螺壳记忆 from before beta1
 async function openWhole(e) {
-  const tab = window.open("", "_blank");
-  if (tab) tab.opener = null;
   await withBusy(e.target, "正在打开…", async () => {
     try {
-      const r = await api("/api/memory/whole", { source: S.source });
-      if (r.opened) { if (tab) tab.close(); }                 // 螺壳记忆 opened its own page
-      else if (tab) tab.location = r.url; else window.open(r.url, "_blank", "noopener,noreferrer");
+      await api("/api/memory/whole", { source: S.source });
     } catch (err) {
-      if (tab) tab.close();
       toast(err.message);
     }
   });
 }
 
 // the demo's memory is the mail assistant's own; the real one is the user's, shared by every luoke tool -- here
-// only what the mail assistant wrote is forgotten (the whole memory is managed in luoke-mem, top-level ADR 0002)
+// only what the mail assistant wrote is forgotten (the whole memory is managed in luoke-mem, top-level archived ADR 0002)
 async function forgetMine() {
   const demo = S.source === "demo";
   const ok = await confirmDialog(demo ? "清除示例记忆" : "忘掉邮件助手记下的内容", demo

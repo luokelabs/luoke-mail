@@ -1,4 +1,4 @@
-# Copied from luoke-agent (luoke_agent/mcp.py, commit 15a9f75): the tool protocol's reference code, stdlib only.
+# Copied from luoke-agent (luoke_agent/mcp.py, commit eae6a23): the tool protocol's reference code, stdlib only.
 # Change it there and copy it again; do not edit this copy.
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 # Copyright 2026 螺壳实验室 Luoke Labs
@@ -38,8 +38,11 @@ CLIENT_CAPABILITIES = {"experimental": {"ai.luoke/a2ui": {"features": ["placemen
                                                                        "doneGroup", "itemIcons", "countLabel", "openPage",
                                                                        "subtitle", "countAlso", "countWeights",
                                                                        "pageArgs", "bigPages", "secureField", "pageRefresh",
-                                                                       "saveFile", "neutralBadge", "chips", "pageSections"]}}}
+                                                                       "saveFile", "neutralBadge", "chips", "pageSections",
+                                                                       "confirm", "rowOpen", "fieldSubmit", "lucide2"]}}}
 USER_ACTION = "ai.luoke/user-action"  # 会改动东西的调用必带：用户在哪张卡片上点的（§5）
+
+LISTEN_BACKLOG = 128   # Unix socket 上还没接下来的连接最多排几条（socketserver 默认 5，一下来十几条就拒）
 
 PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
@@ -78,13 +81,15 @@ def features_of(meta: Any) -> frozenset:
 
 
 class ToolError(Exception):
-    """工具执行不了：给用户看的一句话 + 原因码（not_ready、needs_setup、stale、failed……），可以带一张替换的卡片。"""
+    """工具执行不了：给用户看的一句话 + 原因码（not_ready、needs_setup、stale、failed……），可以带一张替换的卡片，
+    和给窗口认的几个字段（`data`，放进 structuredContent，和 code 并列）。"""
 
-    def __init__(self, code: str, message: str, card: Optional[list] = None):
+    def __init__(self, code: str, message: str, card: Optional[list] = None, data: Optional[dict] = None):
         super().__init__(message)
         self.code = code
         self.message = message
         self.card = card
+        self.data = data
 
 
 ToolFn = Callable[[Dict[str, Any], Dict[str, Any]], Dict[str, Any]]
@@ -231,7 +236,7 @@ class ToolServer:
         try:
             out = tool["fn"](args, meta)
         except ToolError as e:
-            return _result(rid, _tool_error(e.code, e.message, e.card))
+            return _result(rid, _tool_error(e.code, e.message, e.card, e.data))
         if not isinstance(out, dict) or not isinstance(out.get("text"), str) or not out["text"]:
             raise TypeError("工具函数要返回带 text 的 dict")
         structured = {k: v for k, v in out.items() if k != "text"}
@@ -276,8 +281,8 @@ def _valid_user_action(v: Any) -> bool:
     return isinstance(v, dict) and all(isinstance(v.get(k), str) and v[k] for k in ("surfaceId", "componentId", "at"))
 
 
-def _tool_error(code: str, message: str, card: Optional[list] = None) -> dict:
-    structured: Dict[str, Any] = {"code": code}
+def _tool_error(code: str, message: str, card: Optional[list] = None, data: Optional[dict] = None) -> dict:
+    structured: Dict[str, Any] = {**(data or {}), "code": code}
     if card is not None:
         structured["card"] = card
     return {"content": [{"type": "text", "text": message}], "structuredContent": structured, "isError": True}
@@ -324,6 +329,8 @@ def _where(e: BaseException, frames: int = 3) -> str:
 
 class _UnixServer(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
     daemon_threads = True
+    # 还没接下来的连接最多排几条（默认 5）：agent 同时连过来的多了，macOS 上排不下的当场拒
+    request_queue_size = LISTEN_BACKLOG
     tool_server: ToolServer
 
     def handle_error(self, request: Any, client_address: Any) -> None:

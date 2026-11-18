@@ -82,7 +82,7 @@ class ArchiveRig(Rig):
 
 
 class IdleJobTests(unittest.TestCase):
-    """In 螺壳邮件助手.app the idle work is 螺壳主控's job `idle` (2026-10-16; ADR 0006): the app carries
+    """In 螺壳邮件助手.app the idle work is 螺壳主控's job `idle` (2026-10-16; archived ADR 0006): the app carries
     on at once only with what the user just started, the job takes the rest when the Mac is quiet."""
 
     def test_the_app_leaves_idle_work_to_the_hub_except_what_the_user_just_started(self):

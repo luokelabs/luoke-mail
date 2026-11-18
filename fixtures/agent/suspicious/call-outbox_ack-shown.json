@@ -1,11 +1,11 @@
 {
   "reply": {
-    "id": 15,
+    "id": 34,
     "jsonrpc": "2.0",
     "result": {
       "content": [
         {
-          "text": "好的",
+          "text": "已记录",
           "type": "text"
         }
       ],
@@ -14,7 +14,7 @@
     }
   },
   "request": {
-    "id": 15,
+    "id": 34,
     "jsonrpc": "2.0",
     "method": "tools/call",
     "params": {
@@ -45,7 +45,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

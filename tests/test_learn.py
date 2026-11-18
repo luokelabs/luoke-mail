@@ -1,6 +1,6 @@
 """了解你 and 功耗. Who said it decides what an inference may do: the user's own sent mail takes effect when two
 messages agree (the newest value wins on one-value topics); organisations' mail and the user's habits only ever
-are proposed for the memory to grade; credentials are never kept; on by default, can be paused (ADR 0013).
+are proposed for the memory to grade; credentials are never kept; on by default, can be paused (ADR 0001).
 功耗 makes every model call wait a multiple of the previous call's time."""
 import datetime as dt
 import json
@@ -91,7 +91,7 @@ class LearnRig(DigestRig):
 class EngineTests(unittest.TestCase):
     def test_credentials_are_masked_and_the_rest_kept_whatever_the_model_says(self):
         for text, secret in (("银行卡号 4111 1111 1111 1111", "4111 1111"), ("验证码 482913", "482913")):
-            self.assertNotIn(secret, learn.mask(text), text)                    # only that string is hidden (ADR 0013)
+            self.assertNotIn(secret, learn.mask(text), text)                    # only that string is hidden (ADR 0001)
             self.assertTrue(learn.mask(text).startswith(text[:3]))
         self.assertIn("health", memory.marks("最近在医院复查"))                    # kept, marked
         for text in ("职位：产品负责人", "同事：王磊（wanglei@corp.example）", "邮编 00427 的房价"):
@@ -208,7 +208,7 @@ class SentTests(unittest.TestCase):
                sent(3, "boss@corp.example", "去年的周报", "王总，周报。\n小周 产品经理", 400),
                sent(4, "hr@corp.example", "入职材料", "附件是材料。\n小周 产品经理", 420),
                sent(5, "clinic@x.example", "体检预约", "下周去做体检。", 5))
-        self.assertEqual(r.app.learner.next_account(), ME)                       # on from the start (ADR 0013)
+        self.assertEqual(r.app.learner.next_account(), ME)                       # on from the start (ADR 0001)
         r.on()
         r.run()
         mem = r.app.mem
@@ -217,7 +217,7 @@ class SentTests(unittest.TestCase):
         n = mem.note(facts["职位：产品负责人"]["id"])
         self.assertEqual((n["origin"], n["status"], n["decided_at"]), ("inferred", "active", None))
         self.assertEqual({(c["speaker"], c["topic"]) for c in n["cites"]}, {("user", "sent-mail")})
-        # one statement per message and thing said, keyed by the thing, at the time it was sent (ADR 0012 amended)
+        # one statement per message and thing said, keyed by the thing, at the time it was sent (archived ADR 0012 amended)
         stated = [x for x in mem.records(topic="sent-mail") if x["text"] == "职位：产品负责人"]
         self.assertEqual(len(stated), 2)
         self.assertEqual({(x["data"]["subject"], x["data"]["by"]) for x in stated}, {("职位", "user")})
@@ -275,8 +275,8 @@ class SentTests(unittest.TestCase):
 
 
 class EventTests(unittest.TestCase):
-    """Top-level ADR 0012 amended (2026-10-17): what happens is recorded as it happens -- who did it, to which
-    sender, when -- for the memory to conclude from; always, whether 了解你 is on or paused (ADR 0013)."""
+    """Top-level archived ADR 0012 amended (2026-10-17): what happens is recorded as it happens -- who did it, to which
+    sender, when -- for the memory to conclude from; always, whether 了解你 is on or paused (ADR 0001)."""
 
     def test_what_the_user_does_and_what_came_are_recorded(self):
         r = LearnRig(self)
@@ -338,16 +338,16 @@ class ReceivedTests(unittest.TestCase):
         r.on()
         r.run()
         mem = r.app.mem
-        # organisations' mail is graded by the memory on its evidence (ADR 0015): three mails each is thin, so
+        # organisations' mail is graded by the memory on its evidence (ADR 0005): three mails each is thin, so
         # nothing takes effect; what was proposed is kept, as a guess
         self.assertEqual(mem.notes(kinds=["fact"]), [])
         seen = mem.notes(kinds=["fact"], status=["proposed", "observed"])
         self.assertTrue({f"在机构{k}有账户" for k in range(7)} <= {n["text"] for n in seen})
-        # one organisation is one fact: the memory's topic is 「机构:<name>」 (top-level ADR 0015 amended, 10-22)
+        # one organisation is one fact: the memory's topic is 「机构:<name>」 (top-level ADR 0005 amended, 10-22)
         self.assertTrue({f"机构:机构{k}" for k in range(7)} <= {n.get("topic") for n in seen})
         n = mem.note(seen[0]["id"])
         self.assertEqual({(c["speaker"], c["topic"]) for c in n["cites"]}, {("third_party", "received-mail")})
-        # how strong the evidence is travels with each record, counts only (top-level ADR 0011)
+        # how strong the evidence is travels with each record, counts only (top-level archived ADR 0011)
         data = next(x for x in mem.records(topic="received-mail") if "机构0" in x["text"])["data"]
         self.assertEqual((data["count"], data["months"], data["opened"]), (3, 3, 3))
         self.assertLess(data["first"], data["last"])
@@ -359,8 +359,8 @@ class ReceivedTests(unittest.TestCase):
 
 
     def test_a_plain_fact_with_strong_evidence_is_taken_down_without_asking(self):
-        """ADR 0015: a fact from organisations' mail, seen in many opened mails over months, takes effect at once,
-        whatever its kind (money included, ADR 0013); a thin one stays a guess."""
+        """ADR 0005: a fact from organisations' mail, seen in many opened mails over months, takes effect at once,
+        whatever its kind (money included, ADR 0001); a thin one stays a guess."""
         r = LearnRig(self)
         for i in range(7):                                                         # strong: 7 mails, 4 months, opened
             r.srv._add("INBOX", mail(500 + i, f"会员通知 {i}", "某航空 <club@air.example>", 10 + 30 * i), {"\\Seen"})
@@ -372,7 +372,7 @@ class ReceivedTests(unittest.TestCase):
         mem = r.app.mem
         facts = {n["text"]: n["status"] for n in mem.notes(kinds=["fact"], status=["active", "proposed", "observed"])}
         self.assertEqual(facts.get("是某航空的会员"), "active")                    # strong evidence: in effect, not asked
-        self.assertEqual(facts.get("在某银行有账户"), "active")                    # money is no longer kept aside (ADR 0013)
+        self.assertEqual(facts.get("在某银行有账户"), "active")                    # money is no longer kept aside (ADR 0001)
         self.assertNotEqual(facts.get("在某书店有账户"), "active")                 # weak for now: a guess
         for i in range(3, 7):                                                      # the bookshop keeps writing
             r.srv._add("INBOX", mail(540 + i, f"订单 {i}", "某书店 <shop@books.example>", 5 + 40 * i), {"\\Seen"})
@@ -384,7 +384,7 @@ class ReceivedTests(unittest.TestCase):
         r.app.store.learn_set(ME, "received", "其他:某航空", "某航空：有乘机记录".lower(), state="waiting")
         r.app.learner.refill(ME)
         # in effect, never waiting as a question: on its own (luoke-mem before 0.25) or merged into the airline's one
-        # fact (0.25: one organisation, one fact -- top-level ADR 0015 amended)
+        # fact (0.25: one organisation, one fact -- top-level ADR 0005 amended)
         air = [n for n in mem.notes(kinds=["fact"], status=["active", "proposed", "observed"])
                if n.get("topic") in ("机构:某航空", "其他:某航空", "会员:某航空")]
         self.assertTrue(air and all(n["status"] == "active" for n in air), air)
@@ -525,7 +525,7 @@ class CleanUpTests(unittest.TestCase):
 
     def test_with_learning_paused_nothing_is_read_but_the_clean_up_is_recorded(self):
         """了解你 paused: the model does not read the organisations first; what the user cleared is recorded anyway
-        (ADR 0013: records are always written; the switch is only about reading mail to learn)."""
+        (ADR 0001: records are always written; the switch is only about reading mail to learn)."""
         r = self.rig()
         r.app.cfg["learn"]["on"] = False
         self.clean(r)
@@ -631,7 +631,7 @@ class ElsewhereTests(unittest.TestCase):
         self.assertEqual(len(self.acted(r)), 3)                          # once each
 
     def test_sorted_mail_is_marked_read_and_that_is_not_the_user_reading_it(self):
-        """ADR 0016 (2026-10-19): what the model sorted is marked read; the user reviews it in 今日处理."""
+        """ADR 0006 (2026-10-19): what the model sorted is marked read; the user reviews it in 今日处理."""
         r = LearnRig(self)
         r.srv._add("INBOX", mail(540, "年中促销", "某某商城 <news@shop.example>", 1), set())
         r.on()
@@ -668,7 +668,7 @@ class SwitchTests(unittest.TestCase):
     def test_on_by_default_pause_and_demo(self):
         r = LearnRig(self)
         r.app.idle_step = lambda **k: None
-        self.assertEqual(r.app.learner.next_account(), ME)                          # on from the start (ADR 0013)
+        self.assertEqual(r.app.learner.next_account(), ME)                          # on from the start (ADR 0001)
         r.app.learner.set_on({"source": "mailbox", "on": False})
         self.assertIsNone(r.app.learner.next_account())
         r.app.learner.set_on({"source": "mailbox", "on": True})                     # 继续

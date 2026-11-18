@@ -425,6 +425,24 @@ class LauncherAndNotificationTests(unittest.TestCase):
         self.assertIn(f"-s {credstore.service('imap', config.CONFIG_DIR)} -a", lines[1])
         self.assertNotIn("-s luoke-mail:imap -a", "\n".join(lines))
 
+    def test_nothing_with_a_newline_reaches_the_keychain_command(self):
+        """`security -i` runs each line as a command, inside quotes too (security review 11-13)."""
+        from luoke_mail import credstore
+        fake = os.path.join(tempfile.mkdtemp(), "security")
+        said = fake + ".in"
+        with open(fake, "w") as f:
+            f.write(f'#!/bin/sh\ncat >> {said}\nexit 0\n')
+        os.chmod(fake, 0o755)
+        store = credstore.KeychainStore(fake)
+        for account, secret in (("a@b.example\nlist-keychains", "pw"), ("a@b.example", "pw\rx"),
+                                ("a@b.example\x00", "pw")):
+            with self.assertRaises(ValueError):
+                store.set("imap", account, secret)
+        self.assertFalse(os.path.exists(said))
+        store.set("imap", "a@b.example", "pw")
+        with open(said) as f:
+            self.assertEqual(len(f.read().splitlines()), 1)
+
     def test_each_notification_is_noted_with_what_came_back(self):
         """2026-10-20: none seen all afternoon and nothing to tell why -- each one is noted: how it went out, and
         what the app's launcher said (a newer launcher exits 3 when macOS has not allowed notifications)."""

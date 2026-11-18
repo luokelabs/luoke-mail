@@ -13,7 +13,7 @@ import urllib.error
 import urllib.request
 from collections import Counter
 
-from . import __version__
+from . import __version__, netguard
 
 MIN_COUNT = 3
 MAX_READ_RATIO = 0.2
@@ -112,14 +112,24 @@ def needs_body_check(headers: list[dict], suspicious_senders: set[str]) -> dict[
     return out
 
 
+NOT_PUBLIC = "一键退订地址不是公网地址，已拒绝。"
+
+
 def one_click(url: str, timeout: float = 15) -> tuple[bool, str]:
-    """RFC 8058: POST "List-Unsubscribe=One-Click" to the https URL from the header."""
+    """RFC 8058: POST "List-Unsubscribe=One-Click" to the https URL from the header. The sender wrote that URL: it
+    has to be on the public internet (not this Mac, not the local network; refused with NOT_PUBLIC, and the caller
+    doesn't open it either), and a redirect is not followed (RFC 8058 §3.2: the sender must not redirect)."""
     if not url.lower().startswith("https://"):
         return False, "一键退订地址不是 https，已拒绝。"
+    kind = netguard.url_kind(url, schemes=("https",))
+    if kind == netguard.UNRESOLVED:          # offline, say: like a server that can't be reached
+        return False, "连不上对方服务器：解析不了地址"
+    if kind != netguard.PUBLIC:
+        return False, NOT_PUBLIC
     req = urllib.request.Request(url, data=b"List-Unsubscribe=One-Click", method="POST",
                                  headers={"Content-Type": "application/x-www-form-urlencoded", "User-Agent": f"luoke-mail/{__version__}"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with netguard.urlopen(req, timeout=timeout) as r:
             return r.status < 400, f"对方服务器返回 HTTP {r.status}"
     except urllib.error.HTTPError as e:
         e.close()

@@ -271,7 +271,8 @@ _SLD = {"co", "com", "net", "org", "ac", "ne", "or", "go", "gov", "edu", "gr", "
 SHARED_DOMAINS = {
     "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "msn.com", "yahoo.com", "yahoo.co.jp",
     "icloud.com", "me.com", "mac.com", "aol.com", "proton.me", "protonmail.com", "gmx.com", "gmx.net", "gmx.de",
-    "mail.com", "mail.ru", "yandex.ru", "yandex.com", "zoho.com", "fastmail.com", "hey.com",
+    "mail.com", "mail.ru", "yandex.ru", "yandex.com", "zoho.com", "zoho.eu", "zoho.in", "zohomail.com", "zohomail.eu",
+    "zohomail.in", "fastmail.com", "hey.com",
     "qq.com", "foxmail.com", "163.com", "126.com", "yeah.net", "sina.com", "sina.cn", "sohu.com", "139.com",
     "189.cn", "aliyun.com", "tom.com", "naver.com", "daum.net",
     # hosts that hand out names under themselves
@@ -319,6 +320,30 @@ def settle_risks(result: dict, mail: dict, untold: str | None = None) -> dict:
                              "请确认是你认识的发件方。", priority="low")
         if _JUDGED.search(result.get("summary") or ""):
             result["summary"] = (mail.get("subject") or "").strip()[:40]
+    return result
+
+
+def _shown_domain(domain: str, most: int = 60) -> str:
+    """A domain from the mail as the reason shows it: in ASCII (punycode: a look-alike in other scripts shows as
+    what it is), and not past `most` characters (review 2026-11-16)."""
+    try:
+        domain = domain.encode("idna").decode("ascii")
+    except UnicodeError:
+        domain = domain.encode("ascii", "replace").decode("ascii")
+    return domain if len(domain) <= most else "…" + domain[-(most - 1):]
+
+
+def settle_failure(result: dict, mail: dict) -> dict:
+    """Flagged with the provider's failed sender check in front of the model: the reason says so, in the code's words.
+    Told to treat the mail as suspicious, the model still wrote about the content (2026-11-16: 「这是一封产品更新和
+    活动推广的营销邮件，无需立即处理」 under 判为可疑, nothing on why); its reason stays only beside risks of its own,
+    impersonation aside (that is the failure). Changes `result` in place."""
+    if not (result.get("suspicious") and mail.get("auth") == "fail"):
+        return result
+    domain = _shown_domain((mail.get("from_addr") or "").rsplit("@", 1)[-1])
+    said = f"邮箱服务商验证发件人没有通过：这封邮件可能是别人冒用 {domain} 发的。"
+    own = set(result.get("risks") or []) - CLEARED_RISKS
+    result["reason"] = said + (result.get("reason") or "" if own else "")
     return result
 
 
@@ -429,6 +454,7 @@ def analyze(mail: dict, link: engines.Link, about: str = "", language: str = "�
         try:
             result = settle_figures(settle_cc(settle_dates(parse_output(content), mail), mail, user_address), mail)
             settle_risks(result, mail, untold)
+            settle_failure(result, mail)
             result.update({"seconds": round(seconds, 1), "tokens_in": tokens_in, "tokens_out": tokens_out,
                            "retried": attempt > 0})
             return result
@@ -436,7 +462,7 @@ def analyze(mail: dict, link: engines.Link, about: str = "", language: str = "�
             messages = link.again("triage", messages, content, "上面的输出不符合要求。请只输出一个符合字段说明的 JSON 对象，不要任何其他文字。")
     import sys
     print("[luoke-mail] unusable model output twice", file=sys.stderr)      # not why: it quotes the model, which quotes the mail
-    raise engines.EngineError("模型未按要求返回结果，可尝试换用更大的模型。")
+    raise engines.EngineError("模型未按要求返回结果，可尝试换用更大的模型。", "model_unusable")
 
 
 def draft_reply(mail: dict, reply_points: list[str], link: engines.Link, about: str = "", signature: str = "",
@@ -461,7 +487,7 @@ def draft_reply(mail: dict, reply_points: list[str], link: engines.Link, about: 
             return body
         if attempt == 0:
             messages = link.again("draft", messages, content, p.retry)
-    raise engines.EngineError("模型未生成回复正文，可以再试一次。")
+    raise engines.EngineError("模型未生成回复正文，可以再试一次。", "model_unusable")
 
 
 # Contact details in a draft that the mail never had: drafting reads what memory knows about the user beside the

@@ -472,7 +472,7 @@ class OldMailTests(unittest.TestCase):
         self.assertIsNone(res["log_id"])
 
     def test_only_the_trash_needs_processing_mode(self):
-        """ADR 0016 (2026-10-19): archiving can be taken back and needs only the click; moving many
+        """ADR 0006 (2026-10-19): archiving can be taken back and needs only the click; moving many
         messages to the trash waits for 处理模式."""
         r = Rig(self)
         self.scan(r)
@@ -548,6 +548,22 @@ class AutoCleanTests(unittest.TestCase):
                                         "from_addr": row["from_addr"]})
         self.assertFalse(r.app.old_view(ME, "inbox")["stale"])
         self.assertFalse(r.app._old_unread(ME))
+
+    def test_tens_of_thousands_of_old_mails_are_read_by_the_index(self):
+        """Leaving out what the inbox lists looks each old mail up by the index, not through the whole list: the
+        inbox's line about old mail reads them all, every time the inbox is drawn (a Gmail inbox with tens of
+        thousands of old mails and 2,000 waiting took seconds a tab, 11-18)."""
+        st = Store(os.path.join(tempfile.mkdtemp(), "state.db"))
+        self.addCleanup(st.close)
+        st.old_sync(ME, "inbox", [{"message_id": f"<o{i}@x>", "uid": str(i), "from_addr": "news@shop.example"} for i in range(3000)])
+        for i in range(0, 3000, 3):
+            st.upsert_message(ME, {"message_id": f"<o{i}@x>", "uid": f"n{i}", "from_addr": "news@shop.example"})
+        self.assertEqual(len(st.old_rows(ME, "inbox")), 2000)
+        self.assertEqual(st.old_unjudged(ME, "inbox"), 2000)
+        plan = " ".join(r[-1] for r in st.db.execute(
+            "EXPLAIN QUERY PLAN SELECT * FROM old_mail WHERE account=? AND scope=?" + Store.NOT_LISTED, (ME, "inbox")))
+        self.assertNotIn("LIST SUBQUERY", plan)                       # the inbox's whole list again for each old mail
+        self.assertIn("message_id=?", plan)
 
 
 class GmailLinkTests(unittest.TestCase):
@@ -823,7 +839,7 @@ class FilterPreviewTests(unittest.TestCase):
 
 
 class AutoHabitTests(unittest.TestCase):
-    """Top-level ADR 0012 amended (2026-10-17): a habit the user confirmed -- 「某某商城的邮件都归档」 --
+    """Top-level archived ADR 0012 amended (2026-10-17): a habit the user confirmed -- 「某某商城的邮件都归档」 --
     is carried out after sorting: only with 处理模式 on, never on mail that needs the user or looks suspicious,
     logged as the rule's doing, shown and undoable; an undo is recorded against the habit and not redone."""
 
@@ -849,7 +865,7 @@ class AutoHabitTests(unittest.TestCase):
             self.assertIn("双十一预热", live())                         # needs a reply: never done unasked
             auto = r.app.list_items(ME)["auto"]
             self.assertEqual(len(auto), 1)
-            self.assertIn("按你的习惯自动归档", auto[0]["message"])
+            self.assertIn("按习惯自动归档", auto[0]["message"])
             rec = r.app.mem.records(topic="mail-auto")[0]["data"]
             self.assertEqual((rec["by"], rec["note_id"], rec["action"]), ("rule", 7, "archive"))
             self.assertEqual(r.app.mem.records(topic="mail-acted"), [])        # the rule's doing, not the user's
@@ -861,7 +877,7 @@ class AutoHabitTests(unittest.TestCase):
             self.assertEqual(again["auto"], [])                               # taken back: not done again
             self.assertIn("周末促销", live())
             r.srv._add("INBOX", mail(81, "下周促销", "某某商城 <news@shop.example>", 0, "promo.shop.example"), set())
-            r.app.cfg["mode"]["write"] = False                # archiving can be taken back: no 处理模式 needed (ADR 0016)
+            r.app.cfg["mode"]["write"] = False                # archiving can be taken back: no 处理模式 needed (ADR 0006)
             self.assertEqual(sum(a["count"] for a in r.app.sync_mailbox(ME, job)["auto"]), 1)
             self.assertNotIn("下周促销", live())
         self.assertEqual(r.srv.violations, [])

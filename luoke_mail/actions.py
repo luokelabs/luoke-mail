@@ -94,7 +94,7 @@ class Actions:
                 "message": msg}
 
     def execute(self, ids: list[int], op: str, by: str = "user", label: str | None = None) -> dict:
-        """`by="rule"`: done by a confirmed habit, not by the user -- logged as such (ADR 0016). `label`: for "label"."""
+        """`by="rule"`: done by a confirmed habit, not by the user -- logged as such (ADR 0006). `label`: for "label"."""
         if op not in OPS:
             raise ActionError("不支持的操作。")
         items = [it for it in (self.store.get(i) for i in ids) if it and it["account"] == self.account]
@@ -147,8 +147,8 @@ class Actions:
                  f"{len(gone)} 封已不在收件箱中，已从列表移除" if gone else None]
         msg = "；".join(p for p in parts if p) or f"没有邮件被{OPS[op]}"
         if by == "rule":
-            msg = "按你的习惯自动" + msg.removeprefix("已")
-        elif by == "own":                         # 螺壳's own mailbox: all of it done unasked (ADR 0016)
+            msg = "按习惯自动" + msg.removeprefix("已")
+        elif by == "own":                         # 螺壳's own mailbox: all of it done unasked (ADR 0006)
             msg = "在螺壳的邮箱中自动" + msg.removeprefix("已")
         stuck += unfound
         log_id = self.store.log(self.account, "auto" if by in ("rule", "own") else op, done, not stuck, msg, undo or None)
@@ -643,7 +643,7 @@ class Actions:
         if not adding:
             return out
         # what was put in the calendar, so a later reminder of the same appointment says so instead of offering it
-        # again (10-22; until 主控 reads the calendar itself, top-level ADR 0014 amended)
+        # again (10-22; until 主控 reads the calendar itself, top-level ADR 0002 amended)
         fresh = {(e.get("date"), e.get("start")) for e in chosen}
         added = [x for x in (self.store.cache_get(self.account, "calendar_added")[0] or [])
                  if x.get("message_id") != it.get("message_id") or (x.get("date"), x.get("start")) not in fresh]
@@ -665,9 +665,13 @@ class Actions:
                 msg = f"已退订「{label}」" + ("（示例）" if self.demo else "。之后一两天内可能仍会收到少量邮件。")
                 self.store.log(self.account, "unsubscribe", [], True, msg)
                 return {"ok": True, "message": msg, "status": "unsubscribed"}
-            # the sender's server refused the one-click request: fall back to its unsubscribe page
             import sys
             print(f"[luoke-mail] one-click unsubscribe refused: {detail}", file=sys.stderr)
+            if detail == subscriptions.NOT_PUBLIC:
+                # the address points at this Mac or the local network: nothing was sent, and it isn't opened either
+                raise ActionError(f"没有退订「{label}」：它的一键退订地址不是公网上的地址（比如指向这台 Mac 或局域网），"
+                                  "所以没有发出退订请求，也没有打开这个地址。")
+            # the sender's server refused the one-click request: fall back to its unsubscribe page
             self.store.set_sender(self.account, key, "unsubscribe_opened", label, "web")
             msg = f"「{label}」不支持一键退订，已打开退订网页，请按页面提示完成。"
             self.store.log(self.account, "unsubscribe", [], True, msg)

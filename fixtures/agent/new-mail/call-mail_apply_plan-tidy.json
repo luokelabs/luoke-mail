@@ -1,6 +1,6 @@
 {
   "reply": {
-    "id": 37,
+    "id": 97,
     "jsonrpc": "2.0",
     "result": {
       "content": [
@@ -65,7 +65,7 @@
     }
   },
   "request": {
-    "id": 37,
+    "id": 97,
     "jsonrpc": "2.0",
     "method": "tools/call",
     "params": {
@@ -101,7 +101,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

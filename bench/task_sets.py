@@ -174,7 +174,7 @@ LEARN_SENT = [
            "赵律师，关于和前公司的劳动仲裁，材料我周一寄给您。\n\n周晓"),
      ],
      "expect": [(("单位",), ("螺壳实验室",))],
-     "never": ["91310000MA1234567X"]},                 # the rent and the arbitration: the user's own words, kept marked (ADR 0004)
+     "never": ["91310000MA1234567X"]},                 # the rent and the arbitration: the user's own words, kept marked (archived ADR 0004)
 ]
 
 

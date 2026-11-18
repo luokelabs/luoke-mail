@@ -1,7 +1,9 @@
 """收件箱 in the window: what the browser page's inbox shows (App.list_items), a screen at a time.
 
-The lists: 需要你处理 (reply, schedule, star, and suspicious mail), 可以直接处理 (archive, delete), and what is due
-soon on top. One mail opened shows its text; 改为… shows the choices in place.
+设计规范 §18.2: by default only the mail that waits for a reply, a line each saying what the sender wants, with 回复
+and 归档 and nothing more; a tap on the line opens the mail (§4 rowOpen). The other lists -- all that needs the user
+(加入日程, 加星标 too), what looks suspicious, everything -- are a tap away. One mail opened shows its text and every
+way to handle it; 改为… shows the choices in place.
 
 A card's 在邮件助手里看 opens this page at that mail (`page/inbox?id=<item>`, protocol §4 pageArgs); on a core that
 opens pages with args, 查看原文 and 返回列表 do the same, so the page shows what its args say. A card about several
@@ -14,7 +16,9 @@ from .. import kit
 from .common import SCREEN, mailbox_row, more, running, screen
 
 NEEDS = ("reply", "schedule", "follow_up")
-LISTS = [("needs", "需要你处理"), ("direct", "可以直接处理"), ("suspicious", "判为可疑"), ("all", "全部")]
+LISTS = [("reply", "等你回复"), ("needs", "要你处理"), ("direct", "可以直接处理"), ("suspicious", "可疑"), ("all", "全部")]
+ICONS = {"写草稿": "reply", "回复": "reply", "归档": "archive", "删除": "trash-2", "加星标": "star",
+         "移到垃圾邮件": "shield-alert", "完成并归档": "check", "加入日程": "calendar-plus"}
 
 
 def _who(it: dict) -> str:
@@ -52,6 +56,37 @@ def _ops(p: kit.Page, src: str, it: dict, write: bool) -> list:
 
 def _look(p: kit.Page, it: dict) -> str:
     return p.open("查看原文", {"id": it["id"]}) if p.can("pageArgs") else p.go("查看原文", {"open": it["id"]})
+
+
+def _line_ops(p: kit.Page, src: str, it: dict) -> list:
+    """A line's buttons (设计规范 §18.2): 回复 and 归档 for mail that waits for a reply; for the rest, what is
+    suggested and 归档. Never a 「更多」: the rest is on the mail opened."""
+    one = {"source": src, "ids": [it["id"]]}
+    archive = p.do("归档", "/api/items/act", {**one, "op": "archive"}, icon="archive")
+    if it.get("suspicious") or it.get("junk"):
+        return [p.do("移到垃圾邮件", "/api/items/act", {**one, "op": "spam"}, icon="shield-alert")]
+    a = it.get("action")
+    if a == "reply":
+        return [p.do("回复", "/api/items/draft", {"source": src, "id": it["id"]}, primary=True, icon="reply",
+                     tip="写回复草稿"), archive]
+    if a == "schedule" and not (it.get("past_event") or it.get("in_calendar")):
+        return [p.do("加入日程", "calendar", {"source": src, "id": it["id"], "index": None}, primary=True,
+                     icon="calendar-plus"), archive]
+    if a == "follow_up" and not it.get("flagged"):
+        return [p.do("加星标", "/api/items/act", {**one, "op": "flag"}, primary=True, icon="star"), archive]
+    if a == "ignore":
+        return [p.do("删除", "/api/items/act", {**one, "op": "trash"}, primary=True, icon="trash-2"), archive]
+    return [archive]
+
+
+def _line(p: kit.Page, src: str, it: dict) -> str:
+    """One mail a line: who, and in a sentence what they want; a tap on the line opens it."""
+    what = it.get("summary") or it.get("subject") or "（无主题）"
+    when = f"截止 {it['due_date']}，已过" if it.get("overdue") else f"截止 {it['due_date']}" if it.get("due_date") else ""
+    tag = "可疑：请勿点击链接或转账" if it.get("suspicious") else ""
+    return p.item([p.text(_who(it) or it.get("subject") or "", "strong"),
+                   p.text(" · ".join(x for x in (tag, what, when) if x), "caption")],
+                  _line_ops(p, src, it), open=_look(p, it))
 
 
 def _card(w, p: kit.Page, src: str, it: dict, view: dict, write: bool) -> str:
@@ -159,34 +194,34 @@ def build(w, p: kit.Page, view: dict) -> None:
         return _opened(w, p, src, opened, view, write)
     if asked:                                        # handled since the card was made, or no longer in the inbox
         p.add(p.row(p.text("这封邮件已经处理过了，或者不在收件箱里。", "caption"), p.open("返回列表")))
-    c = data["counts"]
-    tally = "、".join(f"{label} {c[a]}" for a, label in triage.ACTIONS.items() if c.get(a))
-    p.add(p.row(p.text(tally or "收件箱里没有待处理的邮件", "caption"),
-                p.do("同步新邮件", "/api/sync", {"source": src}, primary=True)))
+    pick = view.get("list") if view.get("list") in dict(LISTS) else "reply"
+    p.add(p.row(*[p.text(label, "h5") if key == pick else p.go(label, {"list": key, "at": 0}) for key, label in LISTS],
+                p.do("同步新邮件", "/api/sync", {"source": src}, quiet=True, icon="refresh-cw")))
     note = w.app.model_note() if hasattr(w.app, "model_note") else None
     if note:
         p.add(p.text(note.get("text") if isinstance(note, dict) else note, "caption"))
+    c = data["counts"]
     if c.get("unanalyzed"):
         p.add(p.text(f"{c['unanalyzed']} 封还没分析", "caption"))
     p.reserve = 6
-    if data["due"] and not view.get("at"):
-        p.add(p.text("快到期", "h5"))
-        for it in data["due"][:3]:
-            p.add(_card(w, p, src, it, view, write))
-    pick = view.get("list") or "needs"
-    p.add(p.row(*[p.text(label, "h5") if key == pick else p.go(label, {"list": key, "at": 0}) for key, label in LISTS]))
-    due = {it["id"] for it in data["due"]}
-    rows = [it for it in items if it["id"] not in due and (
-        pick == "all" or (pick == "needs" and (it.get("suspicious") or it.get("action") in NEEDS))
+    rows = [it for it in items + data["due"] if (
+        pick == "all" or (pick == "reply" and not it.get("suspicious") and it.get("action") == "reply")
+        or (pick == "needs" and (it.get("suspicious") or it.get("action") in NEEDS))
         or (pick == "suspicious" and it.get("suspicious"))
         or (pick == "direct" and not it.get("suspicious") and it.get("action") in ("archive", "ignore")))]
+    rows = list({it["id"]: it for it in rows}.values())     # what is due soon is in its list, first
+    due = {it["id"] for it in data["due"]}
     rows.sort(key=lambda it: it.get("date") or "", reverse=True)
+    rows.sort(key=lambda it: (it["id"] not in due, it.get("due_date") or "" if it["id"] in due else ""))
     if not rows:
-        p.add(p.text("这里没有邮件。", "caption"))
+        p.add(p.text("没有等你回复的邮件。" if pick == "reply" else "这里没有邮件。", "caption"))
+    lines = []
     for it in screen(p, view, rows):
         if not p.room(16):
             break
-        p.add(_card(w, p, src, it, view, write))
+        lines.append(_line(p, src, it))
+    if lines:
+        p.add(p.list(lines))
     p.reserve = 0
     more(p, view, len(rows))
     if data["archived"] and pick == "needs":

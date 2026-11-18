@@ -32,20 +32,20 @@
                         {
                           "component": "Text",
                           "id": "h1",
-                          "text": "还没连邮箱",
+                          "text": "未连接邮箱",
                           "variant": "h4"
                         },
                         {
                           "component": "Text",
                           "id": "t2",
-                          "text": "连上邮箱，新邮件就能在这里分拣好。授权码在邮件助手自己的页面里填，只存在这台 Mac 的钥匙串里。",
+                          "text": "连接邮箱后，新邮件在此分拣。授权码在邮件助手的页面中填写，仅保存在本机的钥匙串中。",
                           "variant": "caption"
                         },
                         {
                           "action": {
                             "event": {
                               "context": {
-                                "page": "settings"
+                                "page": "legacy-settings"
                               },
                               "name": "agent.open_page"
                             }
@@ -58,7 +58,7 @@
                         {
                           "component": "Text",
                           "id": "b4-text",
-                          "text": "去设置"
+                          "text": "打开设置"
                         },
                         {
                           "children": [
@@ -79,10 +79,10 @@
                 "id": "needs-access/mailbox",
                 "kind": "needs-access",
                 "permission": "mailbox",
-                "summary": "连上邮箱，新邮件就能在这里分拣好。授权码在邮件助手自己的页面里填，只存在这台 Mac 的钥匙串里。",
-                "title": "还没连邮箱",
+                "summary": "连接邮箱后，新邮件在此分拣。授权码在邮件助手的页面中填写，仅保存在本机的钥匙串中。",
+                "title": "未连接邮箱",
                 "urgency": "low",
-                "why_now": "连上邮箱才能分拣"
+                "why_now": "连接邮箱后才能分拣"
               }
             ]
           },
@@ -124,7 +124,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

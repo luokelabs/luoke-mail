@@ -1,4 +1,4 @@
-"""The prompt files (luoke_mail/prompts/, top-level ADR 0019): every request the tasks build is what it was
+"""The prompt files (luoke_mail/prompts/, top-level ADR 0007): every request the tasks build is what it was
 (tests/prompt_snapshot.json), the files load strictly, and an enum is written once."""
 from __future__ import annotations
 

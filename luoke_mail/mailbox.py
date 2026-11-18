@@ -25,7 +25,7 @@ from email.header import decode_header, make_header
 from email.utils import getaddresses, parseaddr, parsedate_to_datetime
 from html.parser import HTMLParser
 
-from . import __version__
+from . import __version__, spf
 from .providers import PROVIDERS
 
 # NetEase needs the ID command; imaplib doesn't know it, so register it (allowed after LOGIN).
@@ -37,16 +37,28 @@ HEADER_FIELDS = "FROM DATE SUBJECT LIST-ID LIST-UNSUBSCRIBE LIST-UNSUBSCRIBE-POS
 
 
 class MailError(Exception):
-    """User-facing error with a friendly Chinese message."""
+    """The mailbox could not do it. `code` says why, for the window to word (top-level ADR 0002; the codes in
+    docs/agent-data.md); the message is the old pages' sentence."""
+    CODE = "mail_error"
+
+    def __init__(self, message: str = "", code: str | None = None):
+        super().__init__(message)
+        self.code = code or self.CODE
 
 
 class KeychainLocked(MailError):
     """The mailbox's password is there, but the keychain could not be read just now: try again later, quietly."""
+    CODE = "keychain_locked"
+
+
+class LoginRefused(MailError):
+    """The mailbox turned the login down: the app password is wrong, revoked or expired (re-entered by the user)."""
+    CODE = "login_refused"
 
 
 def _refused(what: str, data) -> MailError:
     print(f"[luoke-mail] IMAP refused {what}", file=sys.stderr)      # not its reply: servers quote names and addresses
-    return MailError(f"邮箱未能完成{what}，请稍后重试。")
+    return MailError(f"邮箱未能完成{what}，请稍后重试。", "mail_refused")
 
 
 # luoke-mail#40 (10-28): imap.139.com speaks TLS 1.2 with RSA key exchange only, and Python's default ciphers
@@ -76,25 +88,25 @@ def friendly_error(exc: Exception, provider: str) -> MailError:
     msg = str(exc)
     low = msg.lower()
     if isinstance(exc, (socket.timeout, TimeoutError)):
-        return MailError("连接邮箱服务器超时，请检查网络后重试。")
+        return MailError("连接邮箱服务器超时，请检查网络后重试。", "mail_timeout")
     if handshake_failed(exc):
         print(f"[luoke-mail] TLS handshake failed: {type(exc).__name__}", file=sys.stderr)
-        return MailError("无法和邮箱服务器建立加密连接：服务器的加密方式不受支持。请确认服务器地址和端口，或换用邮箱提供的其他 IMAP 地址。")
+        return MailError("无法和邮箱服务器建立加密连接：服务器的加密方式不受支持。请确认服务器地址和端口，或换用邮箱提供的其他 IMAP 地址。", "mail_tls")
     if isinstance(exc, (socket.gaierror, ConnectionRefusedError, OSError)) and not isinstance(exc, imaplib.IMAP4.error):
         print(f"[luoke-mail] IMAP connection failed: {type(exc).__name__}", file=sys.stderr)
-        return MailError("无法连接邮箱服务器，请检查网络或服务器地址。")
+        return MailError("无法连接邮箱服务器，请检查网络或服务器地址。", "mail_unreachable")
     if "unsafe login" in low:
-        return MailError("网易邮箱拒绝登录。请确认已在网页版设置中开启 IMAP，并使用授权码登录。")
+        return MailError("网易邮箱拒绝登录。请确认已在网页版设置中开启 IMAP，并使用授权码登录。", "mail_unsafe_login")
     if "webalert" in low or "web browser" in low:            # Gmail: a sign-in it found unusual, to confirm on the web
-        return MailError("Google 拦下了这次登录：请在浏览器里打开这个 Gmail，按提示确认是你本人，再回来重试。")
+        return MailError("Google 拦下了这次登录：请在浏览器里打开这个 Gmail，按提示确认是你本人，再回来重试。", "mail_login_blocked")
     if any(k in low for k in ("authenticationfailed", "invalid credentials", "login fail", "authenticate failed",
                               "password error", "login error", "user name or password", "application-specific password")):
         print(f"[luoke-mail] IMAP login refused: {type(exc).__name__}", file=sys.stderr)
-        return MailError(PROVIDERS.get(provider, PROVIDERS["custom"])["refused"])
+        return LoginRefused(PROVIDERS.get(provider, PROVIDERS["custom"])["refused"])
     if "imap" in low and ("disabled" in low or "not enabled" in low or "service is not open" in low):
-        return MailError("此邮箱未开启 IMAP 服务，请先在网页版设置中开启。")
+        return MailError("此邮箱未开启 IMAP 服务，请先在网页版设置中开启。", "imap_disabled")
     print(f"[luoke-mail] IMAP error: {type(exc).__name__}", file=sys.stderr)
-    return MailError("邮箱暂时无响应，请稍后重试。如果问题持续，请检查网络，或在邮箱网页版中确认 IMAP 已开启。")
+    return MailError("邮箱暂时无响应，请稍后重试。如果问题持续，请检查网络，或在邮箱网页版中确认 IMAP 已开启。", "mail_unresponsive")
 
 
 # ---- modified UTF-7 for mailbox names (RFC 3501 §5.1.3): "已删除" <-> "&XfJSIJZk-" ----------------
@@ -272,7 +284,7 @@ class Mailbox:
     # ---- session ---------------------------------------------------------------------------
     def open(self, readonly: bool = True) -> None:
         if not self.host:
-            raise MailError("请填写 IMAP 服务器地址。")
+            raise MailError("请填写 IMAP 服务器地址。", "no_server")
         try:
             self.conn = self._connect()
             self.conn.login(self.address, self.secret)
@@ -341,7 +353,7 @@ class Mailbox:
     def _uid_search(self, criteria: list[str]) -> list[bytes]:
         typ, data = self.conn.uid("SEARCH", *criteria)
         if typ != "OK":
-            raise MailError("邮箱搜索失败。")
+            raise MailError("邮箱搜索失败。", "search_failed")
         return (data[0] or b"").split()
 
     def stats(self) -> dict:
@@ -457,7 +469,7 @@ class Mailbox:
     def everywhere_headers(self, days: int, limit: int = 3000, trash: bool = True) -> list[dict]:
         """Headers of the last `days` days of mail wherever it is now -- the inbox, the archive (Gmail's All Mail
         holds both; read once each) and, with `trash`, the trash: what was archived, by the user or by a rule, or deleted outside
-        the mail assistant is learnt from too (top-level ADR 0012 amended: every message is learnt from, whatever
+        the mail assistant is learnt from too (top-level archived ADR 0012 amended: every message is learnt from, whatever
         happens to it after). Once each, by Message-ID. Never the spam folder."""
         arch = pick_folder(self.folders(), "archive")
         folders = ["INBOX"] + ([arch] if arch else [])         # Gmail's All Mail repeats the inbox: deduplicated below
@@ -623,8 +635,8 @@ class Mailbox:
                 return name
             # QQ keeps a client's folders under 「我的文件夹」, and until that is opened to IMAP they exist and can't
             # be seen: mail moved there couldn't be brought back. Nothing is moved.
-            raise MailError(PROVIDERS.get(self.provider, {}).get("archive_hidden") or "邮箱没有开放新建的归档文件夹，邮件没有移动。")
-        raise MailError(f"邮箱中没有{ROLE_LABEL[role]}文件夹。")
+            raise MailError(PROVIDERS.get(self.provider, {}).get("archive_hidden") or "邮箱没有开放新建的归档文件夹，邮件没有移动。", "folder_hidden")
+        raise MailError(f"邮箱中没有{ROLE_LABEL[role]}文件夹。", "no_folder")
 
     def search_sender(self, list_id: str | None, from_addr: str | None) -> list[str]:
         """Inbox UIDs from one mailing list (preferred) or one sender address -- exactly that one."""
@@ -866,7 +878,7 @@ class Mailbox:
         """Gmail: give these messages a label of the user's, or take it off (never \\Inbox: Gmail answers OK and
         changes nothing -- archiving and unarchiving move between folders instead)."""
         if not label.strip() or label.strip().lower() in ("\\inbox", "inbox") or any(c in label for c in "\r\n\0"):
-            raise MailError("无法使用这个标签。")
+            raise MailError("无法使用这个标签。", "label_invalid")
         name = quote_mailbox(label)                    # label names travel like folder names (modified UTF-7)
         self.select(folder, readonly=False)
         typ, data = self.conn.uid("STORE", ",".join(uids), "+X-GM-LABELS" if add else "-X-GM-LABELS", f"({name})")
@@ -1375,41 +1387,148 @@ def main_domain(domain: str) -> str:
     return ".".join(parts[-3:] if ".".join(parts[-2:]) in _TWO_PART_TLDS else parts[-2:])
 
 
-def _dmarc(m: re.Match, h: str, from_domain: str) -> str | None:
-    frm = re.search(r"header\.from=([\w.-]+)", h[m.end():], re.I)
-    f, d = (frm.group(1).lower().rstrip(".") if frm else ""), from_domain.lower()
-    if frm and d != f and not d.endswith("." + f):        # Gmail names the organisation: wirex.example for mail.wirex.example
+def auth_results(h: str) -> tuple[str, list[dict] | None]:
+    """An Authentication-Results value (RFC 8601) as its authserv-id and its results: each `method=result` with its
+    properties (`header.from`, `header.d`, `smtp.mailfrom`, ...) and its comments apart (`note`). What is quoted goes
+    first, and comments are kept out of the rest: the sender writes the envelope address, which the provider copies
+    into the spf result, so `"x;dmarc=pass header.from=bank.example"@attacker.example` or the same in a comment
+    must not read as a result or a property (security review 2026-11-16: the first `dmarc=` anywhere used to count).
+    A quote in a comment is a quote as well: RFC 8601 has none there, but the provider copies the envelope address
+    into the comment as it is (review 2026-11-17). Results None: a quote or a comment left open, which no provider
+    writes -- the sender's doing."""
+    parts: list[tuple[str, str]] = []
+    text, note, depth, quoted, esc = [], [], 0, False, False
+    for ch in h:
+        if esc:                                    # a quoted-pair: the character itself, never syntax
+            esc = False
+            if depth:
+                note.append(ch)
+            continue
+        if ch == "\\" and (quoted or depth):
+            esc = True
+        elif quoted:
+            quoted = ch != '"'                     # what is quoted is dropped
+        elif ch == '"':                            # in a comment too: the envelope address is copied there as well,
+            quoted = True                          # and its `)` would close the comment early (review 2026-11-17)
+            if depth:
+                note.append(" ")
+            else:
+                text.append('""')
+        elif depth:
+            depth += {"(": 1, ")": -1}.get(ch, 0)
+            note.append(ch if depth else " ")
+        elif ch == "(":
+            depth = 1
+            text.append(" ")
+        elif ch == ";":
+            parts.append(("".join(text), "".join(note)))
+            text, note = [], []
+        else:
+            text.append(ch)
+    parts.append(("".join(text), "".join(note)))
+    if quoted or depth:
+        return " ".join(parts[0][0].split()).lower(), None
+    out = []
+    for body, comment in parts[1:]:
+        m = re.match(r"\s*([a-z][a-z0-9-]*)\s*=\s*([a-z]+)\b(.*)", body, re.I | re.S)
+        if m:
+            props = {k.lower(): v for k, v in re.findall(r"(?:^|\s)([a-z]+\.[a-z0-9-]+)\s*=\s*(\S+)", m.group(3), re.I)}
+            out.append({"method": m.group(1).lower(), "result": m.group(2).lower(), "props": props, "note": comment})
+    return " ".join(parts[0][0].split()).lower(), out
+
+
+def _domain_of(value: str | None) -> str:
+    """The domain in a property: `@shop.example`, `a@shop.example` or `shop.example`; "" when there is none."""
+    d = (value or "").rsplit("@", 1)[-1].lower().strip(".")
+    return d if re.fullmatch(r"[a-z0-9_-]+(?:\.[a-z0-9_-]+)+", d) else ""
+
+
+def _dmarc(r: dict, from_domain: str) -> str | None:
+    f, d = _domain_of(r["props"].get("header.from")), from_domain.lower()
+    if r["props"].get("header.from") and d != f and not d.endswith("." + f):    # Gmail names the organisation
         return None
-    if m.group(1).lower() == "fail":
+    if r["result"] == "fail":
         # the domain's owner asks nothing of a failure under p=none, and ordinary list mail fails that way
-        policy = re.search(r"\(([^)]*)\)", h[m.end():m.end() + 80])
-        told = re.findall(r"\b(?:p|dis)=(\w+)", policy.group(1), re.I) if policy else []
+        told = re.findall(r"\b(?:p|dis)=(\w+)", r["note"], re.I)
         return "fail" if not told or any(x.lower() in ("quarantine", "reject") for x in told) else None
-    return {"pass": "pass"}.get(m.group(1).lower())
+    return {"pass": "pass"}.get(r["result"])
+
+
+def _spf_name(name: str) -> str:
+    """What an SPF include stands for: hosting.example for _spf.hosting.example, protection.outlook.com for
+    spf.protection.outlook.com."""
+    labels = name.split(".")
+    while len(labels) > 2 and (labels[0].startswith("_") or labels[0] in ("spf", "spf1", "spf2")):
+        labels = labels[1:]
+    return ".".join(labels)
+
+
+# Services that sign for any of their users under their own name (review 2026-11-17: a Google Workspace domain
+# includes _spf.google.com, and Google signs notices any account sends -- a calendar invitation, a shared document --
+# as google.com). As a mailbox provider anyone signs up to, never a relay.
+SENDS_FOR_ANYONE = {"google.com"}
+
+
+def _relayed(results: list[dict], from_domain: str) -> bool:
+    """A DMARC failure where a service the From domain's own SPF record names sent the mail: SPF or DKIM passed for
+    that service (it signed or sent under its own name, not the sender's, so the two do not line up), and the domain
+    says the service may send for it (spf.services). Not a sign of someone else using the domain -- that one can't
+    put a service in the domain's record. Never a mailbox provider anyone can sign up to (triage.SHARED_DOMAINS,
+    review 2026-11-16: a company on NetEase's business mail includes spf.163.com, and any 163.com user writing as the
+    company passes for 163.com). Another customer of the same service could still pass this way: the model reads the
+    content as for any mail without a verdict. DNS is asked only when such a service passed."""
+    from .triage import SHARED_DOMAINS
+    anyone = SHARED_DOMAINS | SENDS_FOR_ANYONE
+    own, sent = main_domain(from_domain), set()
+    for r in results:
+        if r["result"] != "pass":
+            continue
+        if r["method"] == "spf":
+            d = _domain_of(r["props"].get("smtp.mailfrom"))
+        elif r["method"] == "dkim":
+            d = _domain_of(r["props"].get("header.d") or r["props"].get("header.i"))
+        else:
+            continue
+        if d and main_domain(d) != own and main_domain(d) not in anyone:
+            sent.add(d)
+    if not sent:
+        return False
+    until = spf.deadline()                                  # one mail: five seconds of DNS in all
+    named = {_spf_name(x) for x in spf.services(from_domain, until) or spf.services(own, until)}
+    return any(d == n or d.endswith("." + n) for d in sent for n in named if main_domain(n) not in anyone)
 
 
 def sender_check(msg, authserv: str | None, from_domain: str) -> str | None:
     """The receiving provider's own verdict on the From domain: "pass" (the mail really comes from that domain --
-    which says nothing about whether the domain is the organisation it names), "fail", or None (not there, not this
-    provider's, or no clear verdict). Only the topmost Authentication-Results counts, and only with the provider's
-    own id: the provider adds it on receipt, above anything the sender wrote into the message.
+    which says nothing about whether the domain is the organisation it names), "fail", "relay" (DMARC failed, but a
+    service the domain's own SPF record names sent it, _relayed: no verdict for the model, as with None), or None
+    (not there, not this provider's, or no clear verdict). Only the topmost Authentication-Results counts, and only
+    with the provider's own id: the provider adds it on receipt, above anything the sender wrote into the message.
+    Read with auth_results: only what starts a result is one.
 
     DMARC where there is one. NetEase and QQ give only DKIM and SPF (#41): a DKIM signature of the sender's own
     organisation is a pass, both failing is a fail, the rest says nothing."""
     tops = msg.get_all("Authentication-Results") or []
     if not (authserv and from_domain and tops):
         return None
-    h = " ".join(str(tops[0]).split())
-    if not re.fullmatch(authserv, h.split(";", 1)[0].strip().lower()):
+    serv, results = auth_results(" ".join(str(tops[0]).split()))
+    if not re.fullmatch(authserv, serv):
         return None
-    m = re.search(r"\bdmarc=([a-z]+)", h, re.I)
-    if m:
-        return _dmarc(m, h, from_domain)
-    dkim, spf = (re.search(rf"\b{k}=([a-z]+)", h, re.I) for k in ("dkim", "spf"))
-    signer = re.search(r"header\.(?:d|i)=@?([\w.-]+)", h, re.I)
-    if dkim and dkim.group(1).lower() == "pass" and signer and main_domain(signer.group(1)) == main_domain(from_domain):
+    if results is None:
+        return "fail"                    # left open to hide what follows: not a verdict to lose
+    dmarc = [r for r in results if r["method"] == "dmarc"]
+    if len(dmarc) > 1:
+        return "fail"                    # a provider gives one: another is the sender's (review 2026-11-17)
+    if dmarc:
+        verdict = _dmarc(dmarc[0], from_domain)
+        return "relay" if verdict == "fail" and _relayed(results, from_domain) else verdict
+    dkim = [r for r in results if r["method"] == "dkim"]
+    spfs = [r for r in results if r["method"] == "spf"]
+    own = main_domain(from_domain)
+    if any(r["result"] == "pass" and _domain_of(r["props"].get("header.d") or r["props"].get("header.i")) and
+           main_domain(_domain_of(r["props"].get("header.d") or r["props"].get("header.i"))) == own for r in dkim):
         return "pass"
-    if dkim and spf and dkim.group(1).lower() == "fail" and spf.group(1).lower() == "fail":
+    if dkim and spfs and all(r["result"] == "fail" for r in dkim) and spfs[0]["result"] == "fail":
         return "fail"
     return None
 

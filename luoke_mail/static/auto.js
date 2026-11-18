@@ -1,7 +1,7 @@
 // Background sorting is a property of the whole app, not of one page: its controls live in 设置, and its
 // state (with the processing mode) sits at the bottom of the rail on every page. Turning it on hands this
 // page over to the login item; the background sorts, notifies, marks sorted mail read and carries out confirmed
-// habits (ADR 0016) -- each listed in 今日处理 -- and never trashes, unsubscribes or sends.
+// habits (ADR 0006) -- each listed in 今日处理 -- and never trashes, unsubscribes or sends.
 import { $, S, api, confirmDialog, el, endPage, mailboxes, nav, setupDone, toast, withBusy } from "./core.js";
 import { renderActivity } from "./activity.js";
 

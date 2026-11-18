@@ -21,7 +21,7 @@
         },
         {
           "mimeType": "application/json",
-          "name": "今日处理",
+          "name": "今日",
           "uri": "page/today"
         },
         {
@@ -31,23 +31,18 @@
         },
         {
           "mimeType": "application/json",
-          "name": "清理",
-          "uri": "page/clean"
-        },
-        {
-          "mimeType": "application/json",
           "name": "精选",
           "uri": "page/digest"
         },
         {
           "mimeType": "application/json",
-          "name": "订阅体检",
-          "uri": "page/subs"
+          "name": "清理",
+          "uri": "page/clean"
         },
         {
           "mimeType": "application/json",
-          "name": "规则",
-          "uri": "page/rules"
+          "name": "邮箱和设置",
+          "uri": "page/legacy-settings"
         },
         {
           "mimeType": "application/json",
@@ -56,8 +51,88 @@
         },
         {
           "mimeType": "application/json",
-          "name": "设置",
-          "uri": "page/settings"
+          "name": "规则",
+          "uri": "page/rules"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "订阅体检",
+          "uri": "page/subs"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "清理旧邮件",
+          "uri": "page/sweep"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "精选内容",
+          "uri": "page/piece"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "原始数据：accounts",
+          "uri": "data/accounts"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "原始数据：today",
+          "uri": "data/today"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "原始数据：inbox",
+          "uri": "data/inbox"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "原始数据：digest",
+          "uri": "data/digest"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "原始数据：clean",
+          "uri": "data/clean"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "原始数据：settings",
+          "uri": "data/settings"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "原始数据：activity",
+          "uri": "data/activity"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "原始数据：mail",
+          "uri": "data/mail"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "原始数据：providers",
+          "uri": "data/providers"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "原始数据：sender",
+          "uri": "data/sender"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "原始数据：old",
+          "uri": "data/old"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "原始数据：job",
+          "uri": "data/job"
+        },
+        {
+          "mimeType": "application/json",
+          "name": "原始数据：piece",
+          "uri": "data/piece"
         }
       ],
       "resultType": "complete"
@@ -95,7 +170,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

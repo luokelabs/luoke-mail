@@ -7,14 +7,13 @@ from __future__ import annotations
 
 import email.utils
 import html
-import ipaddress
 import re
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 
-from . import __version__
+from . import __version__, netguard
 
 FETCH_TIMEOUT = 10
 FETCH_LIMIT = 1_500_000
@@ -67,9 +66,10 @@ class _Page(HTMLParser):
             self._anchor += data
 
 
-def _get(url: str) -> tuple[bytes, str]:
+def _get(url: str, base: str) -> tuple[bytes, str]:
+    """Read one address of the site at `base`; a redirect is followed only where _may_read allows it."""
     req = urllib.request.Request(url, headers={"User-Agent": f"luoke-mail/{__version__} (reading the owner's own site)"})
-    with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT) as r:
+    with netguard.urlopen(req, timeout=FETCH_TIMEOUT, allow=lambda u: _may_read(u, base)) as r:
         return r.read(FETCH_LIMIT), r.headers.get_content_charset() or "utf-8"
 
 
@@ -120,9 +120,14 @@ def _feed(raw: bytes) -> list[dict]:
 
 
 def _may_read(url: str, base: str) -> bool:
-    """An address the page itself points to (its feed) is read only over http(s), and not on this Mac or the local
-    network -- unless the address the user gave is there too."""
-    p = urllib.parse.urlparse(url)
+    """An address the page itself points to (its feed, a redirect) is read only over http(s), and not on this Mac or
+    the local network -- unless the address the user gave is there too. A name counts by what it resolves to: a
+    public-looking name can point at 127.0.0.1 or 192.168.x."""
+    try:
+        p = urllib.parse.urlparse(url)
+        port = p.port
+    except ValueError:
+        return False
     if p.scheme not in ("http", "https") or not p.hostname:
         return False
     host = p.hostname.lower()
@@ -130,18 +135,16 @@ def _may_read(url: str, base: str) -> bool:
         return True
     if host == "localhost" or host.endswith((".localhost", ".local", ".internal", ".lan", ".home.arpa")):
         return False
-    try:
-        return ipaddress.ip_address(host).is_global
-    except ValueError:
-        return True
+    return netguard.public_host(host, port or (443 if p.scheme == "https" else 80))
 
 
-def fetch_site(url: str, get=_get) -> dict:
+def fetch_site(url: str, get=None) -> dict:
     """The user's own site: its title and description, and its posts -- from its feed when it has one, otherwise
     from the links on its front page. Read-only, and only addresses the user gave. ValueError for a bad address."""
     p = urllib.parse.urlparse(url.strip())
     if p.scheme not in ("http", "https") or not p.hostname:
         raise ValueError("请填写以 http:// 或 https:// 开头的网址。")
+    get = get or (lambda u: _get(u, url))
     raw, charset = get(url)
     if _is_feed(raw):
         return {"url": url, "title": "", "about": "", "posts": _feed(raw)}

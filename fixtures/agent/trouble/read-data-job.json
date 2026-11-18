@@ -1,0 +1,78 @@
+{
+  "reply": {
+    "id": 35,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "account": "me@example.com",
+            "done": 0,
+            "error": "Gmail 拒绝登录：请填写应用专用密码，而不是 Google 账号的登录密码。修改过 Google 密码时，原有的应用专用密码已失效，需要重新创建。",
+            "error_code": "login_refused",
+            "id": "job-sync-1",
+            "kind": "sync",
+            "result": {},
+            "scope": null,
+            "stage": null,
+            "status": "error",
+            "total": 0
+          },
+          "uri": "data/job?id=job-sync-1"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 35,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/job?id=job-sync-1"
+    }
+  }
+}

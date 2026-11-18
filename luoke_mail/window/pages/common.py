@@ -12,12 +12,17 @@ def per(p: kit.Page, n: int) -> int:
 
 
 def mailbox_row(w, p: kit.Page) -> None:
-    """Which mailbox the page shows, when there are several: the chosen one as text, the others as buttons."""
+    """Which mailbox the page shows, when there are several: each by the name the user gave it in 设置 (「工作」
+    「个人」), its address on hover (设计规范 §18.2); the one shown is not a quiet button. Where the core draws no
+    tooltip, the shown one is its address."""
     accts = w.app.mail_accounts()
     if len(accts) < 2:
         return
     now = w.source(p.page)
-    p.add(p.row(*[p.text(a, "caption") if a == now else p.go(a, {"account": a}) for a in accts]))
+    tip = p.can("tooltip")
+    p.add(p.row(*[p.go(w.app.mailbox_name(a), {"account": a}, quiet=a != now, tip=a) if tip else
+                  p.text(a, "caption") if a == now else p.go(w.app.mailbox_name(a), {"account": a})
+                  for a in accts]))
 
 
 def running(w, p: kit.Page) -> None:

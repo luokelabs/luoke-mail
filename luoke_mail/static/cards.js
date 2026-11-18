@@ -16,7 +16,7 @@ export function primaryOp(it) {
 }
 
 // a button that changes the mailbox; once clicked it says what it is doing. Only what cannot be taken back, done
-// to many at once (`bulk`: to the trash or junk), waits for 处理模式 (ADR 0016)
+// to many at once (`bulk`: to the trash or junk), waits for 处理模式 (ADR 0006)
 function writeBtn(label, onclick, cls = "btn small", pending = "处理中…", bulk = false, ico = null) {
   const can = !bulk || handlers.canWrite();
   return el("button", { type: "button", class: cls, title: can ? null : "删除前需要先开启处理模式，点击时会说明",

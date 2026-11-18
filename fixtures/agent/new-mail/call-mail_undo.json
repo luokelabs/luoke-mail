@@ -1,11 +1,11 @@
 {
   "reply": {
-    "id": 26,
+    "id": 66,
     "jsonrpc": "2.0",
     "result": {
       "content": [
         {
-          "text": "已撤销：1 封草稿删掉了。",
+          "text": "已撤销：删除草稿 1 封。",
           "type": "text"
         }
       ],
@@ -26,7 +26,7 @@
                 {
                   "component": "Text",
                   "id": "end-t1",
-                  "text": "已撤销：1 封草稿删掉了。"
+                  "text": "已撤销：删除草稿 1 封。"
                 }
               ],
               "surfaceId": "new-mail-000000000001"
@@ -39,7 +39,7 @@
     }
   },
   "request": {
-    "id": 26,
+    "id": 66,
     "jsonrpc": "2.0",
     "method": "tools/call",
     "params": {
@@ -75,7 +75,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

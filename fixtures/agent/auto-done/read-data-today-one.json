@@ -1,0 +1,204 @@
+{
+  "reply": {
+    "id": 19,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "day": "2026-10-20",
+            "decide": [],
+            "handled": [
+              {
+                "account": "me@example.com",
+                "at": "2026-10-20 09:30:00",
+                "by": "habit",
+                "categories": [
+                  "promotion"
+                ],
+                "count": 1,
+                "label": null,
+                "log_id": 3,
+                "mails": [
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-19 18:06",
+                    "from": {
+                      "address": "news@shop.example",
+                      "name": "某某商城"
+                    },
+                    "id": 3,
+                    "subject": "周末促销"
+                  }
+                ],
+                "more": 0,
+                "ok": true,
+                "op": "archive",
+                "senders": [
+                  {
+                    "address": "news@shop.example",
+                    "name": "某某商城"
+                  }
+                ],
+                "undoable": true,
+                "undone": false
+              },
+              {
+                "account": "me@example.com",
+                "at": "2026-10-20 09:30:00",
+                "by": "habit",
+                "categories": [
+                  "promotion"
+                ],
+                "count": 1,
+                "label": null,
+                "log_id": 2,
+                "mails": [
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-19 18:06",
+                    "from": {
+                      "address": "news@books.example",
+                      "name": "某某书店"
+                    },
+                    "id": 2,
+                    "subject": "新品上架"
+                  }
+                ],
+                "more": 0,
+                "ok": true,
+                "op": "archive",
+                "senders": [
+                  {
+                    "address": "news@books.example",
+                    "name": "某某书店"
+                  }
+                ],
+                "undoable": true,
+                "undone": false
+              },
+              {
+                "account": "me@example.com",
+                "at": "2026-10-20 09:30:00",
+                "by": "read",
+                "categories": [
+                  "work",
+                  "promotion"
+                ],
+                "count": 3,
+                "label": null,
+                "log_id": 1,
+                "mails": [
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-20 01:18",
+                    "from": {
+                      "address": "wang@school.example",
+                      "name": "王老师"
+                    },
+                    "id": 1,
+                    "subject": "答辩时间确认"
+                  },
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-19 18:06",
+                    "from": {
+                      "address": "news@books.example",
+                      "name": "某某书店"
+                    },
+                    "id": 2,
+                    "subject": "新品上架"
+                  },
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-19 18:06",
+                    "from": {
+                      "address": "news@shop.example",
+                      "name": "某某商城"
+                    },
+                    "id": 3,
+                    "subject": "周末促销"
+                  }
+                ],
+                "more": 0,
+                "ok": true,
+                "op": "read",
+                "senders": [
+                  {
+                    "address": "wang@school.example",
+                    "name": "王老师"
+                  },
+                  {
+                    "address": "news@books.example",
+                    "name": "某某书店"
+                  },
+                  {
+                    "address": "news@shop.example",
+                    "name": "某某商城"
+                  }
+                ],
+                "undoable": true,
+                "undone": false
+              }
+            ],
+            "picked": 0,
+            "replies": 1
+          },
+          "uri": "data/today?account=me%40example.com"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 19,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/today?account=me%40example.com"
+    }
+  }
+}

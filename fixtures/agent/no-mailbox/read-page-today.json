@@ -34,7 +34,7 @@
                   {
                     "component": "Text",
                     "id": "g1-t2",
-                    "text": "在「设置」里添加邮箱以后，这里会列出螺壳每天处理过的邮件。",
+                    "text": "在「设置」里添加邮箱以后，这里会列出螺壳每天替你处理的邮件。",
                     "variant": "caption"
                   }
                 ],
@@ -81,7 +81,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

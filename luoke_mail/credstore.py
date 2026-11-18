@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+import unicodedata
 
 from .config import CONFIG_DIR, DEFAULT_DIR
 
@@ -52,10 +53,13 @@ class KeychainStore:
         return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
     def set(self, name: str, account: str, secret: str) -> None:
-        if "\n" in secret or "\r" in secret:
-            raise ValueError("secret must be a single line")
+        # one line to `security -i`, which takes a newline as the next command, inside quotes too: no control
+        # character in any of the three, or an address could carry a second command (security review, 11-13)
+        svc = service(name, self.home)
+        if any(unicodedata.category(c) == "Cc" for c in svc + account + secret):
+            raise ValueError("keychain entries are single lines without control characters")
         cmd = "add-generic-password -U -s {} -a {} -w {}\n".format(
-            self._quote(service(name, self.home)), self._quote(account), self._quote(secret))
+            self._quote(svc), self._quote(account), self._quote(secret))
         p = subprocess.run([self.bin, "-i"], input=cmd, capture_output=True, text=True, timeout=20)
         if p.returncode != 0 or "error" in (p.stderr or "").lower():
             raise RuntimeError(f"写入钥匙串失败：{(p.stderr or p.stdout).strip()[:200]}")

@@ -1,6 +1,6 @@
 {
   "reply": {
-    "id": 16,
+    "id": 35,
     "jsonrpc": "2.0",
     "result": {
       "contents": [
@@ -33,7 +33,7 @@
                         {
                           "component": "Text",
                           "id": "h1",
-                          "text": "1 封要处理",
+                          "text": "1 封待处理",
                           "variant": "h4"
                         },
                         {
@@ -114,7 +114,7 @@
                             },
                             {
                               "icon": "circle-minus",
-                              "label": "先不动",
+                              "label": "暂不处理",
                               "value": "keep"
                             }
                           ],
@@ -163,7 +163,7 @@
                         {
                           "component": "Text",
                           "id": "b13-text",
-                          "text": "写草稿 1"
+                          "text": "处理这封"
                         },
                         {
                           "children": [
@@ -197,7 +197,7 @@
                         {
                           "component": "Text",
                           "id": "b14-text",
-                          "text": "在邮件助手里看"
+                          "text": "在邮件助手中查看"
                         },
                         {
                           "children": [
@@ -240,16 +240,16 @@
                 "id": "new-mail/new-mail-000000000001",
                 "kind": "new-mail",
                 "summary": "王老师：王老师问答辩时间，周五前回。",
-                "title": "1 封邮件要你处理",
+                "title": "1 封待处理邮件",
                 "urgency": "normal",
-                "why_now": "分拣好了，1 封要你先处理，最早的要在 2026-10-23 前回"
+                "why_now": "分拣完成，1 封待处理，最早一封需在 2026-10-23 前回复"
               },
               {
                 "card": [
                   {
                     "createSurface": {
                       "catalogId": "ai.luoke/a2ui/agent/1",
-                      "surfaceId": "mailbox-000000000003-06d033ec"
+                      "surfaceId": "mailbox-000000000004-06d033ec"
                     },
                     "version": "v0.9"
                   },
@@ -261,7 +261,7 @@
                             "r3",
                             "d4",
                             "r7",
-                            "g12"
+                            "g13"
                           ],
                           "component": "Column",
                           "id": "root",
@@ -299,7 +299,7 @@
                         {
                           "component": "Text",
                           "id": "t6",
-                          "text": "可以整理"
+                          "text": "待整理"
                         },
                         {
                           "children": [
@@ -312,7 +312,7 @@
                         {
                           "component": "Text",
                           "id": "t8",
-                          "text": "多是某某商城。",
+                          "text": "来自 某某商城。",
                           "variant": "caption"
                         },
                         {
@@ -325,7 +325,7 @@
                                   ]
                                 },
                                 "part": "tidy",
-                                "plan_id": "mailbox-000000000003-06d033ec"
+                                "plan_id": "mailbox-000000000004-06d033ec"
                               },
                               "name": "mail_apply_plan"
                             }
@@ -363,7 +363,7 @@
                                   ]
                                 },
                                 "part": "tidy",
-                                "plan_id": "mailbox-000000000003-06d033ec"
+                                "plan_id": "mailbox-000000000004-06d033ec"
                               },
                               "name": "mail_apply_plan"
                             }
@@ -380,7 +380,7 @@
                         {
                           "component": "Text",
                           "id": "b11-text",
-                          "text": "先不动"
+                          "text": "暂不处理"
                         },
                         {
                           "children": [
@@ -391,9 +391,46 @@
                           "id": "b11-row"
                         },
                         {
+                          "action": {
+                            "event": {
+                              "context": {
+                                "args": {
+                                  "box": "me@example.com",
+                                  "part": "tidy",
+                                  "plan": "mailbox-000000000004-06d033ec"
+                                },
+                                "page": "inbox"
+                              },
+                              "name": "agent.open_page"
+                            }
+                          },
+                          "child": "b12-row",
+                          "component": "Button",
+                          "id": "b12"
+                        },
+                        {
+                          "component": "Icon",
+                          "id": "b12-icon",
+                          "name": "inbox"
+                        },
+                        {
+                          "component": "Text",
+                          "id": "b12-text",
+                          "text": "查看邮件"
+                        },
+                        {
+                          "children": [
+                            "b12-icon",
+                            "b12-text"
+                          ],
+                          "component": "Row",
+                          "id": "b12-row"
+                        },
+                        {
                           "children": [
                             "b10",
-                            "b11"
+                            "b11",
+                            "b12"
                           ],
                           "component": "Row",
                           "id": "r9"
@@ -404,29 +441,29 @@
                             "r9"
                           ],
                           "component": "Column",
-                          "id": "g12"
+                          "id": "g13"
                         }
                       ],
-                      "surfaceId": "mailbox-000000000003-06d033ec"
+                      "surfaceId": "mailbox-000000000004-06d033ec"
                     },
                     "version": "v0.9"
                   }
                 ],
                 "created": "2026-10-19T18:06:00",
                 "deadline": null,
-                "id": "mailbox/mailbox-000000000003-06d033ec",
+                "id": "mailbox/mailbox-000000000004-06d033ec",
                 "kind": "mailbox",
-                "summary": "整理：删除 1，多是某某商城。",
-                "title": "1 封可以整理",
+                "summary": "整理：删除 1，来自 某某商城。",
+                "title": "1 封待整理",
                 "urgency": "low",
-                "why_now": "不急，有空时看看"
+                "why_now": "不紧急"
               },
               {
                 "card": [
                   {
                     "createSurface": {
                       "catalogId": "ai.luoke/a2ui/agent/1",
-                      "surfaceId": "auto-done-000000000004"
+                      "surfaceId": "auto-done-000000000005"
                     },
                     "version": "v0.9"
                   },
@@ -452,7 +489,7 @@
                         {
                           "component": "Text",
                           "id": "t2",
-                          "text": "按你的习惯自动归档 1 封"
+                          "text": "按习惯自动归档 1 封"
                         },
                         {
                           "component": "Text",
@@ -486,19 +523,19 @@
                           "id": "r4"
                         }
                       ],
-                      "surfaceId": "auto-done-000000000004"
+                      "surfaceId": "auto-done-000000000005"
                     },
                     "version": "v0.9"
                   }
                 ],
                 "created": "2026-10-20T09:40:00",
                 "deadline": null,
-                "id": "auto-done/auto-done-000000000004",
+                "id": "auto-done/auto-done-000000000005",
                 "kind": "auto-done",
-                "summary": "按你的习惯自动归档 1 封",
+                "summary": "按习惯自动归档 1 封",
                 "title": "已自动处理 1 封",
                 "urgency": "normal",
-                "why_now": "这些是自动做的，不对可以撤销"
+                "why_now": "已自动处理，可撤销"
               }
             ]
           },
@@ -509,7 +546,7 @@
     }
   },
   "request": {
-    "id": 16,
+    "id": 35,
     "jsonrpc": "2.0",
     "method": "resources/read",
     "params": {
@@ -540,7 +577,11 @@
                 "saveFile",
                 "neutralBadge",
                 "chips",
-                "pageSections"
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
               ]
             }
           }

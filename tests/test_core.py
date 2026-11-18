@@ -536,6 +536,23 @@ class TriageTests(unittest.TestCase):
         r = triage.parse_output(suggestion("archive", risks=["冒充", "乱写", "冒充"]))
         self.assertEqual(r["risks"], ["冒充"])                              # unknown ones dropped, each once
 
+    def test_a_flag_on_a_failed_check_says_so(self):
+        # 2026-11-16: 「这是一封产品更新和活动推广的营销邮件，无需立即处理」 under 判为可疑
+        def flagged(risks, auth="fail", suspicious=True):
+            r = triage.parse_output(suggestion("ignore", suspicious=suspicious, risks=risks,
+                                               reason="这是一封产品更新和活动推广的营销邮件，无需立即处理。"))
+            return triage.settle_failure(r, {"from_addr": "news@vendor.example", "auth": auth})
+        said = "邮箱服务商验证发件人没有通过：这封邮件可能是别人冒用 vendor.example 发的。"
+        self.assertEqual(flagged([])["reason"], said)
+        self.assertEqual(flagged(["冒充"])["reason"], said)
+        self.assertEqual(flagged(["冒充", "可疑链接"])["reason"], said + "这是一封产品更新和活动推广的营销邮件，无需立即处理。")
+        for r in (flagged([], auth="relay"), flagged([], auth=None), flagged([], suspicious=False)):
+            self.assertEqual(r["reason"], "这是一封产品更新和活动推广的营销邮件，无需立即处理。")
+        # as ASCII, and not too long (review 2026-11-16)
+        self.assertEqual(triage._shown_domain("例え.example"), "xn--r8jz45g.example")
+        self.assertEqual(len(triage._shown_domain("a" * 50 + "." + "b" * 50 + ".example")), 60)
+        self.assertTrue(triage._shown_domain("a" * 50 + "." + "b" * 50 + ".example").endswith(".example"))
+
     def test_the_code_weighs_a_pass_the_model_is_not_told(self):
         from fakes import suggestion
 

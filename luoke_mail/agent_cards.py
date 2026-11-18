@@ -1,4 +1,4 @@
-# Copied from luoke-agent (luoke_agent/cards.py, commit 15a9f75): the tool protocol's reference code, stdlib only.
+# Copied from luoke-agent (luoke_agent/cards.py, commit 6afa8e8): the tool protocol's reference code, stdlib only.
 # Change it there and copy it again; do not edit this copy.
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 # Copyright 2026 螺壳实验室 Luoke Labs
@@ -8,8 +8,8 @@
 `ai.luoke/a2ui/agent/1`；想查对不对，用 luoke_agent.a2ui.validate()。
 
     card = Card("plan-42")
-    card.heading("这 2 封我打算这样处理")
-    card.choice("m1", "王老师：答辩时间？（周五前回）", [("draft", "写草稿"), ("star", "加星标"), ("keep", "先不动")], "draft")
+    card.heading("2 封邮件的处理方案")
+    card.choice("m1", "王老师：答辩时间？（周五前回）", [("draft", "写草稿"), ("star", "加星标"), ("keep", "暂不处理")], "draft")
     card.buttons(button("写草稿 1", "mail_apply_plan", {"plan_id": "plan-42", "choices": CHOICES}, primary=True))
     messages = card.messages()
 
@@ -17,7 +17,7 @@
 `CHOICES`（即 `{"path": "/choices"}`），agent 点按时换成 `{"m1": ["draft"], …}` 交回来。
 
 「今天」的新模板（§4「后加的写法」）：`plan_card` 一张卡片一列邮件，`mailbox_card` 一个邮箱一张、
-分几块（待处理 / 可以整理 / 判为可疑）。旧的核心不认新写法：把请求 `_meta` 交给 `host_features`，结果传给 `features=`，
+分几块（待处理 / 待整理 / 判为可疑）。旧的核心不认新写法：把请求 `_meta` 交给 `host_features`，结果传给 `features=`，
 核心没列全就出原来的样子。
 """
 from __future__ import annotations
@@ -284,7 +284,7 @@ def plan_card(surface_id: str, title: str, items: Iterable[dict], *, apply_event
               apply_label: str, note: Optional[str] = None, badge: Optional[str] = None,
               extra_buttons: Sequence[dict] = (), update: bool = False, id_prefix: str = "",
               features: Optional[Iterable[str]] = None) -> List[dict]:
-    """「这几封我打算这样处理」：一张卡片一列邮件（每项见 `Card.mail_items`）。`badge` 是标题后面的标签（邮箱地址）。
+    """「N 封邮件的处理方案」：一张卡片一列邮件（每项见 `Card.mail_items`）。`badge` 是标题后面的标签（邮箱地址）。
 
     主按钮写清做什么（`apply_label`，例如「加星标 4 · 写草稿 1」），调 `apply_event`，上下文是
     `{"plan_id": …, "choices": {每项的 key: [选中的值]}}`。`update=True` 时出的是换掉同一张卡片的消息（例如执行不了时

@@ -1,5 +1,5 @@
 """今日处理: what the mail assistant did with each message today, for the user to look over and put right (top-level
-ADR 0016, 2026-10-19: 「AI 处理过的应该就是已读了，然后根据学习的结论该归档归档，事后我自己 review AI 的处理
+ADR 0006, 2026-10-19: 「AI 处理过的应该就是已读了，然后根据学习的结论该归档归档，事后我自己 review AI 的处理
 是不是对……每天给我一个让我 review 今天自动处理结果的页面，包括没自动处理的也算处理结果」).
 
 Every message sorted or handled that day is listed with its outcome -- archived by a habit, marked read and left in

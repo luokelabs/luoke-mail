@@ -65,8 +65,8 @@ class Refused(EngineError):
     """The hub said no (a reason code): `code`, and `retry_after` seconds when asking again makes sense."""
 
     def __init__(self, message: str, code: str, retry_after: float | None = None, detail: str = ""):
-        super().__init__(message)
-        self.code, self.retry_after, self.detail = code, retry_after, detail
+        super().__init__(message, code)
+        self.retry_after, self.detail = retry_after, detail
 
 
 def _refusal(code: str, data: dict) -> EngineError:
@@ -163,7 +163,7 @@ class Hub(Link):
     # ---- plain calls ----------------------------------------------------------------------------------
     def _conn(self, timeout: float) -> _Unix:
         if not self.path:
-            raise EngineError(NOT_RUNNING)
+            raise EngineError(NOT_RUNNING, "hub_not_running")
         return _Unix(self.path, timeout)
 
     def _headers(self, extra: dict | None = None) -> dict:
@@ -185,7 +185,7 @@ class Hub(Link):
             raise
         except (OSError, http.client.HTTPException) as ex:
             print(f"[luoke-mail] hub unreachable: {type(ex).__name__}", file=sys.stderr)
-            raise EngineError(NOT_RUNNING) from ex
+            raise EngineError(NOT_RUNNING, "hub_not_running") from ex
         try:
             data = json.loads(raw.decode("utf-8")) if raw else {}
         except ValueError:
@@ -276,7 +276,7 @@ class Hub(Link):
                 r = c.getresponse()
             except (OSError, http.client.HTTPException) as ex:
                 print(f"[luoke-mail] hub unreachable: {type(ex).__name__}", file=sys.stderr)
-                raise EngineError(NOT_RUNNING) from ex
+                raise EngineError(NOT_RUNNING, "hub_not_running") from ex
             _note_version(self.path, r)
             if r.status != 200:
                 raw = r.read()
@@ -290,7 +290,7 @@ class Hub(Link):
                 while True:
                     raw = r.readline()
                     if not raw:
-                        raise EngineError("模型的回答没有完整传回，请稍后重试。")
+                        raise EngineError("模型的回答没有完整传回，请稍后重试。", "model_incomplete")
                     line = raw.decode("utf-8", "replace").rstrip("\r\n")
                     if line.startswith("event: "):
                         event = line[7:].strip()
@@ -318,8 +318,8 @@ class Hub(Link):
             except (OSError, http.client.HTTPException, ValueError) as ex:
                 print(f"[luoke-mail] hub stream broke: {type(ex).__name__}", file=sys.stderr)
                 if isinstance(ex, socket.timeout):
-                    raise EngineError("模型响应超时，请稍后重试。") from ex
-                raise EngineError("模型的回答没有完整传回，请稍后重试。") from ex
+                    raise EngineError("模型响应超时，请稍后重试。", "model_timeout") from ex
+                raise EngineError("模型的回答没有完整传回，请稍后重试。", "model_incomplete") from ex
         finally:
             c.close()
         return "".join(parts).strip(), usage, time.time() - t0

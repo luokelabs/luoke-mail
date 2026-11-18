@@ -1,4 +1,4 @@
-"""The prompts, as files (top-level ADR 0019): each task has <task>.system.txt (the standing instructions),
+"""The prompts, as files (top-level ADR 0007): each task has <task>.system.txt (the standing instructions),
 <task>.user.txt (how one request's input is worded and in what order), <task>.retry.txt (what is said after an
 unusable answer, when the task asks again) and <task>.schema.json (the answer's form); _shared.txt holds the pieces
 more than one task uses. Code reads the files, prepares the values (cut, joined, dates written out), fills them in

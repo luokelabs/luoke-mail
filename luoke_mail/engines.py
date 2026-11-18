@@ -144,7 +144,12 @@ def scan(extra: list[dict] | None = None, api_keys: dict | None = None) -> dict:
 
 
 class EngineError(Exception):
-    pass
+    """The model could not answer. `code` says why, for the window to word (top-level ADR 0002; the codes in
+    docs/agent-data.md); the message is the old pages' sentence."""
+
+    def __init__(self, message: str = "", code: str = "model_error"):
+        super().__init__(message)
+        self.code = code
 
 
 class MemoryFull(EngineError):
@@ -152,7 +157,7 @@ class MemoryFull(EngineError):
     connection problem, and trying a simpler request does not help; a shorter prompt might."""
 
     def __init__(self, message: str, prompt_too_big: bool = False):
-        super().__init__(message)
+        super().__init__(message, "memory_full")
         self.prompt_too_big = prompt_too_big
 
 
@@ -214,8 +219,8 @@ class Busy(EngineError):
     (`retry_after` seconds, when the hub said). Background work that gets it stops and comes back."""
 
     def __init__(self, message: str, retry_after: float | None = None, code: str = "busy", reason: str | None = None):
-        super().__init__(message)
-        self.retry_after, self.code = retry_after, code
+        super().__init__(message, code)
+        self.retry_after = retry_after
         self.reason = reason                # the hub's why (V1 §8): power_cooldown, interactive, idle_job, battery...
 
 
@@ -344,16 +349,16 @@ def _chat_json(base_url: str, model: str, messages: list[dict], schema: dict, ap
             if full:
                 raise full from e
             if e.code in (401, 403):
-                raise EngineError("模型服务需要 API Key，或 Key 不正确。请重新连接模型服务。") from e
+                raise EngineError("模型服务需要 API Key，或 Key 不正确。请重新连接模型服务。", "model_auth") from e
             if e.code == 404:
-                raise EngineError(f"模型服务中没有「{model}」。请确认模型已下载，或选择其他模型。") from e
-            last = EngineError("模型服务未正常响应，可能是内存不足或模型尚未加载。请稍后重试，或换用较小的模型。")
+                raise EngineError(f"模型服务中没有「{model}」。请确认模型已下载，或选择其他模型。", "model_missing") from e
+            last = EngineError("模型服务未正常响应，可能是内存不足或模型尚未加载。请稍后重试，或换用较小的模型。", "model_unresponsive")
             continue   # 400/422/500: try a simpler request
         except Exception as e:  # noqa: BLE001
             print(f"[luoke-mail] model server unreachable: {type(e).__name__}", file=sys.stderr)
             if "timed out" in str(e).lower() or isinstance(e, TimeoutError):
-                raise EngineError("模型响应超时。首次加载大模型可能需要一两分钟，请稍后重试。") from e
-            raise EngineError("无法连接模型服务，请确认模型服务已启动。") from e
+                raise EngineError("模型响应超时。首次加载大模型可能需要一两分钟，请稍后重试。", "model_timeout") from e
+            raise EngineError("无法连接模型服务，请确认模型服务已启动。", "model_unreachable") from e
         # connected and answered -- but an answer is not always a completion (some servers report errors with 200)
         choices = d.get("choices") if isinstance(d, dict) else None
         if choices and isinstance(choices[0], dict) and "message" in choices[0]:
@@ -363,5 +368,5 @@ def _chat_json(base_url: str, model: str, messages: list[dict], schema: dict, ap
         full = _memory_full(200, detail)
         if full:
             raise full
-        last = EngineError("模型服务未正常响应，可能是内存不足或模型尚未加载。请稍后重试，或换用较小的模型。")
-    raise last or EngineError("模型服务暂时不可用。")
+        last = EngineError("模型服务未正常响应，可能是内存不足或模型尚未加载。请稍后重试，或换用较小的模型。", "model_unresponsive")
+    raise last or EngineError("模型服务暂时不可用。", "model_unresponsive")

@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Tuple
 from ...actions import ActionError, human_size as human
 from ...mailbox import MailError
 from .. import kit
-from .clean import can_write, finished, need_mode
+from .sweep import can_write, finished, need_mode
 from .common import mailbox_row, per, running
 
 SCREEN = 8              # senders on one screen: a card with its buttons is about 15 components (§4: 200)

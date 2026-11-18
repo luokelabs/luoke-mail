@@ -39,10 +39,10 @@ def _section(p: kit.Page, title: str) -> None:
 
 
 def _mailboxes(w, p: kit.Page, st: dict) -> None:
-    _section(p, "邮箱")
+    _section(p, "账号")
     accounts = st.get("accounts") or []
     names = {x.get("key"): x.get("name") for x in st.get("providers") or []}
-    for a in accounts:
+    for n, a in enumerate(accounts):
         what = " · ".join(x for x in (f"{names[a['provider']]} · IMAP" if names.get(a.get("provider")) else "IMAP",
                                       "螺壳自己的邮箱" if a.get("own") else None,
                                       None if a.get("has_secret") else "授权码未保存") if x)
@@ -52,7 +52,12 @@ def _mailboxes(w, p: kit.Page, st: dict) -> None:
         last = len(accounts) == 1 and (st.get("auto") or {}).get("enabled")
         change = p.go("修改授权码…", {"add": a["key"], "kind": a.get("provider"), "typed": None}, quiet=True) \
             if p.can("secureField") else None
-        p.add(p.card(p.text(a.get("address") or a["key"], "h5"), p.text(what, "caption"),
+        # its name where the window shows it (「工作」「个人」, 设计规范 §18.2): Return saves it (§4 fieldSubmit)
+        field = p.field(f"name{n}", "显示名", a.get("name") or "")
+        save = p.do("保存名字", "/api/mail/name", {"source": a["key"], "name": {"$input": f"fields/name{n}"}},
+                    inputs=["fields"])
+        p.submit(field, save)
+        p.add(p.card(p.text(a.get("address") or a["key"], "h5"), p.text(what, "caption"), p.row(field, save),
                      p.row(change, own, p.do("移除", "/api/mail/remove", {"key": a["key"]}, quiet=True,
                                      confirm=REMOVE.format(address=a["address"]) +
                                      ("这是唯一连接的邮箱，后台自动整理也将关闭。" if last else "")))))
@@ -157,7 +162,7 @@ def _mode(w, p: kit.Page, st: dict, has_mail: bool) -> None:
 
 
 def _auto(w, p: kit.Page, st: dict, has_mail: bool) -> None:
-    _section(p, "后台自动整理")
+    """后台自动整理, under 提醒: it is what sends them."""
     a = st.get("auto") or {}
     d = a.get("desktop") or {}
     if not has_mail:
@@ -297,16 +302,32 @@ def _data(w, p: kit.Page, st: dict) -> None:
                      confirm=FORGET)))
 
 
+def _rules(w, p: kit.Page, src: str, has_mail: bool) -> None:
+    """规则: how many there are and where they are kept (the 规则 page, a button away)."""
+    _section(p, "规则")
+    if not has_mail:
+        p.add(p.text("连接邮箱后可用。", "caption"))
+        return
+    n = len(w.app.rules_view(src)["rules"])
+    p.add(p.row(p.text(f"{n} 条规则，告诉螺壳某类邮件以后怎么处理。" if n else "还没有规则：告诉螺壳某类邮件以后怎么处理。"),
+                p.open("管理规则", page="rules", quiet=False)))
+
+
 def build(w, p: kit.Page, view: dict) -> None:
+    """设计规范 §18.2: 账号, 规则, 提醒 -- the rest folded under 「更多设置」 (§18.1 第 4 条)."""
     st = w.app.state()
     has_mail = bool(w.app.mail_accounts())
     src = w.source(p.page)
     _mailboxes(w, p, st)
-    _profile(w, p, st)
+    _rules(w, p, src, has_mail)
+    _section(p, "提醒")
     _auto(w, p, st, has_mail)
+    mark = p.mark()
+    _profile(w, p, st)
     _switches(w, p, st)
     _mode(w, p, st, has_mail)
     _model(w, p, st)
     _power(w, p, st)
     _memory(w, p, st, src)
     _data(w, p, st)
+    p.fold(mark, "更多设置：同步范围、署名、已读、处理模式、模型、记忆、本机数据")

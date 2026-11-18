@@ -6,15 +6,15 @@ Three passes, each with its own rule for what reaches the memory (see learn.py f
             agree on takes effect; on a one-value topic (职位, 单位…) the most recently evidenced value wins;
 - received: once a month, organisations that wrote several times over months to someone who opened them;
             what they suggest becomes a guess the user confirms;
-Everything drawn is handed to the memory, which grades it (ADR 0015). Handling habits are the
-memory's to work out, from the mail-override and mail-acted records (luoke-mem 0.18, ADR 0012 amended)."""
+Everything drawn is handed to the memory, which grades it (ADR 0005). Handling habits are the
+memory's to work out, from the mail-override and mail-acted records (luoke-mem 0.18, archived ADR 0012 amended)."""
 from __future__ import annotations
 
 import json
 import sys
 import time
 
-from . import config, engines, learn, memory, samples
+from . import config, engines, learn, memory, problems, samples
 from .mailbox import MailError, parse_message
 from .subscriptions import sender_key
 
@@ -23,7 +23,7 @@ SLICE_SECONDS = 240
 SENT_DAYS, SENT_LIMIT = 730, 400
 RECEIVED_EVERY, SENT_CHECK_EVERY = 7 * 86400, 86400    # weekly: NetEase empties its trash in 7 days
 RECEIVED_SENDERS = 30
-TEXT_CHARS = 800             # of a message's text in a record: the memory reads the original (ADR 0015)
+TEXT_CHARS = 800             # of a message's text in a record: the memory reads the original (ADR 0005)
 AGREE = 2                    # messages that must agree before a fact from the user's own mail takes effect
 MISS_LIMIT = 3               # tries, each after the usual wait, before a mail or organisation with no usable answer is let be
 
@@ -58,7 +58,7 @@ class Learner:
 
     def migrate(self) -> None:
         """0.11 and before: switched on per mailbox. On in any of them is the person's yes. 0.15: on unless the
-        user paused it (ADR 0013, 2026-10-19) -- never switched on before is not a no."""
+        user paused it (ADR 0001, 2026-10-19) -- never switched on before is not a no."""
         sw = self.app.cfg["learn"]
         if not sw.get("enabled_at") and not sw.get("on") and not any(self.state(a).get("enabled_at") for a in self.app.mail_accounts()):
             sw.update(on=True, enabled_at=time.time())
@@ -74,7 +74,7 @@ class Learner:
 
     # ---- the switch -------------------------------------------------------------------------------------------
     def set_on(self, body: dict) -> dict:
-        """暂停 / 继续. On by default (ADR 0013): what it decides is only whether the model reads the user's sent mail
+        """暂停 / 继续. On by default (ADR 0001): what it decides is only whether the model reads the user's sent mail
         and the organisations' mail to learn about them; what happens to the mail is recorded either way."""
         source = body.get("source")
         acct = self.app.account(source)
@@ -109,6 +109,7 @@ class Learner:
         cands = self.store.learn_candidates(acct)
         sw = self.switch(acct)
         return {"enabled": bool(sw.get("enabled_at") or sw.get("on")), "on": bool(sw.get("on")), "problem": st.get("problem"),
+                "problem_code": st.get("problem_code") if st.get("problem") else None,
                 "running": bool(busy and busy["kind"] == "learn" and busy.get("account") == acct),
                 "sent_total": st.get("sent_total") or 0, "sent_done": st.get("sent_done") or 0,
                 "stage": self._next(acct, st, ignore_wait=True), "waiting": sum(1 for c in cands if c["state"] == "waiting"),
@@ -157,7 +158,7 @@ class Learner:
         except engines.Busy:
             pass                                          # the hub has more urgent work: come back later
         except (engines.EngineError, MailError) as ex:
-            self.store.cache_update(acct, "learn", problem=str(ex), failed_at=time.time())
+            self.store.cache_update(acct, "learn", problem=str(ex), problem_code=problems.code_of(ex), failed_at=time.time())
         finally:
             if mb:
                 mb.close()
@@ -227,12 +228,12 @@ class Learner:
         if topic.split(":")[0] in learn.SINGLE:
             cands = sorted(cands, key=lambda c: max(e["date"] for e in c["evidence"]))[-1:]
         for c in cands:
-            # one statement per message and per thing said in it, at the time it was sent (ADR 0012 amended, agreed
+            # one statement per message and per thing said in it, at the time it was sent (archived ADR 0012 amended, agreed
             # with luoke-mem): what the user wrote, never the mail itself; `subject` is the stable key of the thing
             cites = [self._record(mem, acct, "user", "sent-mail", f"{e['ref']}#{topic}", labelled(topic, c["text"]), e["date"],
                                   {"subject": topic, "sender": "self", "by": "user", **({"text": e["text"]} if e.get("text") else {})})
                      for e in c["evidence"]]
-            # sensitive context (health, money...) is marked; the memory then waits for the user's yes (ADR 0004)
+            # sensitive context (health, money...) is marked; the memory then waits for the user's yes (archived ADR 0004)
             nid = mem.conclude("fact", labelled(topic, c["text"]), cites, topic=topic, why=f"{len(c['evidence'])} 封你发出的邮件里提到",
                                sensitive=memory.marks(c["text"]))
             self.store.learn_set(acct, "sent", c["topic"], c["norm"], state="written" if nid else "dropped", note_id=nid)
@@ -240,7 +241,7 @@ class Learner:
     @staticmethod
     def _record(mem, acct: str, speaker: str, topic: str, ref: str, text: str, when: str | None, data: dict | None = None) -> int:
         """One record per message (or sender) in each mailbox, shared by every note that rests on it. The same
-        sender or Message-ID in another mailbox is another record: each says where it comes from (ADR 0010)."""
+        sender or Message-ID in another mailbox is another record: each says where it comes from (archived ADR 0010)."""
         found = [r for r in mem.records(topic=topic, ref=ref, limit=20) if memory.from_account(r, acct)
                  and all((r.get("data") or {}).get(k) == v for k, v in (data or {}).items())]      # same counts
         if found:
@@ -253,7 +254,7 @@ class Learner:
         if acct == DEMO:
             headers = samples.demo_headers() + samples.demo_archive()
         else:
-            headers = mb.everywhere_headers(days=365, limit=3000)        # inbox, archive and trash (ADR 0012)
+            headers = mb.everywhere_headers(days=365, limit=3000)        # inbox, archive and trash (archived ADR 0012)
             archived = self.store.old_rows(acct, "archive")
             if not archived:
                 _, archived = mb.old_headers("archive", self.app.cfg["fetch"]["days"])
@@ -306,7 +307,7 @@ class Learner:
             del missed[key]
         self.store.cache_update(acct, "learn", **{f"{kind}_missed": missed})
         if key in missed:
-            raise engines.EngineError("本机模型暂时没有给出可用的结果。")
+            raise engines.EngineError("本机模型暂时没有给出可用的结果。", "model_unusable")
 
     # ---- before the trash: learn first, and the clean-up itself as a record (2026-10-16) -----------
     def before_clean(self, acct: str, headers: list[dict], job: dict | None = None) -> int:
@@ -355,8 +356,8 @@ class Learner:
     def _cleared(self, acct: str, groups: list[dict]) -> int:
         """清理本身记成信号: one record per sender cleared in bulk to the trash -- the sender and the kind of mail,
         never subjects or text -- for 推测关注的话题 / 不感兴趣 now, and the memory's own inference once 了解你 moves
-        there (ADR 0005). Topic `mail-cleared`, agreed with luoke-mem: activity when the user picked it, a receipt
-        when they accepted the suggestion. Always (ADR 0013). groups: [{key, name, addr, category, count, by}]."""
+        there (archived ADR 0005). Topic `mail-cleared`, agreed with luoke-mem: activity when the user picked it, a receipt
+        when they accepted the suggestion. Always (ADR 0001). groups: [{key, name, addr, category, count, by}]."""
         mem = self.app.memory_for(acct)
         n = 0
         for g in groups:
@@ -405,7 +406,7 @@ class Learner:
     # ---- guesses, a few at a time ----------------------------------------------------------------------------
     def refill(self, acct: str) -> int:
         """Hand what was drawn from organisations' mail to the memory: all of it. The memory grades each on its
-        evidence and asks only what is worth asking (ADR 0015), so nothing is held back here to spare the user."""
+        evidence and asks only what is worth asking (ADR 0005), so nothing is held back here to spare the user."""
         mem = self.app.memory_for(acct)
         made = 0
         for c in self.store.learn_candidates(acct, state="waiting"):
@@ -415,7 +416,7 @@ class Learner:
             made += int(bool(nid))
         return made
 
-    # a plain fact of these sorts may be taken down without asking when the evidence is strong (top-level ADR 0011,
+    # a plain fact of these sorts may be taken down without asking when the evidence is strong (top-level archived ADR 0011,
     # luoke-mem 0.16): the memory decides, from the cited records' counts; the topic is the mail assistant's to map
     ABOUT = {"账户": "account", "服务": "service", "会员": "membership", "出行": "travel"}
     ORG = "机构:"
@@ -427,7 +428,7 @@ class Learner:
             # them -- counts only, no text
             {**{k: e[k] for k in ("count", "first", "last", "months", "opened") if e.get(k) is not None},
              "sender": e["ref"], "by": "user"}) for e in c["evidence"]]
-        # one organisation is one fact in the memory, whatever sort the model gave it (top-level ADR 0015 amended,
+        # one organisation is one fact in the memory, whatever sort the model gave it (top-level ADR 0005 amended,
         # the owner 10-22): the memory's topic is 「机构:<name>」 -- the prefix tells it from a one-value topic such
         # as 职位 (agreed with luoke-mem 0.25.0); the sort stays here, for `about`
         kind, _, org = c["topic"].partition(":")
@@ -435,7 +436,7 @@ class Learner:
                            about=self._about(mem, c["topic"]), why="根据你收到的邮件")
 
     def _about(self, mem, topic: str) -> str | None:
-        """The sort of plain fact a guess is, for the memory (ADR 0011): from its topic; or, filed under 其他, from a
+        """The sort of plain fact a guess is, for the memory (archived ADR 0011): from its topic; or, filed under 其他, from a
         fact about the same organisation already in effect -- 「shop.example：有购物记录」 next to 「在 shop.example
         有购物账户」 is the same sort of thing, and was being asked about (2026-10-17). The memory's topic
         is 「机构:<name>」 since 0.17.2; older notes are 「sort:organisation」."""
@@ -454,7 +455,7 @@ class Learner:
     BODIES_PER_RUN = 60
 
     def _reading(self, acct: str, headers: list[dict], mb=None) -> int:
-        """How each newsletter was read, month by month (ADR 0015, agreed with luoke-mem): one record per sender and
+        """How each newsletter was read, month by month (ADR 0005, agreed with luoke-mem): one record per sender and
         finished month -- how many came, how many the user opened, and the text of the newest opened (`mails`, not
         for business mail) -- wherever the mail is now (inbox, archive, trash). Written once: a month already
         recorded with the same counts (and its text) is not written again; one written before 0.15 without text
@@ -483,7 +484,7 @@ class Learner:
                    for r in mem.records(topic="mail-read", ref=ref, limit=5)):
                 continue                                    # written already, with its text when it has any
             mails = []
-            if want_text:                                   # the newest opened: the memory reads what they hold (ADR 0015)
+            if want_text:                                   # the newest opened: the memory reads what they hold (ADR 0005)
                 if budget[0] <= 0:
                     self.store.cache_update(acct, "learn", reading_backlog=True)
                     continue                                # the rest next time
@@ -531,7 +532,7 @@ class Learner:
     def _refresh_evidence(self, acct: str, headers: list[dict]) -> int:
         """The organisations' counts as they are now, for every guess drawn from them -- also the ones learnt before
         the counts were kept (0.13.15) -- and a guess still waiting for the user is put to the memory again: with the
-        evidence now strong enough, a plain fact takes effect (ADR 0011). Returns how many took effect."""
+        evidence now strong enough, a plain fact takes effect (archived ADR 0011). Returns how many took effect."""
         groups: dict[str, list[dict]] = {}
         for h in headers:
             groups.setdefault(sender_key(h), []).append(h)

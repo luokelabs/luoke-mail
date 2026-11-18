@@ -34,7 +34,7 @@ DUE = time.strftime("%Y-%m-%d", time.localtime(time.time() + 5 * 86400))   # hig
 SUGGEST = {
     "答辩时间确认": {"action": "reply", "priority": "high", "summary": "王老师问答辩时间，周五前回", "due_date": DUE},
     "项目周会": {"action": "schedule", "priority": "medium", "summary": "周四下午三点的周会",
-                 "event": {"title": "项目周会", "date": "2026-10-16", "start": "15:00", "end": "16:00"}},
+                 "event": {"title": "项目周会", "date": "2099-10-16", "start": "15:00", "end": "16:00"}},
     "合同扫描件": {"action": "follow_up", "priority": "medium", "summary": "律师发来合同扫描件"},
     "本周精选": {"action": "archive", "priority": "low", "summary": "周刊"},
     "双十一预告": {"action": "ignore", "priority": "low", "summary": "促销"},
@@ -60,6 +60,10 @@ def said(comps, cid):
     if child.get("component") == "Row":
         return next((comps[k].get("text") for k in child.get("children", []) if comps.get(k, {}).get("component") == "Text"), None)
     return child.get("text")
+
+
+def resources_list(client) -> list:
+    return client.request("resources/list")["resources"]
 
 
 def labelled(surface, words):
@@ -128,7 +132,7 @@ class AgentTests(unittest.TestCase):
         return items
 
     def box(self):
-        """The mailbox's card (「顺便看看」): 待处理, 可以整理, 判为可疑."""
+        """The mailbox's card (「顺便看看」): 待处理, 待整理, 判为可疑."""
         return self.outbox()["mailbox"][0]
 
     def press(self, card, words, **choices):
@@ -144,17 +148,20 @@ class AgentTests(unittest.TestCase):
         items = self.outbox()
         new, sus, box = items["new-mail"][0], items["suspicious"], items["mailbox"][0]
         self.assertEqual((new["urgency"], new["deadline"]), ("normal", f"{DUE}T23:59:00"))
-        self.assertIn("1 封邮件要你处理", new["title"])                       # 「要你决定」: only what is high today
+        self.assertIn("1 封待处理邮件", new["title"])                       # 「要你决定」: only what is high today
         self.assertEqual([s["urgency"] for s in sus], ["urgent"])
         s = a2ui.build(new["card"])
         self.assertEqual([v[0] for v in s.data["choices"].values()], ["draft"])
-        labelled(s, "写草稿 1")                                              # the button says what it does
+        labelled(s, "处理这封")                                              # the button says what it does
         self.assertIn(ME, [c.get("text") for c in s.components.values()])   # the mailbox's label after the heading
-        self.assertEqual((box["urgency"], box["title"]), ("low", "2 封待处理，3 封可以整理"))
+        self.assertEqual((box["urgency"], box["title"]), ("low", "2 封待处理，3 封待整理"))
         b = a2ui.build(box["card"])
         self.assertEqual(sorted(v[0] for v in b.data["choices"].values()), ["flag", "flag"])   # what to tidy: no picker
-        labelled(b, "加星标 2")
+        labelled(b, "处理这 2 封")
         labelled(b, "归档 2 · 删除 1")                                         # one decision, the button says what it does
+        see = labelled(b, "查看邮件")                                         # which ones, before a tap moves them
+        self.assertEqual(b.find_action(see), ("agent.open_page",
+                                              {"page": "inbox", "args": {"box": ME, "plan": b.surface_id, "part": "tidy"}}))
         self.assertIn(ME, [c.get("text") for c in b.components.values()])
         text = json.dumps(new["card"], ensure_ascii=False) + json.dumps(box["card"], ensure_ascii=False)
         self.assertNotIn("482913", text)                                  # never a code on a card
@@ -173,10 +180,10 @@ class AgentTests(unittest.TestCase):
         text = json.dumps([i["card"] for v in items.values() for i in v], ensure_ascii=False)
         for newer in ('"badge"', '"strong"', '"maxLines"', '"collapsed"', '"tooltip"', '"subtitle"', "agent.open_page"):
             self.assertNotIn(newer, text)
-        self.assertIn(f"1 封要处理（{ME}）", text)
+        self.assertIn(f"1 封待处理（{ME}）", text)
         self.assertIn("加入日程", text)                                    # under the card, as before
         s = a2ui.build(items["suspicious"][0]["card"])
-        self.assertIn("这封邮件判为可疑", [c.get("text") for c in s.components.values()])
+        self.assertIn("判为可疑的邮件", [c.get("text") for c in s.components.values()])
 
     def flag(self, n, subject, days_ago):
         self.r.srv._add("INBOX", mail(n, subject, f"某平台 <noreply{n}@site.example>", days_ago), set())
@@ -195,10 +202,10 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(sus[0]["created"], it["date"].replace(" ", "T") + ":00")  # when it came, not when the card was made
         s = a2ui.build(sus[0]["card"])
         self.assertNotIn("choices", s.data)                                       # one decision: no picker to set first
-        keep = labelled(s, "先不动")
+        keep = labelled(s, "暂不处理")
         name, ctx = s.find_action(keep)
         r = self.c.call_tool(name, ctx, user_action=user_action(s.surface_id, keep))
-        self.assertIn("都先不动", r.text)
+        self.assertIn("均暂不处理", r.text)
         self.assertIn("账户已冻结", self.r.inbox())
 
     def test_the_other_button_moves_it_to_junk(self):
@@ -223,7 +230,7 @@ class AgentTests(unittest.TestCase):
         self.assertNotIn("new-mail", items)                               # high, but past its date: not 「要你决定」
         card = items["mailbox"][0]["card"]
         s = a2ui.build(card)
-        due = next(c for c in s.components.values() if c.get("text") == "09-20 已过")
+        due = next(c for c in s.components.values() if c.get("text") == "2020-09-20 已过")              # another year: with its year
         self.assertEqual((due["variant"], due["tone"]), ("badge", "danger"))
         picked = s.data["choices"]
         self.assertEqual(picked[f"m{it['id']}"], ["draft"])                       # a person asking: a draft
@@ -243,8 +250,8 @@ class AgentTests(unittest.TestCase):
         flagged = [k for k in s.data["choices"] if k.startswith("s")]
         self.assertEqual(len(flagged), 7)
         self.assertEqual({s.data["choices"][k][0] for k in flagged}, {"keep"})
-        self.assertIn("7 封，都先不动", json.dumps(box["card"], ensure_ascii=False))      # folded
-        r = self.press(box["card"], "按选的处理")
+        self.assertIn("7 封，均暂不处理", json.dumps(box["card"], ensure_ascii=False))      # folded
+        r = self.press(box["card"], "处理这 7 封")
         self.assertFalse(r.is_error, r.text)
         self.assertEqual(sum("旧通知" in x for x in self.r.inbox()), 6)     # nothing moved
         self.assertEqual(sum(1 for i in self.r.app.store.items(ME) if i["flagged"]), 0)   # nor the other parts
@@ -258,7 +265,7 @@ class AgentTests(unittest.TestCase):
         s = a2ui.build(box["card"])
         self.assertEqual(len([k for k in s.data["choices"] if k.startswith("s")]), 8)
         self.assertIn("12 封判为可疑", box["title"])                         # the bank one still has its own
-        rest = labelled(s, "其余 4 封去邮件助手看")
+        rest = labelled(s, "在邮件助手中查看其余 4 封")
         self.assertEqual(s.find_action(rest), ("agent.open_page", {"page": "inbox", "args": {"box": ME, "list": "suspicious"}}))
 
     def sorted_as(self, n, subject, sender, action, days_ago=0, **more):
@@ -283,7 +290,23 @@ class AgentTests(unittest.TestCase):
         self.assertTrue(all(f"推送 {n}" in self.r.inbox() for n in range(3)))     # not on the card: not moved
         nxt = self.box()
         self.assertNotEqual(nxt["id"], first["id"])
-        self.assertEqual(nxt["title"], "2 封待处理，3 封可以整理")
+        self.assertEqual(nxt["title"], "2 封待处理，3 封待整理")
+
+    def test_which_mail_the_tidy_part_moves_is_the_cards_own(self):
+        """查看邮件: the mail this card would move, not the newer mail sorted to tidy since (data/inbox?plan=)."""
+        first = self.box()
+        pid = a2ui.build(first["card"]).surface_id
+        for n in range(3):
+            self.sorted_as(600 + n, f"推送 {n}", f"推送{n} <p{n}@push.example>", "archive")
+        read = lambda **a: self.c.read_json("data/inbox?" + "&".join(f"{k}={v}" for k, v in sorted(a.items())))
+        mine = read(account=ME, plan=pid, part="tidy")
+        self.assertEqual((mine["list"], mine["plan"]), ("plan", {"id": pid, "part": "tidy", "state": "open"}))
+        self.assertEqual(sorted(r["subject"] for r in mine["items"]), ["双十一预告", "本周精选", "登录验证码"])
+        self.assertEqual(len(read(account=ME, list="direct")["items"]), 6)          # with the newer three
+        self.tidy()
+        done = read(account=ME, plan=pid, part="tidy")
+        self.assertEqual((done["items"], done["plan"]["state"]), ([], "handled"))
+        self.assertEqual(read(plan="mailbox-nothing", part="tidy")["plan"]["state"], "gone")
 
     def test_the_tidy_card_is_made_again_once_its_mail_is_handled_elsewhere(self):
         first = self.box()
@@ -293,8 +316,19 @@ class AgentTests(unittest.TestCase):
         self.sorted_as(610, "推送", "推送 <p@push.example>", "archive")
         nxt = self.box()
         self.assertNotEqual(nxt["id"], first["id"])
-        self.assertIn("2 封可以整理", nxt["title"])
+        self.assertIn("2 封待整理", nxt["title"])
         self.assertEqual(store.plan_get(first["id"].split("/", 1)[1])["state"], "withdrawn")
+
+    def test_a_row_of_monthly_statements_is_due_on_the_one_not_yet_past(self):
+        """A bank's statement each month is one row; its deadline is the next one coming, not a year-old one's."""
+        day = lambda n: time.strftime("%Y-%m-%d", time.localtime(time.time() + n * 86400))
+        for n, due in enumerate((day(-365), day(-30), day(12))):
+            self.sorted_as(760 + n, f"信用卡电子账单 {n + 1} 月", "银行 <noreply@bank.example>", "follow_up",
+                           days_ago=3 - n, due_date=due, priority="medium")
+        row = next(e for e in self.r.app.store.plan_get(self.box()["id"].split("/", 1)[1])["entries"].values()
+                   if len(e.get("ids") or []) == 3)
+        self.assertEqual(row["due"], day(12))
+        self.assertEqual((agent._row_due([day(-365), day(-30)]), agent._row_due([None])), (day(-30), None))
 
     def test_the_card_says_how_many_more_wait_and_puts_the_same_notice_in_one_row(self):
         for n in range(4):                                                   # the same CI failure, four times
@@ -302,7 +336,7 @@ class AgentTests(unittest.TestCase):
         for n in range(5):
             self.sorted_as(720 + n, f"问题 {n}", f"同事{n} <c{n}@corp.example>", "follow_up", priority="high")
         new = self.outbox()["new-mail"][0]
-        self.assertEqual(new["title"], "10 封邮件要你处理")
+        self.assertEqual(new["title"], "10 封待处理邮件")
         text = json.dumps(new["card"], ensure_ascii=False)
         self.assertIn("（共 4 封）", text)
         s = a2ui.build(new["card"])
@@ -310,8 +344,8 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(s.data["choices"][ci], ["flag"])                    # a notice: no draft, four times over
         self.assertNotIn("draft", self.r.app.store.plan_get(s.surface_id)["entries"][ci]["allowed"])
         self.assertEqual(len(s.data["choices"]), 7)
-        self.assertIn("10 封要处理", text)
-        ok = labelled(s, "加星标 9 · 写草稿 1")                               # what a tap does, counted once
+        self.assertIn("10 封待处理", text)
+        ok = labelled(s, "处理这 10 封")                               # what a tap does, counted once
         see = labelled(s, "查看全部 12 封")                                    # with the two not high on the mailbox's card
         self.assertEqual(s.find_action(see), ("agent.open_page", {"page": "inbox", "args": {"box": ME, "list": "needs"}}))
         self.assertNotIn("还有", text)
@@ -346,7 +380,7 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(again["id"].split("/", 1)[1], t.surface_id)         # 18 of 20 still waiting: the same card
         r = self.c.call_tool(name, ctx, user_action=user_action(t.surface_id, ok))
         self.assertFalse(r.is_error, r.text)
-        self.assertIn("2 封在邮件助手里改过，没再动", r.text)
+        self.assertIn("2 封已在邮件助手中修改，未改动", r.text)
         inbox = self.r.inbox()
         self.assertIn("推送 0", inbox)
         self.assertIn("推送 1", inbox)
@@ -361,8 +395,8 @@ class AgentTests(unittest.TestCase):
         store = self.r.app.store
         keys = [k for k in a2ui.build(card).data["choices"] if k.startswith("s")]
         store.set_fields(int(keys[0][1:]), suspicious=0)                    # 不是可疑, on the page
-        r = self.press(card, "按选的处理", **{k: "spam" for k in keys})
-        self.assertIn("1 封在邮件助手里改过，没再动", r.text)
+        r = self.press(card, "处理这 3 封", **{k: "spam" for k in keys})
+        self.assertIn("1 封已在邮件助手中修改，未改动", r.text)
         self.assertEqual(store.get(int(keys[0][1:]))["state"], "pending")
         self.assertEqual(sum("旧通知" in x for x in self.r.inbox()), 1)
 
@@ -371,28 +405,28 @@ class AgentTests(unittest.TestCase):
         for n in range(7):
             self.sorted_as(950 + n, f"推送 {n}", f"推送{n} <p{n}@push.example>", "archive")
         first = self.box()                                                  # 10: 3 of the setUp, 7 here
-        self.assertIn("10 封可以整理", first["title"])
+        self.assertIn("10 封待整理", first["title"])
         gone = [next(i for i in store.items(ME) if i["subject"] == f"推送 {n}")["id"] for n in range(2)]
         self.r.app.actions(ME).execute(gone[:1], "archive")                 # 9 of 10 still wait: the same card
         self.assertEqual(self.box()["id"], first["id"])
         self.r.app.actions(ME).execute(gone[1:], "archive")                 # 8 of 10: made again
         nxt = self.box()
         self.assertNotEqual(nxt["id"], first["id"])
-        self.assertIn("8 封可以整理", nxt["title"])
+        self.assertIn("8 封待整理", nxt["title"])
 
     def test_newer_mail_waiting_for_the_next_tidy_card_is_said(self):
         first = self.box()
         self.sorted_as(970, "推送", "推送 <p@push.example>", "archive")
         again = self.box()
         self.assertEqual((again["id"], again["title"]), (first["id"], first["title"]))
-        self.assertIn("之后又分拣好 1 封，下一张再说", again["summary"])
+        self.assertIn("另有 1 封新分拣的邮件，列在下一张卡片", again["summary"])
 
     def test_events_from_one_sender_are_told_apart_by_their_date(self):
-        for n, day in enumerate(("2026-11-12", "2026-11-19")):
+        for n, day in enumerate(("2099-11-12", "2099-11-19")):
             self.sorted_as(980 + n, f"课程第 {n + 1} 讲", "课程 <class@school.example>", "schedule", priority="medium",
                            event={"title": f"第 {n + 1} 讲", "date": day, "start": "19:00", "end": "20:00"})
         s = a2ui.build(self.box()["card"])
-        for when in ("11-12 19:00", "11-19 19:00"):                          # on its own row, 加入日程 in its tooltip
+        for when in ("加入日程 · 11-12 19:00", "加入日程 · 11-19 19:00"):                          # on its own row, 加入日程 in its tooltip
             self.assertEqual(s.components[labelled(s, when)]["tooltip"], "加入日程")
         with mock.patch.object(agent_mcp, "CLIENT_CAPABILITIES", {}):        # an older core: under the card
             text = json.dumps(self.box()["card"], ensure_ascii=False)
@@ -403,7 +437,7 @@ class AgentTests(unittest.TestCase):
         with mock.patch.object(agent_mcp, "CLIENT_CAPABILITIES", {}):
             labelled(a2ui.build(self.box()["card"]), "加入日程")              # the subject is on its row
             sus = json.dumps(self.outbox()["suspicious"][0]["card"], ensure_ascii=False)
-        self.assertIn("这封邮件判为可疑", sus)
+        self.assertIn("判为可疑的邮件", sus)
         self.assertNotIn("诈骗", sus)
         sus = json.dumps(self.outbox()["suspicious"][0]["card"], ensure_ascii=False)
         self.assertIn("可疑邮件", sus)
@@ -429,7 +463,11 @@ class AgentTests(unittest.TestCase):
         self.assertEqual((hits[0]["source"], hits[0]["kind"]), (ME, "mail"))
         self.assertEqual(hits[0]["actions"][0]["name"], "mail_show")
         self.assertIn("mail_show", [t["name"] for t in self.c.list_tools()])
-        self.assertEqual([h["title"] for h in self.search(query="wang@school").structured["hits"]], ["答辩时间确认"])
+        part = self.search(query="wang@school").structured["hits"]
+        self.assertEqual([h["title"] for h in part], ["答辩时间确认"])
+        self.assertFalse(part[0]["strong"])                                  # a piece of the address: found, not strong
+        self.assertTrue(self.search(query="王老师").structured["hits"][0]["strong"])            # the sender's name
+        self.assertTrue(self.search(query="Wang@School.example").structured["hits"][0]["strong"])   # their address
         body = self.search(query="正文 100").structured["hits"]
         self.assertEqual([h["title"] for h in body], ["答辩时间确认"])
         self.assertFalse(body[0]["strong"])
@@ -510,7 +548,7 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(a2ui.validate(r.card), [])
         self.assertEqual(self.r.inbox().count("本周精选"), 1)                # nothing has moved
         s = a2ui.build(r.card)
-        self.assertEqual(sorted(v[0] for v in s.data["choices"].values()), ["archive", "draft", "keep"])   # a flag: 先不动
+        self.assertEqual(sorted(v[0] for v in s.data["choices"].values()), ["archive", "draft", "keep"])   # a flag: 暂不处理
         self.assertIn("移到垃圾邮件", json.dumps(r.card, ensure_ascii=False))
         self.assertNotIn("退订", json.dumps(r.card, ensure_ascii=False))
         name, ctx = s.find_action(button(s, "mail_apply_plan"))
@@ -530,7 +568,7 @@ class AgentTests(unittest.TestCase):
         ctx["choices"] = {k: ["archive"] for k in ctx["choices"]}
         r = self.c.call_tool(name, ctx, user_action=user_action(s.surface_id))
         self.assertFalse(r.is_error, r.text)
-        self.assertIn("1 封在邮件助手里改过，没再动", r.text)
+        self.assertIn("1 封已在邮件助手中修改，未改动", r.text)
         inbox = self.r.inbox()
         self.assertNotIn("本周精选", inbox)
         self.assertIn("答辩时间确认", inbox)
@@ -603,35 +641,38 @@ class AgentTests(unittest.TestCase):
         return [c["text"] for c in surface.components.values() if c.get("component") == "Text"]
 
     def test_the_count_is_only_what_the_user_has_to_answer(self):
-        self.assertEqual(self.c.read_json("summary"), {"count": 4, "text": "3 封要你处理，1 封可疑，3 封可以整理"})
+        self.assertEqual(self.c.read_json("summary"), {"count": 4, "text": "3 封待处理，1 封可疑，3 封待整理", "connected": True,
+                                                       "needs": 3, "suspicious": 1, "tidy": 3, "auto_today": 0})
         new = self.outbox()["new-mail"][0]
         keep = {k: "keep" for k in a2ui.build(new["card"]).data["choices"]}
-        self.assertFalse(self.press(new["card"], "写草稿 1", **keep).is_error)
+        self.assertFalse(self.press(new["card"], "处理这封", **keep).is_error)
         box = self.box()
         keep = {k: "keep" for k in a2ui.build(box["card"]).data["choices"]}
-        self.assertFalse(self.press(box["card"], "加星标 2", **keep).is_error)
-        self.assertEqual(self.c.read_json("summary"), {"count": 1, "text": "1 封可疑，3 封可以整理"})   # left alone: not waiting
+        self.assertFalse(self.press(box["card"], "处理这 2 封", **keep).is_error)
+        got = self.c.read_json("summary")                                # left alone: not waiting
+        self.assertEqual((got["count"], got["text"], got["needs"], got["tidy"]), (1, "1 封可疑，3 封待整理", 0, 3))
 
     def test_what_was_done_by_habit_is_in_the_line_and_not_in_the_count(self):
         self.habit("本周精选")
         got = self.c.read_json("summary")
-        self.assertEqual(got["count"], 4)
-        self.assertIn("今天自动处理了 1 封", got["text"])
+        self.assertEqual((got["count"], got["auto_today"]), (4, 1))
+        self.assertIn("今日自动处理 1 封", got["text"])
 
     def test_no_mailbox_yet_is_said_once_and_leads_to_the_own_page(self):
         self.r.app.cfg["accounts"] = []
-        self.assertEqual(self.c.read_json("summary"), {"count": 0, "text": "还没连邮箱"})
+        self.assertEqual(self.c.read_json("summary"), {"count": 0, "text": "未连接邮箱", "connected": False, "needs": 0,
+                                                       "suspicious": 0, "tidy": 0, "auto_today": 0})
         self.assertEqual(self.c.read_json("permissions"), {"mailbox": "ask"})
         item = self.outbox()["needs-access"][0]
         self.assertEqual((item["id"], item["urgency"], item["permission"]), ("needs-access/mailbox", "low", "mailbox"))
         s = a2ui.build(item["card"])
-        self.assertEqual(s.find_action(button(s, "agent.open_page"))[1], {"page": "settings"})   # the code is typed there
+        self.assertEqual(s.find_action(button(s, "agent.open_page"))[1], {"page": "legacy-settings"})   # the code is typed there
         with mock.patch.object(agent_mcp, "CLIENT_CAPABILITIES", {}):    # an older core: luoke-mail's own page
             s = a2ui.build(self.outbox()["needs-access"][0]["card"])
             self.assertEqual(s.find_action(button(s, "mail_open_page"))[1], {"page": "accounts"})
         self.assertNotIn("TextField", json.dumps(item["card"]))          # the code is typed on the own page only (§8)
         for name, _ in WINDOW_PAGES:
-            if name != "settings":
+            if name != "legacy-settings":
                 self.assertIn("还没有连接邮箱", " ".join(self.words(self.page(name))), name)
         self.c.call_tool("outbox_ack", {"id": item["id"], "state": "shown"})
         self.assertEqual(self.outbox()["needs-access"][0]["created"], item["created"])
@@ -688,7 +729,7 @@ class AgentTests(unittest.TestCase):
         self.assertFalse(self.c.call_tool("mail_undo", {"execution_id": f"log:{first}"}, user_action=user_action("activity")).is_error)
         whole = self.c.call_tool("mail_undo", {"execution_id": pid}, user_action=user_action(s.surface_id, "undo"))
         self.assertFalse(whole.is_error, whole.text)
-        self.assertEqual(self.r.app.store.plan_get(pid)["state"], "undone")
+        self.assertEqual(self.r.app.store.plan_get(pid)["state"], "open")                  # its question is open again
         self.assertEqual(self.c.call_tool("mail_undo", {"execution_id": pid}, user_action=user_action(s.surface_id, "undo")).code, "stale")
 
     def test_the_rules_page_lists_habits_and_rules(self):
@@ -756,7 +797,14 @@ class AgentTests(unittest.TestCase):
             self.assertIn(p["remove"], writes)
         self.assertTrue(caps["service"]["summary"])
         for p in caps["service"]["pages"]:
-            self.assertEqual(a2ui.validate(self.c.read_json(f"page/{p['id']}")), [], p["id"])
+            self.assertEqual(a2ui.validate(self.c.read_json(f"page/{p['id']}"), page=True), [], p["id"])
+        served = {r["uri"] for r in resources_list(self.c)}
+        for name in caps["data"]:                                            # what the core builds pages from (ADR 0002)
+            self.assertIn(f"data/{name}", served)
+        from luoke_mail.window.pages import manifest_pages
+        self.assertEqual(caps["service"]["pages"], manifest_pages())          # the tabs, then the hidden pages (§1a)
+        self.assertEqual([p["id"] for p in caps["service"]["pages"] if not p.get("hidden")],
+                         ["today", "inbox", "digest", "clean"])                  # 设计规范 §18.2
         resources = self.c.request("resources/list")["resources"]
         self.assertEqual({r["uri"] for r in resources if r["uri"].startswith("page/")}, {f"page/{p['id']}" for p in caps["service"]["pages"]})
         self.assertEqual({r["kind"]: r["urgency"] for r in caps["reports"]}["needs-access"], "low")
@@ -764,10 +812,10 @@ class AgentTests(unittest.TestCase):
 
     def test_carried_out_on_the_tap_then_undone(self):
         tidied = self.tidy()                                                 # what to tidy: its own tap
-        self.assertNotIn("可以整理", self.box()["title"])
+        self.assertNotIn("待整理", self.box()["title"])
         new = self.outbox()["new-mail"][0]
         s = a2ui.build(new["card"])
-        r = self.press(new["card"], "写草稿 1")
+        r = self.press(new["card"], "处理这封")
         self.assertFalse(r.is_error, r.text)
         self.assertTrue(r.done)
         self.assertIn("草稿", r.text)
@@ -783,14 +831,17 @@ class AgentTests(unittest.TestCase):
         name, ctx = res.find_action(button(res, "mail_undo"))
         u = self.c.call_tool(name, ctx, user_action=user_action(s.surface_id, "undo"))
         self.assertFalse(u.is_error, u.text)
-        self.assertTrue(u.text.startswith("已撤销：") and "草稿删掉了" in u.text, u.text)
+        self.assertTrue(u.text.startswith("已撤销：") and "删除草稿" in u.text, u.text)
         self.assertEqual(len(self.r.srv.folders["[Gmail]/Drafts"]), 0)
+        back = self.outbox()["new-mail"][0]                                # the mail is back: so is its question
+        self.assertEqual(back["id"], new["id"])
+        self.assertIn("答辩时间确认", json.dumps(back["card"], ensure_ascii=False))
         again = self.c.call_tool(name, ctx, user_action=user_action(s.surface_id, "undo"))
         self.assertEqual(again.structured.get("code"), "stale")
         box = self.box()                                                     # the rest that needs the user
         follow = next(k for k, e in self.r.app.store.plan_get(box["id"].split("/", 1)[1])["entries"].items()
                       if "合同扫描件" in (e.get("subject") or ""))
-        r = self.press(box["card"], "加星标 2", **{follow: "keep"})          # the user changed one
+        r = self.press(box["card"], "处理这 2 封", **{follow: "keep"})          # the user changed one
         self.assertFalse(r.is_error, r.text)
         starred = [i["subject"] for i in self.r.app.store.items(ME) if i["flagged"]]
         self.assertEqual(starred, ["项目周会"])
@@ -799,12 +850,12 @@ class AgentTests(unittest.TestCase):
         self.assertIsNone(group)                                              # one left alone: not just one result
         b = a2ui.build(box["card"])
         u = self.c.call_tool("mail_undo", {"execution_id": b.surface_id}, user_action=user_action(b.surface_id, "undo"))
-        self.assertIn("星标去掉了", u.text)
+        self.assertIn("取消星标", u.text)
         undo = tidied.structured["card"]                                   # the tidy result has its own 撤销
         self.assertIn('"mail_undo"', json.dumps(undo))
         pid = next(m["updateComponents"]["surfaceId"] for m in undo if "updateComponents" in m)
         u = self.c.call_tool("mail_undo", {"execution_id": pid}, user_action=user_action(pid, "undo"))
-        self.assertTrue("回到收件箱" in u.text, u.text)
+        self.assertTrue("移回收件箱" in u.text, u.text)
         self.assertIn("双十一预告", self.r.inbox())
 
     def test_one_kind_of_result_joins_its_mailboxs_line(self):
@@ -846,11 +897,11 @@ class AgentTests(unittest.TestCase):
         for wrong in (dict(ctx, choices={"tidy": ["unsubscribe"]}), dict(ctx, part="nothing")):
             self.assertEqual(self.c.call_tool(name, wrong, user_action=user_action(t.surface_id)).structured.get("code"), "invalid")
         r = self.c.call_tool(name, ctx, user_action=user_action(t.surface_id, ok))
-        self.assertEqual(r.structured.get("code"), "needs_setup")          # several to the trash (ADR 0016)
+        self.assertEqual(r.structured.get("code"), "needs_setup")          # several to the trash (ADR 0006)
         self.assertIn("处理模式", r.text)
         later = a2ui.update(t, r.structured["card"])                       # the same plan, with 打开设置
         self.assertEqual(later.find_action(labelled(later, "归档 1 · 删除 2"))[1], ctx)
-        self.assertEqual(later.find_action(labelled(later, "打开设置"))[1], {"page": "settings"})
+        self.assertEqual(later.find_action(labelled(later, "打开设置"))[1], {"page": "legacy-settings"})
         self.assertIn("双十一预告", self.r.inbox())                           # nothing moved
         self.r.app.cfg["mode"]["write"] = True
         self.assertFalse(self.c.call_tool(name, ctx, user_action=user_action(t.surface_id, ok)).is_error)   # the same plan, later
@@ -861,7 +912,7 @@ class AgentTests(unittest.TestCase):
         new = self.outbox()["new-mail"][0]
         s = a2ui.build(new["card"])
         for k in s.data["choices"]:
-            s.data = a2ui.set_path(s.data, f"/choices/{k}", ["keep"])           # 先不动 for all of them
+            s.data = a2ui.set_path(s.data, f"/choices/{k}", ["keep"])           # 暂不处理 for all of them
         name, ctx = s.find_action(button(s, "mail_apply_plan"))
         self.assertFalse(self.c.call_tool(name, ctx, user_action=user_action(s.surface_id)).is_error)
         self.assertNotIn("new-mail", self.outbox())                            # not asked again by itself
@@ -888,7 +939,7 @@ class AgentTests(unittest.TestCase):
         it = next(i for i in self.r.app.store.items(ME, "pending") if i["subject"] == "账户已冻结")
         self.r.app.actions("mailbox").execute([it["id"]], "spam")             # the user did it on the page
         r = self.c.call_tool(name, ctx, user_action=user_action(s.surface_id))
-        self.assertIn("已经处理过", r.text)
+        self.assertIn("已处理，未改动", r.text)
         new = self.outbox()["new-mail"][0]
         self.c.call_tool("outbox_ack", {"id": new["id"], "state": "dismissed"})
         self.assertNotIn("new-mail", self.outbox())                            # not again for the same mail
@@ -971,6 +1022,28 @@ class CallersTests(unittest.TestCase):
         with mock.patch.object(self.desktop, "in_luoke", lambda: True), \
                 mock.patch.object(self.desktop, "own_app", lambda: self.app), contextlib.redirect_stderr(io.StringIO()):
             self.assertTrue(self.agent.Callers(checked=True).allow(10))
+
+    def _bundle_id(self, bid: str) -> None:
+        with open(os.path.join(self.app, "Contents", "Info.plist"), "wb") as f:
+            plistlib.dump({"CFBundleIdentifier": bid, "CFBundleExecutable": "LuokeCore"}, f)
+
+    def test_an_ad_hoc_build_on_this_mac_only_from_inside_it(self):
+        """螺壳（开发） and a development instance (ai.luoke.core.<名字>.lab, luoke-core tools/dev_app.sh) are ad hoc:
+        the agent core is let in when the mail assistant runs inside that very app and it is that app's Python
+        started by that app; never the lab build itself, never from outside, never another Python."""
+        self.signed = False
+        for bid, ok in (("ai.luoke.core.dev", True), ("ai.luoke.core.agent.lab", True), ("ai.luoke.core.mail-today.lab", True),
+                        ("ai.luoke.core.lab", False), ("ai.luoke.core.Agent.lab", False), ("ai.luoke.core.a.b.lab", False),
+                        ("ai.luoke.core.agent.lab.x", False), ("com.example.agent.lab", False)):
+            self._bundle_id(bid)
+            with mock.patch.object(self.desktop, "in_luoke", lambda: True), \
+                    mock.patch.object(self.desktop, "own_app", lambda: self.app), contextlib.redirect_stderr(io.StringIO()):
+                c = self.agent.Callers(checked=True)
+                self.assertEqual(c.allow(10), ok, bid)
+                self.assertFalse(c.allow(20), bid)                 # its Python, started from a shell
+                self.assertFalse(c.allow(40), bid)                 # another Python, started by it
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertFalse(self.agent.Callers(checked=True).allow(10), bid)     # not inside it: signed only
 
     def test_not_when_the_signature_is_not_luokes(self):
         self.signed = False

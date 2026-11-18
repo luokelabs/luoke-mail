@@ -14,7 +14,7 @@ hard criteria only with no hard failure at all (luoke-core V1 §7: 第 1 层硬�
   thread      a settled conversation reported as waiting on the user (`done_as_you`), or one waiting on the user
               not reported as such (`missed_you`); each item has `state` (them / you / done) and `expect`
 Results -> bench/results/tasks/<task>/<label>.json, with the set's sha256 and the prompt's (prompt_sha256: all of
-the task's files in luoke_mail/prompts/, top-level ADR 0019) -- the evidence record; `--out DIR` writes
+the task's files in luoke_mail/prompts/, top-level ADR 0007) -- the evidence record; `--out DIR` writes
 <DIR>/<task>/<label>.json instead (luoke-core's release script keeps its evidence in its own folder).
 Stdlib only, Python 3.9.
 """

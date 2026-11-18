@@ -123,6 +123,7 @@ class Store:
             self.db.commit()
             self._scrub_once()
             self._reread_verdicts_once()
+            self._reread_passes_once()
 
     def _scrub_once(self) -> None:
         """Before 0.13.3 deletes left their text in free pages: the first start with secure_delete rebuilds the file
@@ -143,6 +144,16 @@ class Store:
             return
         self.db.execute("UPDATE items SET auth=NULL WHERE auth='none' AND place='inbox' AND state='pending'")
         self.db.execute("PRAGMA user_version=2")
+        self.db.commit()
+
+    def _reread_passes_once(self) -> None:
+        """Before 0.19.67 what the sender wrote into the envelope address -- in quotes, or in the comment the
+        provider copies it into -- could read as a pass (security review 2026-11-16 and 11-17): waiting mail kept as
+        a pass has its verdict read again, headers only (App._recheck_senders). user_version 3."""
+        if self.db.execute("PRAGMA user_version").fetchone()[0] != 2:
+            return
+        self.db.execute("UPDATE items SET auth=NULL WHERE auth='pass' AND place='inbox' AND state='pending'")
+        self.db.execute("PRAGMA user_version=3")
         self.db.commit()
 
     def _migrate_rules(self) -> None:
@@ -187,7 +198,7 @@ class Store:
             self.db.execute("ALTER TABLE items ADD COLUMN auth TEXT")
         if "place" not in cols:
             self.db.execute("ALTER TABLE items ADD COLUMN place TEXT NOT NULL DEFAULT 'inbox'")
-        if "read_by_us" not in cols:        # 0.15: marked read by the mail assistant once sorted (ADR 0016), not by the user
+        if "read_by_us" not in cols:        # 0.15: marked read by the mail assistant once sorted (ADR 0006), not by the user
             self.db.execute("ALTER TABLE items ADD COLUMN read_by_us TEXT")
         if "older" not in cols:             # 0.16: unread mail from before the range, sorted as idle work (App._older_slice)
             self.db.execute("ALTER TABLE items ADD COLUMN older INTEGER DEFAULT 0")
@@ -362,6 +373,14 @@ class Store:
                                    "ORDER BY date DESC", (account,)).fetchall()
         return [dict(r) for r in rows]
 
+    def auth_failed(self, account: str) -> list[dict]:
+        """Inbox mail waiting for the user, flagged suspicious on a failed sender check: id, uid, message_id, suspicious."""
+        with self.lock:
+            rows = self.db.execute("SELECT id, uid, message_id, suspicious FROM items WHERE account=? AND place='inbox' "
+                                   "AND state='pending' AND action IS NOT NULL AND auth='fail' AND suspicious=1 "
+                                   "AND uid IS NOT NULL ORDER BY date DESC", (account,)).fetchall()
+        return [dict(r) for r in rows]
+
     def set_auth(self, verdicts: dict[int, str], again: list[int]) -> None:
         """Store the verdicts ("none": the provider gave none); `again`: sort these once more (their suggestion
         goes, the next sync asks the model)."""
@@ -370,6 +389,10 @@ class Store:
             self.db.executemany("UPDATE items SET action=NULL, suggested_by=NULL, error=NULL WHERE id=? AND state='pending'",
                                 [(i,) for i in again])
             self.db.commit()
+
+    def item_ids(self, account: str) -> list[int]:
+        with self.lock:
+            return [r[0] for r in self.db.execute("SELECT id FROM items WHERE account=?", (account,))]
 
     def known_uids(self, account: str) -> set[str]:
         """Inbox UIDs already in the local list: a sync reads only the bodies of the others."""
@@ -417,9 +440,16 @@ class Store:
             row = self.db.execute("SELECT * FROM items WHERE id=?", (item_id,)).fetchone()
         return self._item(row) if row else None
 
-    def items(self, account: str, state: str | None = "pending", place: str | None = "inbox") -> list[dict]:
-        """`place`: "inbox" (the list), "archive" (archived mail that still needs the user), None (both)."""
-        q, args = "SELECT * FROM items WHERE account=?", [account]
+    def items(self, account: str, state: str | None = "pending", place: str | None = "inbox",
+              body: bool = True) -> list[dict]:
+        """`place`: "inbox" (the list), "archive" (archived mail that still needs the user), None (both).
+        `body=False`: without the text, for a list of lines (thousands of bodies are megabytes)."""
+        if body:
+            cols = "*"
+        else:
+            with self.lock:
+                cols = ", ".join(r[1] for r in self.db.execute("PRAGMA table_info(items)") if r[1] != "body")
+        q, args = f"SELECT {cols} FROM items WHERE account=?", [account]
         if state:
             q += " AND state=?"
             args.append(state)
@@ -630,6 +660,23 @@ class Store:
             return [dict(r) for r in self.db.execute("SELECT * FROM rules WHERE account=? ORDER BY created_at DESC, id DESC",
                                                      (account,)).fetchall()]
 
+    def list_names(self, account: str, list_ids: list[str]) -> dict[str, str]:
+        """Who sends each mailing list, as the mail shows it (the newest message's sender name, else its address):
+        a list rule's value is a List-Id, often a run of hex (the audit 11-11), so pages name the list by this."""
+        if not list_ids:
+            return {}
+        marks = ",".join("?" * len(list_ids))
+        names: dict[str, tuple[str, str]] = {}
+        with self.lock:
+            for table in ("items", "old_mail"):
+                for r in self.db.execute(f"""SELECT lower(list_id), from_name, from_addr, date FROM {table}
+                                             WHERE account=? AND lower(list_id) IN ({marks})""",
+                                         (account, *[x.lower() for x in list_ids])).fetchall():
+                    who = (r[1] or "").strip() or (r[2] or "").strip()
+                    if who and (r[0] not in names or (r[3] or "") > names[r[0]][1]):
+                        names[r[0]] = (who, r[3] or "")
+        return {k: v[0] for k, v in names.items()}
+
     def restore_rule(self, rule: dict, account: str) -> None:
         """Put a rule back exactly as it was (undo): same id, hits and export date."""
         with self.lock:
@@ -704,8 +751,11 @@ class Store:
             self.db.executemany("DELETE FROM old_mail WHERE account=? AND message_id=?", [(account, m) for m in stale])
             self.db.commit()
 
-    # old inbox mail on the list already (sorted from before the range): 收件箱 and 今日处理 have it, not 清理
-    NOT_LISTED = " AND message_id NOT IN (SELECT message_id FROM items WHERE account=old_mail.account)"
+    # old inbox mail on the list already (sorted from before the range): 收件箱 and 今日处理 have it, not 清理.
+    # Each old mail is looked up by the index: `NOT IN (SELECT ...)` built the inbox's whole list again for every
+    # one of them, seconds for a Gmail inbox with tens of thousands -- each time the inbox was drawn (11-18).
+    NOT_LISTED = (" AND NOT EXISTS (SELECT 1 FROM items WHERE items.account=old_mail.account"
+                  " AND items.message_id=old_mail.message_id)")
 
     def old_read(self, account: str, scope: str) -> int:
         """How many of the scope's old messages the last reading found and are still where they were -- including
@@ -986,6 +1036,13 @@ class Store:
         d = dict(row)
         d["entries"], d["logs"] = json.loads(d.pop("entries_json")), json.loads(d.pop("logs_json") or "[]")
         return d
+
+    def plan_log_ids(self, account: str) -> set:
+        """The steps carried out from a plan on a card (the user's tap on 螺壳's card), by log id."""
+        with self.lock:
+            rows = self.db.execute("SELECT logs_json FROM agent_plans WHERE account=? AND logs_json IS NOT NULL",
+                                   (account,)).fetchall()
+        return {int(x["log"]) for r in rows for x in json.loads(r["logs_json"] or "[]") if x.get("log")}
 
     def plan_offer(self, plan_id: str, account: str, kind: str, entries: dict) -> dict:
         """The plan for this set of messages: made once, the same one again while the set stays the same."""

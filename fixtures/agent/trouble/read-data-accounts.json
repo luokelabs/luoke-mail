@@ -1,0 +1,83 @@
+{
+  "reply": {
+    "id": 17,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "accounts": [
+              {
+                "address": "me@example.com",
+                "error": "Gmail 拒绝登录：请填写应用专用密码，而不是 Google 账号的登录密码。修改过 Google 密码时，原有的应用专用密码已失效，需要重新创建。",
+                "error_code": "login_refused",
+                "id": "me@example.com",
+                "last_sync": "2026-10-20 09:30:00",
+                "name": null,
+                "own": false,
+                "provider": "gmail",
+                "status": "needs_auth"
+              }
+            ],
+            "demo": false,
+            "job": null,
+            "model": null
+          },
+          "uri": "data/accounts"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 17,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/accounts"
+    }
+  }
+}

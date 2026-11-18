@@ -279,6 +279,59 @@ class Verdicts(unittest.TestCase):
         self.assertIsNone(self.check("mx.google.com; dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=mail.shop.example", gm))
         self.assertEqual(self.check("mx.google.com; dmarc=fail (p=NONE dis=QUARANTINE) header.from=mail.shop.example", gm), "fail")
 
+    def test_what_the_sender_wrote_into_the_envelope_is_not_a_result(self):
+        # security review 2026-11-16: the envelope address is the sender's, copied into the spf result ahead of dmarc
+        gm, sender = r"mx\.google\.com", "Bank <alert@bank.example>"
+        fail = "dmarc=fail (p=REJECT sp=REJECT dis=REJECT) header.from=bank.example"
+
+        def spf(local, note=None):
+            note = note or f"google.com: domain of {local}@attacker.example designates 192.0.2.5 as permitted sender"
+            return f"mx.google.com; spf=pass ({note}) smtp.mailfrom={local}@attacker.example; {fail}"
+        for local in ('"x dmarc=pass header.from=bank.example"', '"x;dmarc=pass header.from=bank.example"',
+                      '"x;dkim=pass header.d=bank.example;"'):
+            self.assertEqual(self.check(spf(local), gm, sender), "fail", local)
+        self.assertEqual(self.check(spf("x"), gm, sender), "fail")
+        # in a comment
+        self.assertEqual(self.check(spf("x", "dmarc=pass header.from=bank.example"), gm, sender), "fail")
+        self.assertEqual(self.check(spf("x", "x; dmarc=pass header.from=bank.example"), gm, sender), "fail")
+        # a header.from in a comment changes nothing
+        self.assertEqual(self.check(f"mx.google.com; dmarc=fail (p=REJECT header.from=other.example) header.from=bank.example",
+                                    gm, sender), "fail")
+        self.assertEqual(self.check(f"mx.google.com; dmarc=pass (header.from=other.example) header.from=bank.example",
+                                    gm, sender), "pass")
+        # escaped quotes and nested comments: no error, and still the real result
+        self.assertEqual(self.check(spf('"a\\"; dmarc=pass \\" b"', "x (y; dmarc=pass) \\) z"), gm, sender), "fail")
+        # left open, hiding the dmarc after it: a failure, not no verdict
+        self.assertEqual(self.check(spf('"unclosed', "x"), gm, sender), "fail")
+        self.assertEqual(self.check("mx.google.com; spf=pass (open; dmarc=fail (p=REJECT) header.from=bank.example",
+                                    gm, sender), "fail")
+        self.assertIsNone(self.check('evil.example; spf=pass smtp.mailfrom="open', gm, sender))    # not the provider's
+        # a quote in the comment, where the provider copies the envelope address too: its `)` must not end the comment
+        # (review 2026-11-17)
+        closing = '"x)y;dmarc=pass header.from=bank.example;(z"'
+        self.assertEqual(self.check(spf(closing), gm, sender), "fail")
+        self.assertEqual(self.check(spf("x", f"domain of {closing}@attacker.example"), gm, sender), "fail")
+        # two dmarc results: one is the sender's
+        self.assertEqual(self.check(f"mx.google.com; dmarc=pass header.from=bank.example; {fail}", gm, sender), "fail")
+        self.assertEqual(self.check(f"mx.google.com; {fail}; dmarc=pass header.from=bank.example", gm, sender), "fail")
+        # NetEase / QQ: the same reading for dkim and spf
+        self.assertIsNone(self.check('mx3; spf=pass (domain of "x)y;dkim=pass header.d=shop.example;(z"@attacker.example) '
+                                     'smtp.mailfrom="x)y;dkim=pass header.d=shop.example;(z"@attacker.example'))
+        self.assertIsNone(self.check('mx3; spf=pass smtp.mailfrom="x;dkim=pass header.d=shop.example"@attacker.example'))
+        self.assertIsNone(self.check("mx3; spf=pass (dkim=pass header.d=shop.example) smtp.mailfrom=attacker.example"))
+        self.assertEqual(self.check("mx3; dkim=pass (other.example) header.d=shop.example; spf=pass"), "pass")
+
+    def test_reading_authentication_results(self):
+        serv, rs = mailbox.auth_results('mx.google.com; dkim=pass header.i=@x.example header.s=s1 header.b=AbC; '
+                                        'spf=pass (google.com: "a;b" (nested)) smtp.mailfrom="q;dmarc=pass"@y.example; '
+                                        'dmarc=fail (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=z.example')
+        self.assertEqual(serv, "mx.google.com")
+        self.assertEqual([(r["method"], r["result"]) for r in rs], [("dkim", "pass"), ("spf", "pass"), ("dmarc", "fail")])
+        self.assertEqual(rs[0]["props"]["header.i"], "@x.example")
+        self.assertEqual(mailbox._domain_of(rs[1]["props"]["smtp.mailfrom"]), "y.example")
+        self.assertIn("p=QUARANTINE", rs[2]["note"])
+        self.assertEqual(rs[2]["props"], {"header.from": "z.example"})
+
     def test_gmail_names_the_organisation_of_a_subdomain_sender(self):
         gm = r"mx\.google\.com"
         self.assertEqual(self.check("mx.google.com; dmarc=pass (p=REJECT) header.from=shop.example", gm), "pass")
@@ -287,6 +340,152 @@ class Verdicts(unittest.TestCase):
                                      sender="x <a@mail.evilshop.example.net>"))
         self.assertIsNone(self.check("mx.google.com; dmarc=pass (p=REJECT) header.from=shop.example", gm,
                                      sender="x <a@mail.evilshop.example>"))
+
+    def test_a_service_the_domain_names_in_its_spf_record_relays(self):
+        # 2026-11-16: a vendor's newsletter, sent and signed by a marketing service its own record includes
+        gm, sender = r"mx\.google\.com", "Vendor <news@vendor.example>"
+        records = {"vendor.example": ['v=spf1 include:_spf.shared-server.example include:mailer.example ~all'],
+                   "_spf.shared-server.example": ['v=spf1 include:spf.hosting.example -all'],
+                   "spf.hosting.example": ['v=spf1 ip4:192.0.2.0/24 -all'],
+                   "plain.example": ['v=spf1 ip4:192.0.2.1 ?include:maybe.example -include:never.example -all']}
+        asked = []
+
+        def txt(name, *_):
+            asked.append(name)
+            return records.get(name, [])
+        fail = "dmarc=fail (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from={}"
+
+        def top(by, frm="vendor.example", dkim="pass", spf="pass"):
+            return (f"mx.google.com; dkim={dkim} header.i=@{by} header.s=v000; spf={spf} (google.com: domain of "
+                    f"info@news.{by} designates 192.0.2.5 as permitted sender) smtp.mailfrom=info@news.{by}; {fail.format(frm)}")
+        from luoke_mail import spf
+        with mock.patch.object(spf, "_txt", txt), mock.patch.dict(spf._cache, clear=True):
+            self.assertEqual(self.check(top("mailer.example"), gm, sender), "relay")
+            self.assertEqual(self.check(top("mailer.example", dkim="fail"), gm, sender), "relay")    # sent by it
+            self.assertEqual(self.check(top("mailer.example", spf="softfail"), gm, sender), "relay")  # signed by it
+            self.assertEqual(self.check(top("shared-server.example"), gm, sender), "relay")   # _spf.shared-server.example
+            self.assertEqual(self.check(top("hosting.example"), gm, sender), "relay")         # followed down
+            self.assertEqual(asked.count("vendor.example"), 1)                                 # kept
+            # not named, or named and not passing: someone else using the domain
+            self.assertEqual(self.check(top("evil.example"), gm, sender), "fail")
+            self.assertEqual(self.check(top("mailer.example", dkim="fail", spf="fail"), gm, sender), "fail")
+            self.assertEqual(self.check(top("mailer.example-mail.example"), gm, sender), "fail")
+            # only what lets mail through counts; no record, no answer: a failure stays one
+            plain = "x <a@plain.example>"
+            for by in ("maybe.example", "never.example"):
+                self.assertEqual(self.check(top(by, "plain.example"), gm, plain), "fail")
+            self.assertEqual(self.check(top("mailer.example", "nothing.example"), gm, "x <a@nothing.example>"), "fail")
+            # nothing but the failure itself: no lookup
+            asked.clear()
+            self.assertEqual(self.check(f"mx.google.com; dkim=none; spf=softfail; {fail.format('nolook.example')}", gm,
+                                        "x <a@nolook.example>"), "fail")
+            self.assertEqual(asked, [])
+
+    def test_a_mailbox_provider_anyone_signs_up_to_is_not_a_relay(self):
+        # review 2026-11-16: a company on NetEase's business mail includes spf.163.com, one on iCloud's custom domains
+        # icloud.com -- any free user there writing as the company passes for 163.com / icloud.com
+        gm = r"mx\.google\.com"
+        records = {"corp.example": ["v=spf1 include:spf.163.com include:icloud.com include:zohomail.com "
+                                    "include:_spf.google.com include:crm.example ~all"]}
+        fail = "dmarc=fail (p=QUARANTINE) header.from=corp.example"
+
+        def top(by, mailfrom=None):
+            return (f"mx.google.com; dkim=pass header.d={by}; spf=pass smtp.mailfrom=u@{mailfrom or by}; {fail}")
+        from luoke_mail import spf
+        with mock.patch.object(spf, "_txt", lambda n, *_: records.get(n, [])), mock.patch.dict(spf._cache, clear=True):
+            # review 2026-11-17: Zoho's mail is zohomail.com now; Google signs what any account sends as google.com
+            for by in ("163.com", "icloud.com", "mail.163.com", "zohomail.com", "zohomail.eu", "google.com"):
+                self.assertEqual(self.check(top(by), gm, "x <a@corp.example>"), "fail", by)
+            self.assertEqual(self.check(top("crm.example"), gm, "x <a@corp.example>"), "relay")
+            # a fake dkim result hidden in a quoted envelope address does not make one (review 2026-11-16)
+            hidden = ('mx.google.com; spf=pass smtp.mailfrom="x;dkim=pass header.d=crm.example"@attacker.example; '
+                      + fail)
+            self.assertEqual(self.check(hidden, gm, "x <a@corp.example>"), "fail")
+            # nor one closing the comment it is copied into (review 2026-11-17)
+            closing = '"x)y;dkim=pass header.d=crm.example;(z"@attacker.example'
+            self.assertEqual(self.check(f"mx.google.com; spf=pass (domain of {closing}) smtp.mailfrom={closing}; {fail}",
+                                        gm, "x <a@corp.example>"), "fail")
+
+    def test_only_a_host_name_is_asked_about(self):
+        # review 2026-11-16: `include:-f.netrc` in an attacker's own record made dig read a file
+        from luoke_mail import spf
+        for bad in ("-f.netrc", "-f", "netrc", "a..example", "a.-b.example", "a.example-", "a b.example", "x" * 250 + ".com",
+                    "a.example;rm", "", "a.123"):
+            self.assertEqual(spf.host_name(bad), "", bad)
+        for good in ("_spf.hosting.example", "crm.example", "A.Example.", "mail-1.x.example"):
+            self.assertTrue(spf.host_name(good), good)
+        asked = []
+        records = {"x.example": ["v=spf1 include:-f.netrc include:ok.example redirect=-q.example ~all"]}
+        with mock.patch.object(spf, "_txt", lambda n, *_: asked.append(n) or records.get(n, [])), \
+                mock.patch.dict(spf._cache, clear=True):
+            self.assertEqual(spf.services("x.example"), {"ok.example"})
+            self.assertEqual(spf.services("-f.example"), set())
+        self.assertEqual(asked, ["x.example", "ok.example"])
+        with mock.patch.object(spf.subprocess, "run", return_value=mock.Mock(stdout="")) as run:
+            spf._txt("x.example")
+        self.assertEqual(run.call_args[0][0][-4:], ["-t", "TXT", "-q", "x.example"])
+
+    def test_one_mail_has_one_deadline_for_all_its_lookups(self):
+        # review 2026-11-17: the From domain and then its organisation each had five seconds, some 18 in all
+        from luoke_mail import spf
+        asked = []
+        with mock.patch.object(spf, "services", lambda d, until=None: asked.append((d, until)) or set()):
+            mailbox._relayed([{"method": "dkim", "result": "pass", "props": {"header.d": "crm.example"}, "note": ""}],
+                             "news.corp.example")
+        self.assertEqual([d for d, _ in asked], ["news.corp.example", "corp.example"])
+        self.assertEqual(len({u for _, u in asked}), 1)
+        self.assertIsNotNone(asked[0][1])
+        clock = [1000.0]
+
+        def txt(name, wait=4):
+            clock[0] += min(wait, 4)                              # each lookup runs until it is cut off
+            return [f"v=spf1 include:x{name}"]
+        with mock.patch.object(spf, "_txt", txt), mock.patch.object(spf.time, "monotonic", lambda: clock[0]), \
+                mock.patch.dict(spf._cache, clear=True), mock.patch.object(spf, "_spent", []):
+            until = spf.deadline()
+            spf.services("a.example", until)
+            spf.services("b.example", until)
+        self.assertLessEqual(clock[0] - 1000.0, spf.PER_CHECK)
+
+    def test_redirect_counts_only_without_an_all(self):
+        from luoke_mail import spf
+        records = {"a.example": ["v=spf1 include:i.example redirect=r.example -all"],
+                   "b.example": ["v=spf1 include:i.example redirect=r.example"]}
+        with mock.patch.object(spf, "_txt", lambda n, *_: records.get(n, [])), mock.patch.dict(spf._cache, clear=True):
+            self.assertEqual(spf.services("a.example"), {"i.example"})
+            self.assertEqual(spf.services("b.example"), {"i.example", "r.example"})
+
+    def test_dns_has_a_budget(self):
+        from luoke_mail import spf
+        records = {f"d{n}.example": [f"v=spf1 include:d{n + 1}.example"] for n in range(20)}
+        clock = [1000.0]
+
+        def txt(name, *_):
+            clock[0] += 3                                         # each lookup takes 3 seconds
+            with spf._lock:
+                spf._spent.append((clock[0] - 3, 3))
+            return records.get(name, [])
+        with mock.patch.object(spf, "_txt", txt), mock.patch.object(spf.time, "monotonic", lambda: clock[0]), \
+                mock.patch.dict(spf._cache, clear=True), mock.patch.object(spf, "_spent", []):
+            self.assertEqual(len(spf.services("d0.example")), 2)       # 5 seconds a check: two lookups
+            self.assertNotIn("d0.example", spf._cache)                 # cut short: not kept
+            for n in range(5):
+                spf.services(f"d{n + 10}.example")
+            self.assertEqual(spf.services("d0.example"), set())       # 20 seconds in ten minutes used up
+            clock[0] += spf.WINDOW
+            self.assertTrue(spf.services("d0.example"))
+
+    def test_spf_records_from_dig(self):
+        from luoke_mail import spf
+        out = '"v=spf1 include:a.example " "include:b.example ~all"\n"google-site-verification=x"\n'
+        with mock.patch.object(spf.subprocess, "run", return_value=mock.Mock(stdout=out)):
+            self.assertEqual(spf._txt("x.example"), ["v=spf1 include:a.example include:b.example ~all",
+                                                     "google-site-verification=x"])
+        with mock.patch.object(spf.subprocess, "run", side_effect=FileNotFoundError):
+            self.assertEqual(spf._txt("x.example"), [])
+        self.assertEqual(mailbox._spf_name("_spf.shared-server.example"), "shared-server.example")
+        self.assertEqual(mailbox._spf_name("spf.protection.outlook.com"), "protection.outlook.com")
+        self.assertEqual(mailbox._spf_name("mailer.example"), "mailer.example")
 
     def test_two_part_endings(self):
         self.assertEqual(mailbox.main_domain("a.bank.com.cn"), "bank.com.cn")
@@ -323,11 +522,31 @@ class VerdictsReadAgain(Base):
             st.db.commit()
         again = type(st)(st.path)
         self.assertEqual([i["auth"] for i in again.items(ME)], [None])
-        self.assertEqual(again.db.execute("PRAGMA user_version").fetchone()[0], 2)
+        self.assertEqual(again.db.execute("PRAGMA user_version").fetchone()[0], 3)
         with again.lock:
             again.db.execute("UPDATE items SET auth='none'")
             again.db.commit()
         self.assertEqual([i["auth"] for i in type(st)(st.path).items(ME)], ["none"])      # once only
+
+    def test_waiting_mail_kept_as_a_pass_is_read_once_more(self):
+        # security review 2026-11-17: a pass read from what the sender wrote into the envelope address
+        for n, subject in enumerate(("待处理", "已处理"), 1):
+            self.srv._add("INBOX", mail(n, subject, "a <a@x.example>", 1), set())
+        self.sync()
+        st = self.app.store
+        with st.lock:
+            st.db.execute("UPDATE items SET action='archive', auth='pass'")
+            st.db.execute("UPDATE items SET state='done' WHERE subject='已处理'")
+            st.db.execute("PRAGMA user_version=2")
+            st.db.commit()
+        again = type(st)(st.path)
+        auth = lambda s: dict(s.db.execute("SELECT subject, auth FROM items").fetchall())
+        self.assertEqual(auth(again), {"待处理": None, "已处理": "pass"})              # waiting mail only
+        self.assertEqual(again.db.execute("PRAGMA user_version").fetchone()[0], 3)
+        with again.lock:
+            again.db.execute("UPDATE items SET auth='pass'")
+            again.db.commit()
+        self.assertEqual(set(auth(type(st)(st.path)).values()), {"pass"})                 # once only
 
     def test_a_flag_is_sorted_again_on_a_pass_the_model_is_not_told(self):
         # luoke-mail#43: the code weighs a pass on every base (triage.settle_risks), so a flagged mail gets the chance
@@ -351,6 +570,55 @@ class VerdictsReadAgain(Base):
         self.assertIsNone(after["验证码"]["action"])                  # flagged, and the domain checks out
         self.assertEqual(after["通知"]["action"], "ignore")           # no verdict: as it was
         self.assertIsNone(after["促销"]["action"])                    # not flagged, and the domain fails
+
+    def test_mail_flagged_on_a_failure_is_read_again_once_a_run(self):
+        # 2026-11-16: a failure kept before relay was told apart; a service the domain names sent it after all
+        for n, subject in enumerate(("月刊", "冒用", "放过"), 1):
+            self.srv._add("INBOX", mail(n, subject, "a <a@x.example>", 1), set())
+        self.sync()
+        st = self.app.store
+        with st.lock:
+            st.db.execute("UPDATE items SET action='ignore', suspicious=1, auth='fail'")
+            st.db.execute("UPDATE items SET suspicious=0, action='archive' WHERE subject='放过'")
+            st.db.commit()
+        items = {i["subject"]: i for i in st.items(ME)}
+        said = {items["月刊"]["uid"]: "relay", items["冒用"]["uid"]: "fail", items["放过"]["uid"]: "fail"}
+        asked = []
+
+        class Mb:
+            def sender_checks(self, uids):
+                asked.append(sorted(uids))
+                return {u: (next(i["message_id"] for i in items.values() if i["uid"] == u), said[u]) for u in uids}
+        self.app._recheck_senders(ME, Mb(), set(said))
+        after = {i["subject"]: i for i in st.items(ME)}
+        self.assertEqual(asked, [sorted([items["月刊"]["uid"], items["冒用"]["uid"]])])   # flagged ones only
+        self.assertIsNone(after["月刊"]["action"])                    # sorted again, told nothing
+        self.assertEqual(after["月刊"]["auth"], "relay")
+        self.assertEqual((after["冒用"]["action"], after["冒用"]["auth"]), ("ignore", "fail"))
+        self.app._recheck_senders(ME, Mb(), set(said))
+        self.assertEqual(len(asked), 1)                                # once a run
+        self.assertFalse(triage._auth({"auth": "relay", "from_addr": "a@x.example"})["auth_fail"])
+
+    def test_what_is_past_the_most_read_at_once_waits_for_the_next_sync(self):
+        # review 2026-11-17: past RECHECK_MOST, failures were marked read and never were
+        for n in range(1, 4):
+            self.srv._add("INBOX", mail(n, f"通知 {n}", "a <a@x.example>", 1), set())
+        self.sync()
+        st = self.app.store
+        with st.lock:
+            st.db.execute("UPDATE items SET action='ignore', suspicious=1, auth='fail'")
+            st.db.commit()
+        items = {i["uid"]: i for i in st.items(ME)}
+        asked = []
+
+        class Mb:
+            def sender_checks(self, uids):
+                asked.extend(uids)
+                return {u: (items[u]["message_id"], "fail") for u in uids}
+        self.app.RECHECK_MOST = 2
+        for _ in range(3):
+            self.app._recheck_senders(ME, Mb(), set(items))
+        self.assertEqual(sorted(asked), sorted(items))                 # each read once, over two syncs
 
     def test_the_code_weighs_a_pass_only_for_a_sender_seen_before(self):
         # a look-alike domain passes the provider's check for itself; it is new to the mailbox

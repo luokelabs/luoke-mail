@@ -9,7 +9,7 @@
 只用标准库。旁边要有 luoke-mem（和跑测试一样）。一个场景一个进程：`LUOKE_MAIL_HOME` 指到新建的临时目录，用测试的假邮箱
 （tests/fakes.py 的 FakeIMAP）和假模型（FakeChat，答复写在下面的 `MAILS` 里，不连真模型），时区 Asia/Shanghai，`Clock` 把
 `time`、`datetime` 的现在停住（程序本身没有改时钟的开关）。服务是真的：`App` 和 `agent.sock`，请求经那条 socket 发。
-不碰家目录，不连主控。答复里的方案编号按出现的先后换成 000000000001、000000000002……，版本号换成 $VERSION；资源的
+不碰家目录，不连主控。答复里的方案编号按出现的先后换成 000000000001、000000000002……；资源的
 `contents[0].text` 在线上是一段 JSON 文字，这里解开成 JSON 值好读。
 """
 from __future__ import annotations
@@ -19,6 +19,7 @@ import concurrent.futures
 import datetime
 import difflib
 import getpass
+import imaplib
 import json
 import os
 import re
@@ -26,7 +27,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+import urllib.parse
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,7 +42,13 @@ OUTBOX = f"luoke://{ACCESSORY}/outbox"
 PROTOCOL = "2026-07-28"
 USER_ACTION = "ai.luoke/user-action"
 TZ = "Asia/Shanghai"
-PAGES = ("today", "inbox", "clean", "digest", "subs", "rules", "activity", "settings")   # window/pages.PAGES
+with open(MANIFEST, encoding="utf-8") as _f:          # the tabs, then the pages only a button goes to (§1a hidden)
+    _caps = json.load(_f)["capabilities"]
+PAGES = tuple(p["id"] for p in _caps["service"]["pages"])
+DATA = tuple(_caps.get("data") or ())          # data/<名字> the manifest lists (capabilities.data)
+DATA_ALL = ("today", "inbox", "digest", "clean", "activity")     # these take account=all
+# the other ways the core reads one (as it asks: keys in alphabetical order, protocol §4 pageArgs): 精选 opens at 「今天」
+DATA_MORE = {"digest": [("today", "range=today")]}
 ME = "me@example.com"
 UTC = datetime.timezone.utc
 SHANGHAI = datetime.timezone(datetime.timedelta(hours=8))
@@ -201,6 +210,7 @@ class Recorder:
         self.cleanups.append(a.agent.close)
         self.sock = a.agent.server._socket_path
         self.n = 0
+        self.aliases: Dict[str, str] = {}         # a random id (a job's) -> what the fixture says instead
 
     # 造数据
 
@@ -304,12 +314,38 @@ class Recorder:
                     self.surfaces[sid] = self.a2ui.build(it["card"])
                 self.outbox_cards[sid] = it["card"]
         elif uri.startswith("page/"):
-            self.surfaces[uri[len("page/"):]] = self.a2ui.build(value)
+            self.surfaces[uri[len("page/"):]] = self.a2ui.build(value, page=True)
         return value
 
     def pages(self, suffix: str = "") -> None:
         for page in PAGES:
             self.read("page/" + page, f"read-page-{page}{suffix}.json", f"读基础页 page/{page}")
+        for name in DATA:                  # the raw data the core builds pages from (ADR 0002, docs/agent-data.md)
+            if name in ("mail", "sender", "piece", "job"):
+                continue                   # one mail, sender, piece or job: read when the user opens it, not with a page
+            if name == "old":              # one mailbox, as 清理 reads it: the inbox's old mail, and the archived
+                self.read(f"data/old?account={urllib.parse.quote(ME, safe='')}", f"read-data-old{suffix}.json",
+                          f"读原始数据 data/old，一个邮箱（{ME}）收件箱里的旧邮件")
+                self.read(f"data/old?account={urllib.parse.quote(ME, safe='')}&scope=archive",
+                          f"read-data-old-archive{suffix}.json", f"读原始数据 data/old?scope=archive，一个邮箱（{ME}）归档的邮件")
+                continue
+            if name not in DATA_ALL:
+                self.read(f"data/{name}", f"read-data-{name}{suffix}.json", f"读原始数据 data/{name}")
+                continue
+            # as the core reads it: all the mailboxes (「全部」), or the one the user switched to
+            self.read(f"data/{name}?account=all", f"read-data-{name}-all{suffix}.json", f"读原始数据 data/{name}，所有邮箱")
+            self.read(f"data/{name}?account={urllib.parse.quote(ME, safe='')}", f"read-data-{name}-one{suffix}.json",
+                      f"读原始数据 data/{name}，一个邮箱（{ME}）")
+            for tag, query in DATA_MORE.get(name, []):
+                self.read(f"data/{name}?account=all&{query}", f"read-data-{name}-{tag}-all{suffix}.json",
+                          f"读原始数据 data/{name}?{query}，所有邮箱")
+                self.read(f"data/{name}?account={urllib.parse.quote(ME, safe='')}&{query}",
+                          f"read-data-{name}-{tag}-one{suffix}.json", f"读原始数据 data/{name}?{query}，一个邮箱（{ME}）")
+        for it in self.outbox:             # 邮箱卡片「待整理」的「查看邮件」：只答这张卡片要整理的那几封
+            if it["kind"] == "mailbox":
+                pid = self.surface_id(it["card"])
+                self.read(f"data/inbox?account={urllib.parse.quote(ME, safe='')}&part=tidy&plan={pid}",
+                          f"read-data-inbox-plan{suffix}.json", "读原始数据 data/inbox?plan=…&part=tidy，这张卡片要整理的")
 
     def snapshot(self, suffix: str = "", *, static: bool = True) -> None:
         """agent 连上一个工具、打开它的页时读的那些。"""
@@ -389,9 +425,12 @@ def new_mail(r: Recorder) -> None:
     r.read("summary", "read-summary-after-undo.json", "撤销完再读概览")
     r.pages("-after-undo")
     r.at(at(7))
-    r.click("call-mail_apply_plan-tidy.json", "用户在「邮箱」卡片的「可以整理」点「归档 1 · 删除 1」", event="mail_apply_plan",
-            label="归档", item=r.item("mailbox"))
+    box = r.item("mailbox")
+    r.click("call-mail_apply_plan-tidy.json", "用户在「邮箱」卡片的「待整理」点「归档 1 · 删除 1」", event="mail_apply_plan",
+            label="归档", item=box)
     r.read(OUTBOX, "read-outbox-after-tidy.json", "整理完再读 outbox")
+    r.read(f"data/inbox?account={urllib.parse.quote(ME, safe='')}&part=tidy&plan={r.surface_id(box['card'])}",
+           "read-data-inbox-plan-after-tidy.json", "整理完再点「查看邮件」：这张卡片已经点过（handled），没有要列的")
 
 
 def suspicious(r: Recorder) -> None:
@@ -432,6 +471,55 @@ def auto_done(r: Recorder) -> None:
     r.read("summary", "read-summary-after-undo-page.json", "点完再读概览")
 
 
+def trouble(r: Recorder) -> None:
+    """订阅体检时模型连不上，之后邮箱的授权码被拒：窗口照代号写字的那几处（docs/agent-data.md「停下的原因」）。"""
+    from luoke_mail import mailbox
+    r.connect()
+    r.deliver("双十一预告", "周末促销", "双十一预告", "答辩时间确认")
+    r.sync()
+    r.app.cfg["engine"]["base_url"] = "http://127.0.0.1:9/v1"        # nothing listens there
+    jid = r.app.start_subscriptions({"source": ME, "days": 60})["id"]
+    wait_job(r.app, jid)
+    r.produced.append("模型的地址换成没有服务的端口，跑了一次订阅体检（App.start_subscriptions）：某某商城的 3 封要模型看，模型连不上")
+    refused = mailbox.friendly_error(imaplib.IMAP4.error("[AUTHENTICATIONFAILED] Invalid credentials"), "gmail")
+
+    def refuse(*_: Any) -> Any:
+        raise refused
+    r.app.open_mailbox = refuse
+    jid = r.app.start_sync({"source": ME})["id"]
+    wait_job(r.app, jid)
+    r.aliases[jid] = "job-sync-1"
+    r.produced.append("邮箱改成拒绝登录（Gmail 的 AUTHENTICATIONFAILED），用户点了一次同步（App.start_sync），任务停在 login_refused")
+    r.at(at(1))
+    r.snapshot()
+    r.read(f"data/job?id={jid}", "read-data-job.json", "读原始数据 data/job：停下的同步任务")
+
+    # 发件人页：邮箱还没答完封数（pending），再读时邮箱拒绝登录（error）
+    key = r.app.store.cache_get(ME, "subscriptions")[0]["senders"][0]["key"]
+    asked, real = threading.Event(), r.app.sender_act
+
+    def busy(body: dict) -> Any:
+        if body.get("op") == "history_preview":
+            asked.wait(10)
+        return real(body)
+    r.app.sender_act, r.app.HISTORY_WAIT = busy, 0.2
+    uri = f"data/sender?account={urllib.parse.quote(ME)}&key={urllib.parse.quote(key, safe='')}"
+    r.read(uri, "read-data-sender-pending.json", "读原始数据 data/sender：邮箱正忙，封数还没查完（history_state: pending）")
+    asked.set()
+    while not r.app._histories[(ME, key)]["done"].wait(0.05):
+        pass
+    r.app.sender_act = real
+    r.read(uri, "read-data-sender-error.json", "读原始数据 data/sender：再读时查完了，邮箱拒绝登录（history_state: error）")
+
+
+def wait_job(app: Any, jid: str) -> None:
+    for _ in range(600):
+        if app.jobs[jid]["status"] != "running":
+            return
+        time.sleep(0.05)
+    raise RuntimeError(f"job {jid} still running")
+
+
 def search(r: Recorder) -> None:
     r.connect()
     r.deliver("答辩时间确认", "项目周会", "账户已冻结")
@@ -449,19 +537,19 @@ class Scenario:
 
 
 SCENARIOS = [
-    Scenario("no-mailbox", "还没连邮箱",
+    Scenario("no-mailbox", "未连接邮箱",
              "刚装好，还没连邮箱。邮件助手在运行，要等用户在自己的页面里填授权码。",
-             ["「今天 · 要你决定」里一张「还没连邮箱」，按钮「去设置」（`mail_open_page`，`{\"page\": \"accounts\"}`，打开邮件助手自己的页面）。",
+             ["「今天 · 要你决定」里一张「未连接邮箱」，按钮「打开设置」（`mail_open_page`，`{\"page\": \"accounts\"}`，打开邮件助手自己的页面）。",
               "应用页的 `needs` 里有 `mailbox`；权限页这一行 `ask`，能「打开」，不能「移除」。",
-              "概览写「还没连邮箱」，计数 0；三页都是一句话加「去设置」。"],
+              "概览写「未连接邮箱」，计数 0；三页都是一句话加「打开设置」。"],
              no_mailbox),
     Scenario("new-mail", "新邮件分拣好了",
              "夜里到了五封：一封要回、一封周会、一封律师发来的合同，一封周刊打算归档，一封促销打算删除。早上分拣好了。",
              ["两件（luoke-mail#81，「今天」的新模板）：`new-mail`、`normal`，在「要你决定」：只放优先级高、没过期限的（这里是王老师那封），"
-              "标题「1 封要处理」后面一个邮箱地址的标签，一行发件人（加粗）、主题和截止的标签，选择框带图标；主按钮写清做什么（「写草稿 1」），"
-              "旁边「查看全部 3 封」（`agent.open_page` 到 `inbox`，`args` 是 `box` 和 `list: needs`，收件箱切到这个邮箱、开着「需要你处理」）。",
+              "标题「1 封待处理」后面一个邮箱地址的标签，一行发件人（加粗）、主题和截止的标签，选择框带图标；主按钮写清做什么（「写草稿 1」），"
+              "旁边「查看全部 3 封」（`agent.open_page` 到 `inbox`，`args` 是 `box` 和 `list: needs`，收件箱切到这个邮箱、开着「要你处理」）。",
               "`mailbox`、`low`，在「顺便看看」：一个邮箱一张「邮箱」，分块：「待处理」（周会、合同，每封一个选择框；周会那行右边一个「10-22 15:00」"
-              "加入日程的按钮，`agent.open_url`，悬停提示「加入日程」），「可以整理」（一句「多是…」，按钮「归档 1 · 删除 1」「先不动」）。"
+              "加入日程的按钮，`agent.open_url`，悬停提示「加入日程」），「待整理」（一句「来自…」，按钮「归档 1 · 删除 1」「暂不处理」）。"
               "有较早的可疑邮件时还有「判为可疑」一块，`collapsed` 先收起。每块的按钮上下文带 `part`，只做这一块。",
               "点「写草稿 1」把 `/choices` 换成当时的选项转给 `mail_apply_plan`：答复带 `done: true`，卡片换成结果和 [撤销]（结果只有一种时 root 带 `group`，"
               "「已经替你做了」里同一个邮箱、同一种结果合成一行），这一件从 outbox 撤下。",
@@ -473,7 +561,7 @@ SCENARIOS = [
     Scenario("suspicious", "可疑邮件",
              "一封冒充银行的邮件被判成可疑，同时来了一封要回的信。",
              ["一件 `suspicious`、`urgent`：急事横幅，按「主动提醒」的设置发通知。卡片标题「可疑邮件」后面一个邮箱地址的标签，一行发件人（加粗）和主题，"
-              "一行理由；每个选项一个按钮，只有「移到垃圾邮件」（`destructive`，浅红底）「先不动」，永远不给退订；root 带 `subtitle`（发件人 · 主题）。",
+              "一行理由；每个选项一个按钮，只有「移到垃圾邮件」（`destructive`，浅红底）「暂不处理」，永远不给退订；root 带 `subtitle`（发件人 · 主题）。",
               "`outbox_ack` `shown` 只是记账：agent 说过了，邮件助手不再发自己的通知。",
               "点了以后答复带 `done: true`，这一件从 outbox 撤下，结果卡的 root 带 `group`（`<邮箱>/spam`）；概览的「可疑」减一。"],
              suspicious),
@@ -490,6 +578,15 @@ SCENARIOS = [
              ["`mail_search` 答 `hits`（工具协议 §1b），`card` 是空的：窗口的 `HitsList` 做好之前，agent 的 `_search_one` 不画这个来源，见下面「要对齐的」。",
               "每条的 `actions` 是 `mail_show`（打开这封），`source` 是邮箱地址。"],
              search),
+    Scenario("trouble", "模型连不上、邮箱被拒",
+             "订阅体检时本机模型连不上，某某商城没让模型看过；之后邮箱的授权码被拒，用户点的同步停了。",
+             ["`data/clean` 的 `subscriptions.model_check`：`reason: model_error`、`problem_code: model_unreachable`、`unchecked` 和 `of`；"
+              "`model_note` 是原来的句子。",
+              "`data/accounts` 这个邮箱 `status: needs_auth`、`error_code: login_refused`；`data/job` 停下的同步 `status: error`、"
+              "`error_code: login_refused`。窗口照代号写字，没有代号时退回原文。",
+              "`data/sender` 某某商城：邮箱正忙时 `history_state: pending`、没有 `history`；再读时 `history_state: error`、"
+              "`history_error_code: login_refused`。发件人的其余字段两次都在。"],
+             trouble),
 ]
 
 
@@ -500,7 +597,7 @@ HASH = re.compile(r"(?<=[/-])[0-9a-f]{16}(?![0-9A-Za-z])")
 
 
 def normalise(r: Recorder, home: str) -> Dict[str, str]:
-    """场景里每个文件的文字：路径换成占位，方案编号按先后编号（同一个场景里前后对得上），版本号换成 $VERSION。"""
+    """场景里每个文件的文字：路径换成占位，方案编号按先后编号（同一个场景里前后对得上）。版本号是真的（窗口照着显示）。"""
     spellings = {r.work, home}
     spellings |= {p[len("/private"):] for p in spellings if p.startswith("/private/")}
     pairs = [(p, "~/.luoke-mail" if p.endswith(home) else "$TMPDIR") for p in sorted(spellings, key=len, reverse=True)]
@@ -511,13 +608,21 @@ def normalise(r: Recorder, home: str) -> Dict[str, str]:
 
     out: Dict[str, str] = {}
     for file, obj in r.records:
-        if file == "server-discover.json":
-            obj["reply"]["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["version"] = "$VERSION"
         text = json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=True)
         for real, placeholder in pairs:
             text = text.replace(real, placeholder)
+        for real, alias in r.aliases.items():
+            text = text.replace(real, alias)
         out[file] = HASH.sub(renumber, text) + "\n"
     return out
+
+
+VERSION_LINE = re.compile(r'("version": )"\d+(?:\.\d+)+"')
+
+
+def unversioned(text: Optional[str]) -> Optional[str]:
+    """What --check compares: the mail assistant's version left out (it changes with almost every PR)."""
+    return VERSION_LINE.sub(r'\1"*"', text) if text is not None else None
 
 
 GENERIC_USERS = {"admin", "user", "test", "dev", "root", "fixture", "app", "mac"}
@@ -548,7 +653,6 @@ def scenario_json(sc: Scenario, r: Recorder) -> dict:
         "steps": r.steps,
         "normalised": {
             "000000000001…": "方案编号（new-mail-…、suspicious-…、auto-done-… 后面的 16 位十六进制），按在本场景里出现的先后编号",
-            "$VERSION": "邮件助手的版本号（server/discover、manifest.json）：每次发版都变，比对时不看",
             "~/.luoke-mail": "LUOKE_MAIL_HOME（临时目录）",
             "$TMPDIR": "录的时候的临时目录",
             "resources/read": "contents[0].text 解开成了 JSON 值；线上是 JSON 文字",
@@ -570,7 +674,6 @@ def record_one(name: str) -> Dict[str, str]:
         files = normalise(r, home)
         with open(MANIFEST, encoding="utf-8") as f:
             manifest = json.load(f)
-        manifest["version"] = "$VERSION"
         files["manifest.json"] = json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
         files["scenario.json"] = json.dumps(scenario_json(sc, r), ensure_ascii=False, indent=2, sort_keys=True) + "\n"
         for file, text in files.items():
@@ -743,7 +846,8 @@ python3 scripts/record_agent_fixtures.py --only new-mail --keep   # 只录一个
 | `read-outbox*.json` | `resources/read` `luoke://luoke-mail/outbox`（agent 每分钟读） |
 | `read-summary*.json` | `resources/read` `summary` |
 | `read-permissions*.json` | `resources/read` `permissions` |
-| `read-page-<页>*.json` | `resources/read` `page/<页>`：今日处理、收件箱、清理、精选、订阅体检、规则、处理记录、设置（`window/pages`） |
+| `read-data-<名字>*.json` | `resources/read` `data/<名字>`：清单 `capabilities.data` 列的原始数据（`docs/agent-data.md`），`-all` 是 `account=all`（所有邮箱），`-one` 是 `account=<那个邮箱>`；`read-data-digest-today-*` 是 `range=today` |
+| `read-page-<页>*.json` | `resources/read` `page/<页>`：今日、收件箱、精选、清理，和只由按钮去的设置、处理记录、规则、订阅体检、清理旧邮件（`window/pages`） |
 | `call-<工具>*.json` | `tools/call`：卡片、页上的点按（带 `ai.luoke/user-action`），或只读的调用 |
 
 带 `-after-…` 的是点完以后再读的。每个文件是 `{"request": …, "reply": …}`：`request` 是 agent 发的那条 JSON-RPC
@@ -756,8 +860,8 @@ JSON 按键排序、缩进两格。
   重放时 `json.dumps` 回去。
 - 方案编号（`new-mail-…`、`suspicious-…`、`auto-done-…` 后面的 16 位十六进制）按在场景里出现的先后换成 `000000000001`、
   `000000000002`……；同一个场景里前后对得上（outbox 里的方案编号就是点按时发的那个），不同场景之间不对应。
-- 版本号换成 `$VERSION`（`server/discover` 的 `serverInfo`、`manifest.json` 的 `version`）：邮件助手几乎每个 PR 升一次版本，
-  不换的话每个 PR 都要重录，看不出 agent 看到的东西有没有变。
+- 版本号是真的（`server/discover` 的 `serverInfo`、`manifest.json` 的 `version`，窗口的「版本」照着显示）；邮件助手几乎每个 PR
+  升一次版本，`--check` 比对时不看版本号，只升版本不用重录。
 - 路径：`LUOKE_MAIL_HOME` 是 `~/.luoke-mail`，别的临时目录是 `$TMPDIR`。
 - 时钟停在固定的时间（各场景的 `scenario.json`），时区是 Asia/Shanghai：`created` 这类写的是上海的本机时间，不带时区。
 
@@ -783,7 +887,7 @@ JSON 按键排序、缩进两格。
   没有卡片就不画，要等窗口的 `HitsList`。
 - **`created` 没带时区**：邮件的写收到的时间，`needs-access`、`auto-done` 和没有收到时间的写这一件出来的时间，都是
   `2026-10-20T03:42:00` 这样。工具协议写「不带时区的按本机时间」，邮件助手一直这样写。
-- 邮件助手这边要改的，改了样例跟着变，agent 别照着它排版：`auto-done` 的摘要和每组的说明都写「按你的习惯自动归档 1 封」，
+- 邮件助手这边要改的，改了样例跟着变，agent 别照着它排版：`auto-done` 的摘要和每组的说明都写「按习惯自动归档 1 封」，
   分不出是哪条习惯（工具协议 §8a 要说按了哪几条），只有下面一行的主题看得出来。
 
 ## 场景
@@ -859,7 +963,7 @@ def main() -> int:
         keys = sorted(set(new) | {k for k in old if k == "README.md" and complete or k.split("/", 1)[0] in names})
         diff: List[str] = []
         for k in keys:
-            if old.get(k) == new.get(k):
+            if old.get(k) == new.get(k) or unversioned(old.get(k)) == unversioned(new.get(k)):
                 continue
             if k not in old:
                 diff.append(f"多了 {k}（仓库里没有）")

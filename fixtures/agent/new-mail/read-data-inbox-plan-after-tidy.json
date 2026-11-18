@@ -1,0 +1,84 @@
+{
+  "reply": {
+    "id": 99,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "counts": {
+              "archived": 0,
+              "direct": 0,
+              "needs": 0,
+              "reply": 0,
+              "suspicious": 0,
+              "unsorted": 0
+            },
+            "cursor": null,
+            "items": [],
+            "list": "plan",
+            "more": false,
+            "plan": {
+              "id": "mailbox-000000000002-3a316d6d",
+              "part": "tidy",
+              "state": "handled"
+            }
+          },
+          "uri": "data/inbox?account=me%40example.com&part=tidy&plan=mailbox-000000000002-3a316d6d"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 99,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/inbox?account=me%40example.com&part=tidy&plan=mailbox-000000000002-3a316d6d"
+    }
+  }
+}

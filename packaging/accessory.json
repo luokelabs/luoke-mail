@@ -3,7 +3,7 @@
   "accessory": "luoke-mail",
   "bundle_id": "ai.luoke.mail",
   "name": "螺壳邮件助手",
-  "version": "0.19.47",
+  "version": "0.19.71",
   "icon": "AppIcon.icns",
   "type": "app",
   "entry": [
@@ -69,6 +69,7 @@
   "jobs": [
     {
       "name": "clean",
+      "title": "旧邮件分析",
       "command": [
         "-m",
         "luoke_mail",
@@ -83,6 +84,7 @@
     },
     {
       "name": "digest",
+      "title": "挑选精选内容",
       "command": [
         "-m",
         "luoke_mail",
@@ -97,6 +99,7 @@
     },
     {
       "name": "learn",
+      "title": "从邮件中学习偏好",
       "command": [
         "-m",
         "luoke_mail",
@@ -170,42 +173,257 @@
         "name": "mail_do",
         "title": "照邮件助手页面上点的按钮处理",
         "writes": true
+      },
+      {
+        "name": "mail_act",
+        "title": "处理邮件：归档、删除、移到垃圾邮件、加星标、标已读或未读",
+        "writes": true
+      },
+      {
+        "name": "mail_undo_step",
+        "title": "撤销一步处理",
+        "writes": true
+      },
+      {
+        "name": "mail_calendar",
+        "title": "把邮件里的日程交给「日历」",
+        "writes": true
+      },
+      {
+        "name": "mail_draft",
+        "title": "写回复草稿",
+        "writes": true
+      },
+      {
+        "name": "mail_draft_save",
+        "title": "把草稿存进邮箱的「草稿」",
+        "writes": true
+      },
+      {
+        "name": "mail_change",
+        "title": "改邮件的建议，可以同时建一条规则",
+        "writes": true
+      },
+      {
+        "name": "mail_sync",
+        "title": "同步新邮件",
+        "writes": true
+      },
+      {
+        "name": "mail_job_stop",
+        "title": "停下正在跑的任务",
+        "writes": true
+      },
+      {
+        "name": "mail_digest_feedback",
+        "title": "精选：多来点、少来点这类",
+        "writes": true
+      },
+      {
+        "name": "mail_digest_archive",
+        "title": "精选：看过了，移出列表",
+        "writes": true
+      },
+      {
+        "name": "mail_digest_open",
+        "title": "精选：记一次打开",
+        "writes": true
+      },
+      {
+        "name": "mail_digest_reading",
+        "title": "精选：暂停或接着读订阅",
+        "writes": true
+      },
+      {
+        "name": "mail_digest_source",
+        "title": "精选：加入或移出来源",
+        "writes": true
+      },
+      {
+        "name": "mail_unsubscribe",
+        "title": "一键退订（不能撤销）",
+        "writes": true
+      },
+      {
+        "name": "mail_sender_keep",
+        "title": "订阅：留着别再问",
+        "writes": true
+      },
+      {
+        "name": "mail_sender_rule",
+        "title": "订阅：这个发件人以后都这样处理",
+        "writes": true
+      },
+      {
+        "name": "mail_sender_history",
+        "title": "订阅：清掉这个发件人的历史邮件",
+        "writes": true
+      },
+      {
+        "name": "mail_sender_reset",
+        "title": "订阅：撤回决定，移回建议处理",
+        "writes": true
+      },
+      {
+        "name": "mail_sender_unsubscribed",
+        "title": "订阅：标记为已退订",
+        "writes": true
+      },
+      {
+        "name": "mail_subscriptions_check",
+        "title": "检查订阅",
+        "writes": true
+      },
+      {
+        "name": "mail_old_scan",
+        "title": "读旧邮件（收件箱的或归档的）",
+        "writes": true
+      },
+      {
+        "name": "mail_old_judge",
+        "title": "让本机模型看旧邮件，或暂停",
+        "writes": true
+      },
+      {
+        "name": "mail_old_archive",
+        "title": "按组归档旧邮件",
+        "writes": true
+      },
+      {
+        "name": "mail_old_trash",
+        "title": "按组把旧邮件移到已删除",
+        "writes": true
+      },
+      {
+        "name": "mail_old_keep",
+        "title": "旧邮件：这一组留着别再问",
+        "writes": true
+      },
+      {
+        "name": "mail_settings",
+        "title": "改一项设置",
+        "writes": true
+      },
+      {
+        "name": "mail_set_name",
+        "title": "改邮箱的显示名",
+        "writes": true
+      },
+      {
+        "name": "mail_set_own",
+        "title": "设为（或不再是）螺壳自己的邮箱",
+        "writes": true
+      },
+      {
+        "name": "mail_connect",
+        "title": "添加邮箱、改授权码",
+        "writes": true
+      },
+      {
+        "name": "mail_remove",
+        "title": "移除邮箱",
+        "writes": true
+      },
+      {
+        "name": "mail_forget",
+        "title": "清除邮件助手的全部数据",
+        "writes": true
+      },
+      {
+        "name": "mail_learn",
+        "title": "从邮件中了解你：开或停",
+        "writes": true
+      },
+      {
+        "name": "mail_site",
+        "title": "你的网站和博客：添加或删除",
+        "writes": true
+      },
+      {
+        "name": "mail_rule_add",
+        "title": "添加规则",
+        "writes": true
+      },
+      {
+        "name": "mail_rule_delete",
+        "title": "删除规则",
+        "writes": true
+      },
+      {
+        "name": "mail_rule_preview",
+        "title": "预演 Gmail 过滤器",
+        "writes": true
+      },
+      {
+        "name": "mail_gmail_filters",
+        "title": "导出 Gmail 过滤器",
+        "writes": true
       }
+    ],
+    "data": [
+      "accounts",
+      "today",
+      "inbox",
+      "digest",
+      "clean",
+      "settings",
+      "activity",
+      "mail",
+      "providers",
+      "sender",
+      "old",
+      "job",
+      "piece"
     ],
     "service": {
       "summary": true,
       "pages": [
         {
           "id": "today",
-          "title": "今日处理"
+          "title": "今日"
         },
         {
           "id": "inbox",
           "title": "收件箱"
         },
         {
-          "id": "clean",
-          "title": "清理"
-        },
-        {
           "id": "digest",
           "title": "精选"
         },
         {
-          "id": "subs",
-          "title": "订阅体检"
+          "id": "clean",
+          "title": "清理"
         },
         {
-          "id": "rules",
-          "title": "规则"
+          "id": "legacy-settings",
+          "title": "邮箱和设置",
+          "hidden": true
         },
         {
           "id": "activity",
-          "title": "处理记录"
+          "title": "处理记录",
+          "hidden": true,
+          "icon": "history"
         },
         {
-          "id": "settings",
-          "title": "设置"
+          "id": "rules",
+          "title": "规则",
+          "hidden": true
+        },
+        {
+          "id": "subs",
+          "title": "订阅体检",
+          "hidden": true
+        },
+        {
+          "id": "sweep",
+          "title": "清理旧邮件",
+          "hidden": true
+        },
+        {
+          "id": "piece",
+          "title": "精选内容",
+          "hidden": true
         }
       ],
       "ask": {
