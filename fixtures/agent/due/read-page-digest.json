@@ -1,0 +1,102 @@
+{
+  "reply": {
+    "id": 10,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "digest"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g3-t1",
+                      "g3-t2"
+                    ],
+                    "component": "Column",
+                    "id": "root"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g3-t1",
+                    "text": "还没有精选来源。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g3-t2",
+                    "text": "在「订阅体检」里把发件人加入精选，或在「清理」的「订阅内容」一栏选择「先读一遍」。",
+                    "variant": "caption"
+                  }
+                ],
+                "surfaceId": "digest"
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/digest"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 10,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/digest"
+    }
+  }
+}

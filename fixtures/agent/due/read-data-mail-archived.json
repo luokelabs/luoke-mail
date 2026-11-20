@@ -1,0 +1,107 @@
+{
+  "reply": {
+    "id": 37,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "account": "me@example.com",
+            "action": "follow_up",
+            "ask_text": "10-21 前在 App 重新登记 2027 年奖赏计划",
+            "attachments": [],
+            "body_text": "正文 1",
+            "category": "finance",
+            "cc": [],
+            "date": "2026-10-19 22:54",
+            "draft_text": null,
+            "due": "2026-10-21",
+            "events": [
+              {
+                "added": false,
+                "date": "2026-10-21",
+                "end": null,
+                "index": 0,
+                "kind": "due",
+                "location": null,
+                "past": false,
+                "start": null,
+                "title": "截止：重新登记奖赏计划"
+              }
+            ],
+            "from": {
+              "address": "notice@bank.example",
+              "name": "某银行"
+            },
+            "id": 3,
+            "open_url": "https://mail.google.com/mail/u/?authuser=me@example.com#all/000000000005",
+            "start": null,
+            "subject": "重新登记奖赏计划",
+            "suspicious": false,
+            "to": [
+              "me@example.com"
+            ],
+            "truncated": false,
+            "ways": [
+              "complete",
+              "calendar"
+            ]
+          },
+          "uri": "data/mail?id=3"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 37,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/mail?id=3"
+    }
+  }
+}

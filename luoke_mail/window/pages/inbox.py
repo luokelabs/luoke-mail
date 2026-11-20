@@ -11,6 +11,8 @@ opens it at a mailbox's list (`page/inbox?box=<address>&list=needs|suspicious`, 
 them once, and the user's own choices on the page stand while it stays open with those args."""
 from __future__ import annotations
 
+import time
+
 from ... import triage
 from .. import kit
 from .common import SCREEN, mailbox_row, more, running, screen
@@ -79,10 +81,19 @@ def _line_ops(p: kit.Page, src: str, it: dict) -> list:
     return [archive]
 
 
+def _due(it: dict) -> str:
+    """截止 …; a thing that can't be done yet, its window (11-18: 「11-23 至 12-06」)."""
+    if it.get("overdue"):
+        return f"截止 {it.get('due_date')}，已过"
+    if it.get("due_date") and (it.get("start_date") or "") > time.strftime("%Y-%m-%d"):
+        return f"{it['start_date']} 至 {it['due_date']}"
+    return f"截止 {it['due_date']}" if it.get("due_date") else ""
+
+
 def _line(p: kit.Page, src: str, it: dict) -> str:
     """One mail a line: who, and in a sentence what they want; a tap on the line opens it."""
     what = it.get("summary") or it.get("subject") or "（无主题）"
-    when = f"截止 {it['due_date']}，已过" if it.get("overdue") else f"截止 {it['due_date']}" if it.get("due_date") else ""
+    when = _due(it)
     tag = "可疑：请勿点击链接或转账" if it.get("suspicious") else ""
     return p.item([p.text(_who(it) or it.get("subject") or "", "strong"),
                    p.text(" · ".join(x for x in (tag, what, when) if x), "caption")],
@@ -96,10 +107,8 @@ def _card(w, p: kit.Page, src: str, it: dict, view: dict, write: bool) -> str:
              p.text(" · ".join(x for x in (_who(it), _when(it), tag) if x), "caption")]
     if it.get("summary"):
         lines.append(p.text(it["summary"], "caption"))
-    if it.get("overdue"):
-        lines.append(p.text(f"截止 {it.get('due_date')}，已过", "caption"))
-    elif it.get("due_date"):
-        lines.append(p.text(f"截止 {it['due_date']}", "caption"))
+    if it.get("due_date"):
+        lines.append(p.text(_due(it), "caption"))
     if it.get("past_event"):
         lines.append(p.text(f"日程已过（{it['past_event']}）", "caption"))
     elif it.get("in_calendar"):

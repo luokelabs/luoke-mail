@@ -936,6 +936,219 @@ JSON 按键排序、缩进两格。
 
 `call-mail_do-page.json` 答：「已撤销」
 
+## `due`：明天截止的事先归档了
+
+一封银行的通知要在明天前重新登记，用户先把它归档了（11-18：归档以后提醒跟着没了）。一封体检预约后天才开放（10-22 至 11-05）。另有一封要回的信。
+
+**怎么录的**：LUOKE_MAIL_HOME 指到新建的临时目录；假邮箱是 tests/fakes.py 的 FakeIMAP（gmail），假模型是 FakeChat，分拣和草稿的答复写在 scripts/record_agent_fixtures.py 的 `MAILS` 里；连上了假邮箱 me@example.com（Gmail，处理模式开着）；收件箱里放了：重新登记奖赏计划、体检预约安排、答辩时间确认；2026-10-20T01:30:00Z 同步了一次（App.sync_mailbox：真的读信、分拣、做习惯里的事）。
+
+**邮件助手报的**
+
+- 概览（`summary`）：count 2，「2 封待处理」
+- 权限（`permissions`）：`mailbox` granted
+- outbox：3 件
+  - `due/due-000000000001`：`due`、`normal` → 要你决定（decide）
+    - 标题：1 封即将截止
+    - 摘要：某银行：重新登记奖赏计划。
+    - 卡片（surface `due-000000000001`）：
+      - **1 封即将截止**
+      - me@example.com
+      - 某银行
+      - 重新登记奖赏计划
+      - 明天截止
+      - 10-21 前在 App 重新登记 2027 年奖赏计划
+      - 选项：某银行：重新登记奖赏计划（complete/keep，默认 keep）
+      - 按钮：「加入日程 · 10-21」→ `mail_open_calendar`
+      - 按钮：「标为完成 {n} 封」→ `mail_apply_plan`、「在邮件助手中查看」→ `agent.open_page`
+  - `new-mail/new-mail-000000000002`：`new-mail`、`normal` → 要你决定（decide）
+    - 标题：1 封待处理邮件
+    - 摘要：王老师：王老师问答辩时间，周五前回。
+    - 卡片（surface `new-mail-000000000002`）：
+      - **1 封待处理**
+      - me@example.com
+      - 王老师
+      - 答辩时间确认
+      - 10-23 截止
+      - 王老师问答辩时间，周五前回
+      - 选项：王老师：答辩时间确认（draft/flag/archive/keep，默认 draft）
+      - 按钮：「处理这封」→ `mail_apply_plan`、「查看全部 2 封」→ `agent.open_page`
+  - `mailbox/mailbox-000000000003`：`mailbox`、`low` → 顺便看看（later）
+    - 标题：1 封待处理
+    - 摘要：健康管理中心：体检预约安排。
+    - 卡片（surface `mailbox-000000000003`）：
+      - **邮箱**
+      - me@example.com
+      - 待处理
+      - 健康管理中心
+      - 体检预约安排
+      - 10-22 至 11-05
+      - 10-22 至 11-05 在官网预约 2027 年体检，逾期视为放弃
+      - 选项：健康管理中心：体检预约安排（flag/archive/keep，默认 flag）
+      - 按钮：「处理这封」→ `mail_apply_plan`、「查看全部 2 封」→ `agent.open_page`
+- 基础页 `page/today`：
+  - 要你定的
+  - 体检预约安排
+  - 健康管理中心 · 10-22 至 11-05 在官网预约 2027 年体检，逾期视为放弃
+  - 选项：怎么处理（flag/archive/skip，默认 flag）
+  - 按钮：「按选择处理」→ `mail_do`
+  - 还有 1 封等你回复。
+  - 按钮：「去收件箱」→ `agent.open_page`
+- 基础页 `page/inbox`：
+  - 等你回复
+  - 按钮：「要你处理」→ `mail_view`
+  - 按钮：「可以直接处理」→ `mail_view`
+  - 按钮：「可疑」→ `mail_view`
+  - 按钮：「全部」→ `mail_view`
+  - 按钮：「同步新邮件」→ `mail_do`
+  - 王老师
+  - 王老师问答辩时间，周五前回 · 截止 2026-10-23
+  - 按钮：「回复」→ `mail_do`
+  - 按钮：「归档」→ `mail_do`
+  - 按钮：「查看原文」→ `agent.open_page`
+- 基础页 `page/digest`：
+  - 还没有精选来源。
+  - 在「订阅体检」里把发件人加入精选，或在「清理」的「订阅内容」一栏选择「先读一遍」。
+- 基础页 `page/clean`：
+  - 可以退订
+  - 还没检查过你的订阅。
+  - 按钮：「检查订阅」→ `mail_do`
+  - 可以归档
+  - 还没看过收件箱里的旧邮件。
+  - 按钮：「看一遍」→ `mail_do`
+  - 按钮：「订阅体检」→ `agent.open_page`、「清理旧邮件」→ `agent.open_page`
+- 基础页 `page/legacy-settings`：
+  - **账号**
+  - 推荐给螺壳一个专用邮箱，把订阅、通知转发过去，由它自动整理。
+  - 按钮：「添加邮箱…」→ `mail_view`
+  - **规则**
+  - 还没有规则：告诉螺壳某类邮件以后怎么处理。
+  - 按钮：「管理规则」→ `agent.open_page`
+  - **提醒**
+  - 已关闭：开启后定时整理，有要你处理的邮件时发通知。
+  - 选项：整理间隔（15/30/60/120，默认 30）
+  - 按钮：「开启」→ `mail_do`
+  - （收起：更多设置：同步范围、署名、已读、处理模式、模型、记忆、本机数据）
+  - **分析**
+  - 同步范围：同步和整理只看这个范围内的邮件
+  - 按钮：「保存范围」→ `mail_do`
+  - 回复署名：写在回复草稿的末尾
+  - 按钮：「保存署名」→ `mail_do`
+  - **已读**
+  - 分析过的邮件标为已读（已开启）
+  - 按钮：「关闭」→ `mail_do`
+  - **往来邮件**
+  - 提醒在等对方回复的邮件（已开启）
+  - 按钮：「关闭」→ `mail_do`
+  - 会读「已发送」里最近一个月的邮件，只在本机分析。
+  - **处理模式**
+  - 已开启：批量删除、移到垃圾邮件时，每次都需要你确认。
+  - 按钮：「关闭」→ `mail_do`
+  - **本机模型**
+  - test-model · 本机模型服务
+  - **功耗**
+  - 全速（当前）
+  - 按钮：「均衡」→ `mail_do`
+  - 按钮：「安静」→ `mail_do`
+  - 模型连续运行，速度最快，风扇可能全速转。
+  - **记忆**
+  - 关于你 0 条 · 关注的话题 0 个
+  - 从邮件中了解你
+  - 已开启，下次空闲时继续
+  - 按钮：「暂停」→ `mail_do`
+  - 你的网站和博客
+  - 螺壳会读取这些网站上的文章，用来了解你关注的话题。只读取你填写的网址。
+  - 按钮：「添加」→ `mail_do`
+  - **本机数据**
+  - 账号、授权码和分析结果只保存在本机。
+  - 注意：在此系统上，授权码以明文保存在本机文件中（仅你的账户可读）。
+  - 不勾选，记忆留给其他螺壳工具用。勾选也只删邮件助手自己记下和推测的；你确认过、改过或自己写的会保留。
+  - 按钮：「全部清除」→ `mail_do`
+- 基础页 `page/activity`：
+  - 螺壳对邮箱做过的每一步，退订以外都能撤销。
+  - 已归档 1 封
+  - 10-20 09:30 · 某银行 · 重新登记奖赏计划
+  - 按钮：「撤销」→ `mail_do`
+  - 分析后标为已读 3 封
+  - 10-20 09:30
+  - 按钮：「撤销」→ `mail_do`
+- 基础页 `page/rules`：
+  - 告诉螺壳某类邮件以后怎么处理。
+  - 规则
+  - 还没有规则。在收件箱中更改建议时可以创建规则，也可以在订阅体检中设置。
+  - 按习惯自动做的
+  - 还没有。你确认过的处理习惯会列在这里。
+- 基础页 `page/subs`：
+  - 选项：体检范围（30/60/90/180/365，默认 60）
+  - 按钮：「开始体检」→ `mail_do`
+  - 还没体检过。
+  - 设好天数，点「开始体检」。
+- 基础页 `page/sweep`：
+  - 收件箱中的旧邮件
+  - 按钮：「已归档的邮件」→ `mail_view`
+  - 收件箱里超过 30 天的邮件。加了星标或「收藏」「重要」这类标签的不会动。
+  - 还没有读取这些邮件。
+  - 按钮：「读取邮件」→ `mail_do`
+- 基础页 `page/piece`：
+  - 从「精选」里点一条进来。
+  - 按钮：「返回精选」→ `agent.open_page`
+
+**窗口上**
+
+- 一件 `due`、`normal`，`deadline` 是截止那天的 23:59，`why_now` 「明天截止」：「1 封即将截止」，标题后面一个邮箱地址的标签；每行一行发件人（加粗）、主题和「明天截止」的标签，选择框「完成 / 暂不处理」，默认暂不处理（点了不会替用户标完成）；还没进日历的那行右边一个「加入日程 · 10-21」（`mail_open_calendar`，交给「日历」的文件，带前一天 9:00 的提醒）。
+- 收件箱「已归档待处理」（`data/inbox?list=archived`）列着它，行上 `archived: true`：不在收件箱里，归档、加星标这类移动邮件的按钮没有意义，给「完成」（`mail_act` 的 `complete`，只改本机记录、不动邮箱）和加入日程。
+- 打开这封（`data/mail`）：`ways` 是 `["complete", "calendar"]`，`events` 一项 `kind: due`、截止那天。
+- 体检预约：`data/inbox` 的行上 `start: 2026-10-22`、`due: 2026-11-05`、`due_soon: false`，窗口写「10-22 至 11-05」；「邮箱」卡片上这行的标签已经写好「10-22 至 11-05」。开放那天它进 `due`，标签「今天起可办理」。
+- 卡片上选「完成」点主按钮（`count` 数选了「完成」的行，字是「标为完成 {n} 封」，0 行时不画，核心没列 `countLabel` 时写「按所选处理」）：答复带 `done: true`，结果卡的 root 带 `group`（`<邮箱>/complete`）；这件从 outbox 撤下，「已归档待处理」不再列它。
+
+**文件**（按请求的先后）
+
+| 文件 | 请求 | 什么时候 |
+|---|---|---|
+| `call-mail_act-archive.json` | tools/call `mail_act`（带 user-action） | 2026-10-20T01:30:00Z：用户在收件箱把「重新登记奖赏计划」归档（截止日是明天，还没办） |
+| `server-discover.json` | server/discover | 2026-10-20T01:30:00Z：server/discover |
+| `tools-list.json` | tools/list | 2026-10-20T01:30:00Z：列工具（agent 认 readOnlyHint） |
+| `resources-list.json` | resources/list | 2026-10-20T01:30:00Z：列资源 |
+| `read-outbox.json` | resources/read `luoke://luoke-mail/outbox` | 2026-10-20T01:30:00Z：读 outbox（每分钟一次） |
+| `read-summary.json` | resources/read `summary` | 2026-10-20T01:30:00Z：读概览（侧栏的计数和一句话） |
+| `read-permissions.json` | resources/read `permissions` | 2026-10-20T01:30:00Z：读权限的状态 |
+| `read-page-today.json` | resources/read `page/today` | 2026-10-20T01:30:00Z：读基础页 page/today |
+| `read-page-inbox.json` | resources/read `page/inbox` | 2026-10-20T01:30:00Z：读基础页 page/inbox |
+| `read-page-digest.json` | resources/read `page/digest` | 2026-10-20T01:30:00Z：读基础页 page/digest |
+| `read-page-clean.json` | resources/read `page/clean` | 2026-10-20T01:30:00Z：读基础页 page/clean |
+| `read-page-legacy-settings.json` | resources/read `page/legacy-settings` | 2026-10-20T01:30:00Z：读基础页 page/legacy-settings |
+| `read-page-activity.json` | resources/read `page/activity` | 2026-10-20T01:30:00Z：读基础页 page/activity |
+| `read-page-rules.json` | resources/read `page/rules` | 2026-10-20T01:30:00Z：读基础页 page/rules |
+| `read-page-subs.json` | resources/read `page/subs` | 2026-10-20T01:30:00Z：读基础页 page/subs |
+| `read-page-sweep.json` | resources/read `page/sweep` | 2026-10-20T01:30:00Z：读基础页 page/sweep |
+| `read-page-piece.json` | resources/read `page/piece` | 2026-10-20T01:30:00Z：读基础页 page/piece |
+| `read-data-accounts.json` | resources/read `data/accounts` | 2026-10-20T01:30:00Z：读原始数据 data/accounts |
+| `read-data-today-all.json` | resources/read `data/today?account=all` | 2026-10-20T01:30:00Z：读原始数据 data/today，所有邮箱 |
+| `read-data-today-one.json` | resources/read `data/today?account=me%40example.com` | 2026-10-20T01:30:00Z：读原始数据 data/today，一个邮箱（me@example.com） |
+| `read-data-inbox-all.json` | resources/read `data/inbox?account=all` | 2026-10-20T01:30:00Z：读原始数据 data/inbox，所有邮箱 |
+| `read-data-inbox-one.json` | resources/read `data/inbox?account=me%40example.com` | 2026-10-20T01:30:00Z：读原始数据 data/inbox，一个邮箱（me@example.com） |
+| `read-data-digest-all.json` | resources/read `data/digest?account=all` | 2026-10-20T01:30:00Z：读原始数据 data/digest，所有邮箱 |
+| `read-data-digest-one.json` | resources/read `data/digest?account=me%40example.com` | 2026-10-20T01:30:00Z：读原始数据 data/digest，一个邮箱（me@example.com） |
+| `read-data-digest-today-all.json` | resources/read `data/digest?account=all&range=today` | 2026-10-20T01:30:00Z：读原始数据 data/digest?range=today，所有邮箱 |
+| `read-data-digest-today-one.json` | resources/read `data/digest?account=me%40example.com&range=today` | 2026-10-20T01:30:00Z：读原始数据 data/digest?range=today，一个邮箱（me@example.com） |
+| `read-data-clean-all.json` | resources/read `data/clean?account=all` | 2026-10-20T01:30:00Z：读原始数据 data/clean，所有邮箱 |
+| `read-data-clean-one.json` | resources/read `data/clean?account=me%40example.com` | 2026-10-20T01:30:00Z：读原始数据 data/clean，一个邮箱（me@example.com） |
+| `read-data-settings.json` | resources/read `data/settings` | 2026-10-20T01:30:00Z：读原始数据 data/settings |
+| `read-data-activity-all.json` | resources/read `data/activity?account=all` | 2026-10-20T01:30:00Z：读原始数据 data/activity，所有邮箱 |
+| `read-data-activity-one.json` | resources/read `data/activity?account=me%40example.com` | 2026-10-20T01:30:00Z：读原始数据 data/activity，一个邮箱（me@example.com） |
+| `read-data-providers.json` | resources/read `data/providers` | 2026-10-20T01:30:00Z：读原始数据 data/providers |
+| `read-data-old.json` | resources/read `data/old?account=me%40example.com` | 2026-10-20T01:30:00Z：读原始数据 data/old，一个邮箱（me@example.com）收件箱里的旧邮件 |
+| `read-data-old-archive.json` | resources/read `data/old?account=me%40example.com&scope=archive` | 2026-10-20T01:30:00Z：读原始数据 data/old?scope=archive，一个邮箱（me@example.com）归档的邮件 |
+| `read-data-inbox-plan.json` | resources/read `data/inbox?account=me%40example.com&part=tidy&plan=mailbox-000000000003` | 2026-10-20T01:30:00Z：读原始数据 data/inbox?plan=…&part=tidy，这张卡片要整理的 |
+| `read-data-inbox-archived.json` | resources/read `data/inbox?account=me%40example.com&list=archived` | 2026-10-20T01:30:00Z：读原始数据 data/inbox?list=archived：归档了、截止日还没到的那封，每行 `archived: true` |
+| `read-data-mail-archived.json` | resources/read `data/mail?id=3` | 2026-10-20T01:30:00Z：读原始数据 data/mail：打开它，`ways` 只有 complete 和 calendar，`events` 是截止那天（`kind: due`） |
+| `call-mail_apply_plan-complete.json` | tools/call `mail_apply_plan`（带 user-action） | 2026-10-20T01:35:00Z：用户在「即将截止」卡片上把这一行选成「完成」，点「标为完成 1 封」 |
+| `read-outbox-after-complete.json` | resources/read `luoke://luoke-mail/outbox` | 2026-10-20T01:35:00Z：完成以后再读 outbox（这件撤下） |
+| `read-data-inbox-archived-after-complete.json` | resources/read `data/inbox?account=me%40example.com&list=archived` | 2026-10-20T01:35:00Z：完成以后再读 data/inbox?list=archived（不再列出） |
+
+`call-mail_act-archive.json` 答：「已归档 1 封」
+
+`call-mail_apply_plan-complete.json` 答：「已标为完成 1 封。」（done: true，更新原卡片）
+
 ## `search`：问螺壳搜邮件
 
 收件箱里有几封信，用户在问螺壳里搜「答辩」。

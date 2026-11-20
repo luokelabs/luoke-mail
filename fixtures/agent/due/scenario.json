@@ -1,0 +1,232 @@
+{
+  "id": "due",
+  "normalised": {
+    "$TMPDIR": "录的时候的临时目录",
+    "000000000001…": "方案编号（new-mail-…、suspicious-…、auto-done-… 后面的 16 位十六进制），按在本场景里出现的先后编号",
+    "resources/read": "contents[0].text 解开成了 JSON 值；线上是 JSON 文字",
+    "~/.luoke-mail": "LUOKE_MAIL_HOME（临时目录）"
+  },
+  "produced": {
+    "changes": [],
+    "fixture": [
+      "LUOKE_MAIL_HOME 指到新建的临时目录；假邮箱是 tests/fakes.py 的 FakeIMAP（gmail），假模型是 FakeChat，分拣和草稿的答复写在 scripts/record_agent_fixtures.py 的 `MAILS` 里",
+      "连上了假邮箱 me@example.com（Gmail，处理模式开着）",
+      "收件箱里放了：重新登记奖赏计划、体检预约安排、答辩时间确认",
+      "2026-10-20T01:30:00Z 同步了一次（App.sync_mailbox：真的读信、分拣、做习惯里的事）"
+    ],
+    "mcp": "真的 App 和 agent.sock（luoke_mail/agent.py），一个常驻的服务；时钟由录制脚本的 `Clock` 停住",
+    "tz": "Asia/Shanghai",
+    "user_action_at": "点按时的 at 是那一步的时钟，按 Asia/Shanghai 写"
+  },
+  "situation": "一封银行的通知要在明天前重新登记，用户先把它归档了（11-18：归档以后提醒跟着没了）。一封体检预约后天才开放（10-22 至 11-05）。另有一封要回的信。",
+  "steps": [
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "用户在收件箱把「重新登记奖赏计划」归档（截止日是明天，还没办）",
+      "file": "call-mail_act-archive.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "server/discover",
+      "file": "server-discover.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "列工具（agent 认 readOnlyHint）",
+      "file": "tools-list.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "列资源",
+      "file": "resources-list.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读 outbox（每分钟一次）",
+      "file": "read-outbox.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读概览（侧栏的计数和一句话）",
+      "file": "read-summary.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读权限的状态",
+      "file": "read-permissions.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/today",
+      "file": "read-page-today.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/inbox",
+      "file": "read-page-inbox.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/digest",
+      "file": "read-page-digest.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/clean",
+      "file": "read-page-clean.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/legacy-settings",
+      "file": "read-page-legacy-settings.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/activity",
+      "file": "read-page-activity.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/rules",
+      "file": "read-page-rules.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/subs",
+      "file": "read-page-subs.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/sweep",
+      "file": "read-page-sweep.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读基础页 page/piece",
+      "file": "read-page-piece.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/accounts",
+      "file": "read-data-accounts.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/today，所有邮箱",
+      "file": "read-data-today-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/today，一个邮箱（me@example.com）",
+      "file": "read-data-today-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/inbox，所有邮箱",
+      "file": "read-data-inbox-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/inbox，一个邮箱（me@example.com）",
+      "file": "read-data-inbox-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/digest，所有邮箱",
+      "file": "read-data-digest-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/digest，一个邮箱（me@example.com）",
+      "file": "read-data-digest-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/digest?range=today，所有邮箱",
+      "file": "read-data-digest-today-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/digest?range=today，一个邮箱（me@example.com）",
+      "file": "read-data-digest-today-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/clean，所有邮箱",
+      "file": "read-data-clean-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/clean，一个邮箱（me@example.com）",
+      "file": "read-data-clean-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/settings",
+      "file": "read-data-settings.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/activity，所有邮箱",
+      "file": "read-data-activity-all.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/activity，一个邮箱（me@example.com）",
+      "file": "read-data-activity-one.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/providers",
+      "file": "read-data-providers.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/old，一个邮箱（me@example.com）收件箱里的旧邮件",
+      "file": "read-data-old.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/old?scope=archive，一个邮箱（me@example.com）归档的邮件",
+      "file": "read-data-old-archive.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/inbox?plan=…&part=tidy，这张卡片要整理的",
+      "file": "read-data-inbox-plan.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/inbox?list=archived：归档了、截止日还没到的那封，每行 `archived: true`",
+      "file": "read-data-inbox-archived.json"
+    },
+    {
+      "clock": "2026-10-20T01:30:00Z",
+      "do": "读原始数据 data/mail：打开它，`ways` 只有 complete 和 calendar，`events` 是截止那天（`kind: due`）",
+      "file": "read-data-mail-archived.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "用户在「即将截止」卡片上把这一行选成「完成」，点「标为完成 1 封」",
+      "file": "call-mail_apply_plan-complete.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "完成以后再读 outbox（这件撤下）",
+      "file": "read-outbox-after-complete.json"
+    },
+    {
+      "clock": "2026-10-20T01:35:00Z",
+      "do": "完成以后再读 data/inbox?list=archived（不再列出）",
+      "file": "read-data-inbox-archived-after-complete.json"
+    }
+  ],
+  "title": "明天截止的事先归档了",
+  "window": [
+    "一件 `due`、`normal`，`deadline` 是截止那天的 23:59，`why_now` 「明天截止」：「1 封即将截止」，标题后面一个邮箱地址的标签；每行一行发件人（加粗）、主题和「明天截止」的标签，选择框「完成 / 暂不处理」，默认暂不处理（点了不会替用户标完成）；还没进日历的那行右边一个「加入日程 · 10-21」（`mail_open_calendar`，交给「日历」的文件，带前一天 9:00 的提醒）。",
+    "收件箱「已归档待处理」（`data/inbox?list=archived`）列着它，行上 `archived: true`：不在收件箱里，归档、加星标这类移动邮件的按钮没有意义，给「完成」（`mail_act` 的 `complete`，只改本机记录、不动邮箱）和加入日程。",
+    "打开这封（`data/mail`）：`ways` 是 `[\"complete\", \"calendar\"]`，`events` 一项 `kind: due`、截止那天。",
+    "体检预约：`data/inbox` 的行上 `start: 2026-10-22`、`due: 2026-11-05`、`due_soon: false`，窗口写「10-22 至 11-05」；「邮箱」卡片上这行的标签已经写好「10-22 至 11-05」。开放那天它进 `due`，标签「今天起可办理」。",
+    "卡片上选「完成」点主按钮（`count` 数选了「完成」的行，字是「标为完成 {n} 封」，0 行时不画，核心没列 `countLabel` 时写「按所选处理」）：答复带 `done: true`，结果卡的 root 带 `group`（`<邮箱>/complete`）；这件从 outbox 撤下，「已归档待处理」不再列它。"
+  ]
+}

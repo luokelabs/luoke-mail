@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import isolate  # noqa: F401,E402 -- first: never the user's real data (tests/isolate.py)
-from luoke_mail import mailbox, triage  # noqa: E402
+from luoke_mail import agent_data, mailbox, triage  # noqa: E402
 from test_background import new_job  # noqa: E402
 from test_old_mail import ME, Rig, mail  # noqa: E402
 
@@ -241,8 +241,15 @@ class Window(Base):
 
     def test_only_recent_mail_is_said_once_seen(self):
         self.srv._add("INBOX", mail(1, "新信", "a <a@x.example>", 1), set())
+        self.srv._add("INBOX", mail(2, "30 天前", "a <a@x.example>", 30), set())
         self.sync()
         self.assertIn("收取全部邮件", self.note())
+
+    def test_a_new_mailbox_is_not_told(self):
+        """Its oldest mail is younger than the edge: nothing older is hidden (the note was wrong for such a one)."""
+        self.srv._add("INBOX", mail(1, "新信", "a <a@x.example>", 1), set())
+        self.sync()
+        self.assertIsNone(self.note())
 
     def test_older_mail_means_nothing_is_said(self):
         self.srv._add("INBOX", mail(1, "老信", "a <a@x.example>", 90), set())
@@ -790,9 +797,28 @@ class ShortRepliesTests(unittest.TestCase):
         r.app._read_old(ME, "inbox", job)
         before = r.app.store.old_read(ME, "inbox")
         self.assertGreater(before, 0)
+        self.assertEqual(r.app.old_view(ME, "inbox")["unreturned"], 0)
         r.srv.silent = {r.srv.folders["INBOX"][-1]["uid"]}
         r.app._read_old(ME, "inbox", job)
         self.assertEqual(r.app.store.old_read(ME, "inbox"), before)
+        # and the pages say so, until a read brings it
+        self.assertEqual(r.app.old_view(ME, "inbox")["unreturned"], 1)
+        self.assertEqual(agent_data.old(r.app, {"account": ME, "scope": "inbox"})["unreturned"], 1)
+        r.srv.silent = set()
+        r.app._read_old(ME, "inbox", job)
+        self.assertEqual(r.app.old_view(ME, "inbox")["unreturned"], 0)
+
+    def test_a_netease_inbox_is_told_of_its_30_days_only_with_mail_at_the_edge(self):
+        def told(*ages):
+            r = Rig(self, flavour="netease", provider="163")
+            r.srv.folders["INBOX"].clear()                 # only the mail of this case
+            for i, days in enumerate(ages):
+                r.srv._add("INBOX", mail(2000 + i, f"第 {i} 封", "某店 <shop@example.com>", days), set())
+            with r.app.open_mailbox(ME) as mb:
+                return r.app._window_only(ME, mb, mb.inbox_uids())
+        self.assertTrue(told(2, 10, 30))               # nothing older, the oldest right at the edge: shown 30 days only
+        self.assertFalse(told(2, 10))                  # a new mailbox: its oldest mail is younger
+        self.assertFalse(told(2, 10, 30, 90))          # older mail is there: everything is open
 
 
 if __name__ == "__main__":

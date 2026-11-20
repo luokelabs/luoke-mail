@@ -1,0 +1,248 @@
+{
+  "reply": {
+    "id": 8,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "today"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g1-c10",
+                      "g1-r13"
+                    ],
+                    "component": "Column",
+                    "id": "root",
+                    "layout": "sections"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-t1",
+                    "text": "体检预约安排",
+                    "variant": "strong"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-t2",
+                    "text": "健康管理中心 · 10-22 至 11-05 在官网预约 2027 年体检，逾期视为放弃",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "ChoicePicker",
+                    "id": "g1-p3",
+                    "label": "怎么处理",
+                    "options": [
+                      {
+                        "icon": "star",
+                        "label": "加星标",
+                        "value": "flag"
+                      },
+                      {
+                        "icon": "archive",
+                        "label": "归档",
+                        "value": "archive"
+                      },
+                      {
+                        "icon": "circle-minus",
+                        "label": "留在收件箱",
+                        "value": "skip"
+                      }
+                    ],
+                    "value": {
+                      "path": "/choices/a2"
+                    }
+                  },
+                  {
+                    "children": [
+                      "g1-t1",
+                      "g1-t2"
+                    ],
+                    "component": "Column",
+                    "id": "g1-c5"
+                  },
+                  {
+                    "children": [
+                      "g1-c5",
+                      "g1-p3"
+                    ],
+                    "component": "Row",
+                    "id": "g1-r4",
+                    "justify": "spaceBetween"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-t6",
+                    "text": "要你定的",
+                    "variant": "h5"
+                  },
+                  {
+                    "children": [
+                      "g1-r4"
+                    ],
+                    "component": "List",
+                    "id": "g1-l7"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-b8-t",
+                    "text": "按选择处理"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g1-b8",
+                          "choices": {
+                            "path": "/choices"
+                          },
+                          "page": "today"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g1-b8-t",
+                    "component": "Button",
+                    "id": "g1-b8",
+                    "variant": "primary"
+                  },
+                  {
+                    "children": [
+                      "g1-b8"
+                    ],
+                    "component": "Row",
+                    "id": "g1-r9"
+                  },
+                  {
+                    "children": [
+                      "g1-t6",
+                      "g1-l7",
+                      "g1-r9"
+                    ],
+                    "component": "Column",
+                    "id": "g1-c10"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-t11",
+                    "text": "还有 1 封等你回复。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g1-b12-t",
+                    "text": "去收件箱"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "args": {
+                            "box": "me@example.com",
+                            "list": "reply"
+                          },
+                          "page": "inbox"
+                        },
+                        "name": "agent.open_page"
+                      }
+                    },
+                    "child": "g1-b12-t",
+                    "component": "Button",
+                    "id": "g1-b12",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g1-t11",
+                      "g1-b12"
+                    ],
+                    "component": "Row",
+                    "id": "g1-r13"
+                  }
+                ],
+                "surfaceId": "today"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateDataModel": {
+                "path": "/",
+                "surfaceId": "today",
+                "value": {
+                  "choices": {
+                    "a2": [
+                      "flag"
+                    ]
+                  }
+                }
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/today"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 8,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/today"
+    }
+  }
+}

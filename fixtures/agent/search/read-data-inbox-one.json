@@ -20,7 +20,9 @@
               {
                 "account": "me@example.com",
                 "action": "reply",
+                "archived": false,
                 "ask_text": "王老师问答辩时间，周五前回",
+                "calendar_added": false,
                 "date": "2026-10-20 01:18",
                 "draft": false,
                 "due": "2026-10-23",
@@ -35,6 +37,7 @@
                 "open_url": "https://mail.google.com/mail/u/?authuser=me@example.com#all/000000000004",
                 "overdue": false,
                 "priority": "high",
+                "start": null,
                 "subject": "答辩时间确认",
                 "suspicious": false
               }

@@ -5,7 +5,8 @@ Three passes, each with its own rule for what reaches the memory (see learn.py f
 - sent:     the user's own mail, newest first (the last two years, at most SENT_LIMIT); a fact two messages
             agree on takes effect; on a one-value topic (职位, 单位…) the most recently evidenced value wins;
 - received: once a month, organisations that wrote several times over months to someone who opened them;
-            what they suggest becomes a guess the user confirms;
+            what they suggest is handed to the memory (refill), which weighs the evidence and takes a plain fact
+            down without asking (archived ADR 0011) -- nothing here waits for the user's yes;
 Everything drawn is handed to the memory, which grades it (ADR 0005). Handling habits are the
 memory's to work out, from the mail-override and mail-acted records (luoke-mem 0.18, archived ADR 0012 amended)."""
 from __future__ import annotations

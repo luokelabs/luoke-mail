@@ -49,7 +49,8 @@
                   "unsubscribe_url": null,
                   "verdict": "filter"
                 }
-              ]
+              ],
+              "unreturned": 0
             }
           },
           "uri": "data/clean?account=all"

@@ -283,6 +283,8 @@ def build(w, p: kit.Page, view: dict) -> None:
     held = f"加了星标或「收藏」「重要」这类标签的 {old['flagged']} 封不在此列。" if old.get("flagged") else ""
     if old.get("stale"):
         p.add(p.row(p.text("收件箱里的旧邮件有了变化。", "caption"), p.do("重新读取", "/api/old/scan", scan, primary=True)))
+    if old.get("unreturned"):                           # listed by the server, never given: not mail that has gone
+        p.add(p.text(f"服务器未返回 {old['unreturned']} 封邮件，暂不分析，下次读取时重试。", "caption"))
     if not old["total"]:
         p.add(p.text("没有需要清理的邮件。" + held, "caption"),
               p.row(p.text(f"更新于 {old['at']}", "caption"), p.do("刷新", "/api/old/scan", scan, quiet=True)))

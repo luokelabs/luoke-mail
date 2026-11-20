@@ -738,9 +738,108 @@ class DueSoonTests(unittest.TestCase):
             r.app.cfg["auto"]["enabled"] = True
             r.app.auto.run_one(ME, {"cancel": False, "stage": "", "done": 0, "total": 0}, True)
             r.app.auto.run_one(ME, {"cancel": False, "stage": "", "done": 0, "total": 0}, True)
-        told = [n for n in r.app.desktop.notes if "快到期" in n[0]]
+        told = [n for n in r.app.desktop.notes if "即将截止" in n[0]]
         self.assertEqual(len(told), 1)
         self.assertIn("明天：本周例会改到周四", told[0][1])
+
+    def test_archived_before_its_date_it_still_reminds_until_finished(self):
+        """The owner, 11-18: a re-registration that opens in five days is archived until then, and its reminder went
+        with it. Archived -- here, by habit or on the phone -- it still reminds; 完成 (完成并归档, or on mail already
+        archived) and deleting finish it; what was archived before this began is taken as finished."""
+        from unittest import mock
+        r = Rig(self)
+        tomorrow = (dt.date.today() + dt.timedelta(days=1)).isoformat()
+        for i in range(3):
+            r.srv._add("INBOX", mail(950 + i, f"重新登记 {i}", "某银行 <notice@bank.example>", 1), set())
+
+        def reply(body):
+            return 200, suggestion("follow_up", due_date=tomorrow, summary="明天前确认")
+        with FakeChat(reply) as chat:
+            r.app.cfg["engine"]["base_url"] = chat.base_url
+            r.app.sync_mailbox(ME, {"cancel": False, "stage": "", "done": 0, "total": 0})
+        first, second, third, old = (it["id"] for it in r.app.store.items(ME)[:4])
+        r.app.store.set_state([old], "done", "archive")                      # archived before this began
+        r.app.store.db.execute("UPDATE items SET done_at='2026-01-01 00:00:00' WHERE id=?", (old,))
+        r.app.store.db.commit()
+        due = lambda: {it["id"] for it in r.app.due_soon(ME)}                 # noqa: E731
+        self.assertNotIn(old, due())
+        with mock.patch.object(r.app, "_acted", lambda *a, **k: 0):
+            r.app.items_act(ME, [first], "archive")
+            r.app.items_act(ME, [second], "complete")
+            r.app.items_act(ME, [third], "trash")
+        self.assertIn(first, due())
+        self.assertFalse({second, third} & due())
+        archived = r.app.inbox_mail(ME)[1]
+        self.assertIn(first, [it["id"] for it in archived])
+        done = r.app.items_act(ME, [first], "complete")                     # already archived: nothing to move
+        self.assertEqual((done["settled"], done["done"]), ([first], []))
+        self.assertNotIn(first, due())
+        self.assertEqual(r.app.store.get(first)["done_action"], "complete")
+        r.app.undo(ME, done["log_id"])
+        self.assertEqual((r.app.store.get(first)["state"], r.app.store.get(first)["done_action"]), ("done", "archive"))
+        self.assertIn(first, due())
+        r.app.store.cache_set(ME, "deleted_elsewhere", [first])              # deleted on the phone
+        self.assertNotIn(first, due())
+
+    def test_a_deadline_goes_to_the_calendar_and_stops_reminding_here(self):
+        """11-18: mail with something to finish by a day goes to the calendar too -- a whole-day entry on that day,
+        reminded the day before at 9:00 -- and once there the mail assistant doesn't remind of it again."""
+        r = Rig(self)
+        tomorrow = (dt.date.today() + dt.timedelta(days=1)).isoformat()
+        r.srv._add("INBOX", mail(960, "有關2027「最紅自主獎賞」計劃", "某银行 <notice@bank.example>", 1), set())
+
+        def reply(body):
+            return 200, suggestion("follow_up", due_date=tomorrow, summary="重新登记")
+        with FakeChat(reply) as chat:
+            r.app.cfg["engine"]["base_url"] = chat.base_url
+            r.app.sync_mailbox(ME, {"cancel": False, "stage": "", "done": 0, "total": 0})
+        it = next(x for x in r.app.store.items(ME) if x["from_domain"] == "bank.example")
+        self.assertIn(it["id"], [x["id"] for x in r.app.due_soon(ME)])
+        cal = r.app.actions(ME, write=False).calendar(it["id"])
+        ics = cal["ics"]
+        self.assertIn("DTSTART;VALUE=DATE:" + tomorrow.replace("-", ""), ics)
+        self.assertIn("SUMMARY:截止：有關2027「最紅自主獎賞」計劃", ics)
+        self.assertIn("TRIGGER:-PT15H", ics)                                 # 9:00 the day before
+        self.assertNotIn(it["id"], [x["id"] for x in r.app.due_soon(ME)])
+        view = r.app._events_view(r.app.store.get(it["id"]), dt.date.today())
+        self.assertEqual([(e["kind"], e["date"], e["added"]) for e in view], [("due", tomorrow, True)])
+
+    def test_a_window_that_opens_later_is_told_the_day_it_opens(self):
+        """11-18: a re-registration open from 11-23 to 12-06. Before it opens it is not 快到期 and its line shows the
+        window; the day it opens it is told once (「今天起可办理」), and the calendar file has that day too."""
+        from unittest import mock
+        from luoke_mail import triage
+        r = Rig(self)
+        today = dt.date.today()
+        start, due = (today + dt.timedelta(days=5)).isoformat(), (today + dt.timedelta(days=18)).isoformat()
+        r.srv._add("INBOX", mail(970, "有關2027「最紅自主獎賞」計劃", "某银行 <notice@bank.example>", 1), set())
+
+        def reply(body):
+            return 200, suggestion("follow_up", due_date=due, start_date=start, summary="11-23 至 12-06 在 App 重新登记")
+        with FakeChat(reply) as chat:
+            r.app.cfg["engine"]["base_url"] = chat.base_url
+            r.app.sync_mailbox(ME, {"cancel": False, "stage": "", "done": 0, "total": 0})
+        it = next(x for x in r.app.store.items(ME) if x["from_domain"] == "bank.example")
+        self.assertEqual((it["start_date"], it["due_date"]), (start, due))
+        self.assertEqual(r.app.opening(ME), [])
+        cal = r.app.actions(ME, write=False).calendar(it["id"])["ics"].replace("\r\n ", "")    # lines unfolded
+        self.assertIn("DTSTART;VALUE=DATE:" + start.replace("-", ""), cal)
+        self.assertIn("TRIGGER:PT9H", cal)                                   # 9:00 the day it opens
+        self.assertIn(f"开始办理：有關2027「最紅自主獎賞」計劃（{due[5:]} 截止）", cal)
+        r.app.store.cache_set(ME, "calendar_added", [])                    # not in the calendar after all
+        r.app.store.db.execute("UPDATE items SET start_date=? WHERE id=?", (today.isoformat(), it["id"]))
+        r.app.store.db.commit()
+        self.assertEqual([x["id"] for x in r.app.opening(ME)], [it["id"]])
+        r.app.cfg["auto"]["enabled"] = True
+        with mock.patch.object(r.app.agent, "listening", lambda: False):
+            r.app.auto.run_one(ME, {"cancel": False, "stage": "", "done": 0, "total": 0}, True)
+            r.app.auto.run_one(ME, {"cancel": False, "stage": "", "done": 0, "total": 0}, True)
+        told = [n for n in r.app.desktop.notes if "今天起可办理" in n[0]]
+        self.assertEqual(len(told), 1)
+        self.assertIn(f"有關2027「最紅自主獎賞」計劃，{due[5:]} 截止", told[0][1])
+        # a start on or after the deadline is no window; a start alone is kept
+        bad = triage.settle_dates(triage.parse_output(suggestion("follow_up", due_date=start, start_date=due)), {})
+        self.assertEqual((bad["due_date"], bad["start_date"]), (start, None))
 
     def test_the_same_appointment_put_in_the_calendar_once(self):
         """The owner, 10-22: a booking, its change notice and the day-before reminder each offered 添加到日历. Put in

@@ -213,9 +213,17 @@ class AutoSync:
         if due and not quiet:                     # the day before, once each
             first = due[0]
             day = "今天" if first["when"] <= dt.date.today().isoformat() else "明天"
-            app.desktop.notify(TITLE, f"{len(due)} 件事快到期{at}",
+            app.desktop.notify(TITLE, f"{len(due)} 封邮件即将截止{at}",
                                f"{day}：{first.get('subject') or '（无主题）'}" + (f"，另有 {len(due) - 1} 件" if len(due) > 1 else ""))
             store.cache_set(acct, "due_told", sorted(told | {it["id"] for it in due})[-1000:])
+        told = set(store.cache_get(acct, "start_told")[0] or [])
+        opening = [it for it in app.opening(acct) if it["id"] not in told]
+        if opening and not quiet:                 # the day it can be done from, once each (11-18)
+            first = opening[0]
+            app.desktop.notify(TITLE, f"{len(opening)} 封邮件今天起可办理{at}",
+                               f"{first.get('subject') or '（无主题）'}，{first['due_date'][5:10]} 截止"
+                               + (f"，另有 {len(opening) - 1} 件" if len(opening) > 1 else ""))
+            store.cache_set(acct, "start_told", sorted(told | {it["id"] for it in opening})[-1000:])
         weekly = app.curator.weekly_note(acct)
         if weekly and not quiet:
             app.desktop.notify(TITLE, weekly[0] + at, weekly[1])

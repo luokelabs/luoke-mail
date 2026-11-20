@@ -422,7 +422,8 @@ class FakeChat:
 def suggestion(action="reply", **kw) -> str:
     base = {"category": "work", "priority": "high", "action": action, "summary": "同事要 Q3 数据", "reason": "明早汇报要用",
             "due_date": (dt.date.today() + dt.timedelta(days=30)).isoformat(), "event_title": None,   # not 快到期 "event_date": None, "event_start": None, "event_end": None,
-            "event_location": None, "more_events": [], "reply_points": ["今天下班前发"], "suspicious": False, "risks": []}
+            "event_location": None, "more_events": [], "reply_points": ["今天下班前发"], "suspicious": False, "risks": [],
+            "start_date": None}
     base.update(kw)
     return json.dumps(base, ensure_ascii=False)
 

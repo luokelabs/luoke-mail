@@ -1,0 +1,71 @@
+{
+  "reply": {
+    "id": 2,
+    "jsonrpc": "2.0",
+    "result": {
+      "_meta": {
+        "io.modelcontextprotocol/serverInfo": {
+          "name": "luoke-mail",
+          "version": "0.20.0"
+        }
+      },
+      "capabilities": {
+        "resources": {},
+        "tools": {}
+      },
+      "resultType": "complete",
+      "supportedVersions": [
+        "2026-07-28"
+      ]
+    }
+  },
+  "request": {
+    "id": 2,
+    "jsonrpc": "2.0",
+    "method": "server/discover",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      }
+    }
+  }
+}

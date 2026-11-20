@@ -15,7 +15,7 @@ from email.message import EmailMessage
 from email.utils import formatdate, make_msgid
 from typing import Callable
 
-from . import subscriptions, triage
+from . import samples, subscriptions, triage
 from .mailbox import Mailbox, MailError, real_mid, same_mid
 from .store import Store
 
@@ -23,7 +23,7 @@ OPS = {"archive": "归档", "trash": "删除", "spam": "移到垃圾邮件", "fl
        "skip": "跳过", "complete": "完成并归档", "label": "加标签"}
 FOLDER_OPS = {"archive": "archive", "complete": "archive", "trash": "trash", "spam": "junk"}
 DEMO = "demo"
-NON_MAILBOX_UNDO = ("state", "demo", "demo_old", "archive_rows", "old_rows", "old_unflag", "restore_suggestions", "delete_rule",
+NON_MAILBOX_UNDO = ("state", "done_state", "demo", "demo_old", "archive_rows", "old_rows", "old_unflag", "restore_suggestions", "delete_rule",
                     "restore_rule", "sender_status", "digest_source")
 BATCH = 200                  # messages per IMAP command when clearing old mail
 
@@ -106,6 +106,14 @@ class Actions:
             msg = f"已跳过 {len(ids)} 封"
             return {"ok": True, "done": ids, "gone": [], "message": msg,
                     "log_id": self.store.log(self.account, op, ids, True, msg, [{"kind": "state"}])}
+        away = [it for it in items if it["state"] != "pending" or it.get("place") != "inbox"] if op == "complete" else []
+        if away:
+            settled = self._complete_away(away)
+            rest = [it["id"] for it in items if it not in away]
+            if not rest:
+                return settled
+            r = self.execute(rest, op, by, label)
+            return {**r, "settled": settled["settled"], "message": settled["message"] + "；" + r["message"]}
         if self.demo:
             return self._execute_demo(items, op)
 
@@ -153,6 +161,18 @@ class Actions:
         stuck += unfound
         log_id = self.store.log(self.account, "auto" if by in ("rule", "own") else op, done, not stuck, msg, undo or None)
         return {"ok": not stuck, "done": done, "gone": gone, "stuck": stuck, "log_id": log_id if undo else None, "message": msg}
+
+    def _complete_away(self, items: list[dict]) -> dict:
+        """完成 for mail no longer in the inbox (archived, or found among archived mail): nothing to move, only its
+        date stops reminding (App.put_away). Undone, it is as it was. Not a handling for the memory: it was
+        archived already, and that was recorded then."""
+        ids = [it["id"] for it in items]
+        steps = [{"kind": "done_state", "id": it["id"], "message_id": it.get("message_id"), "state": it["state"],
+                  "done_action": it.get("done_action")} for it in items]
+        self.store.set_state(ids, "done", "complete")
+        msg = f"已标为完成 {len(ids)} 封"
+        return {"ok": True, "done": [], "settled": ids, "gone": [], "message": msg,
+                "log_id": self.store.log(self.account, "complete", ids, True, msg, steps)}
 
     def _execute_demo(self, items: list[dict], op: str) -> dict:
         ids = [it["id"] for it in items]
@@ -470,8 +490,12 @@ class Actions:
                 rest = self._undo_batched(mb, mailbox_steps)
                 for s in rest:
                     missing += 0 if self._undo_mailbox_step(mb, s) else 1
+        restored = set()
         for s in steps:                          # local state: rules, suggestions, sender decisions
-            if s["kind"] in ("old_rows", "archive_rows"):            # "archive_rows": written by 0.6.0
+            if s["kind"] == "done_state":                         # 完成 for mail already archived: as it was
+                self.store.set_state([s["id"]], s["state"], s.get("done_action"))
+                restored.add(s["id"])
+            elif s["kind"] in ("old_rows", "archive_rows"):            # "archive_rows": written by 0.6.0
                 self.store.old_set_state(self.account, s["message_ids"], "here")
                 self.store.reopen_by_mid(self.account, s["message_ids"])
             elif s["kind"] == "digest_source":
@@ -494,7 +518,7 @@ class Actions:
             for i in e["item_ids"]:
                 self.store.set_fields(i, flagged=0)
         elif e["action"] in OPS or e["action"] in ("draft", "auto"):
-            self.store.set_state(e["item_ids"], "pending")      # (a label never took it off the list: no change)
+            self.store.set_state([i for i in e["item_ids"] if i not in restored], "pending")      # (a label never took it off the list: no change)
         if only is None:
             self.store.mark_undone(log_id)
         msg = "已撤销" + (f"（{missing} 封已不在邮箱中）" if missing else "")
@@ -631,7 +655,7 @@ class Actions:
         """One appointment of the mail (Google 日历 takes one at a time), or all of them in one calendar file.
         `adding=False`: only the link, for a button the user has not pressed yet."""
         it = self._item(item_id)
-        events = triage.events_of(it)
+        events = triage.calendar_events(it, (samples.TODAY if self.demo else dt.date.today()).isoformat())
         if not events:
             raise ActionError("未识别到具体日期。")
         if index is not None and not 0 <= index < len(events):
@@ -648,7 +672,8 @@ class Actions:
         added = [x for x in (self.store.cache_get(self.account, "calendar_added")[0] or [])
                  if x.get("message_id") != it.get("message_id") or (x.get("date"), x.get("start")) not in fresh]
         added += [{"date": e.get("date"), "start": e.get("start"), "domain": (it.get("from_domain") or "").lower(),
-                   "title": e.get("title"), "message_id": it.get("message_id")} for e in chosen]
+                   "title": e.get("title"), "message_id": it.get("message_id"), **({"kind": "due"} if e.get("kind") == "due" else {})}
+                  for e in chosen]
         self.store.cache_set(self.account, "calendar_added", added[-200:])
         return out
 
@@ -786,6 +811,11 @@ def event_ics(it: dict, events: list[dict]) -> str:
                   f"DESCRIPTION:{_ics_text((it.get('summary') or '') + chr(10) + '来自邮件：' + (it.get('subject') or ''))}"]
         if ev.get("location"):
             lines.append(f"LOCATION:{_ics_text(ev['location'])}")
+        # a deadline: the calendar reminds at 9:00 the day before; the day it can be started from, at 9:00 that day
+        alarm = {"due": "-PT15H", "start": "PT9H"}.get(ev.get("kind") or "")
+        if alarm:
+            lines += ["BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{_ics_text(ev.get('title') or '截止')}",
+                      f"TRIGGER:{alarm}", "END:VALARM"]
         lines.append("END:VEVENT")
     lines.append("END:VCALENDAR")
     return "\r\n".join(x for line in lines for x in _fold(line)) + "\r\n"

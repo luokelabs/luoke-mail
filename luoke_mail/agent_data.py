@@ -13,10 +13,11 @@ import json
 import os
 from typing import Callable, Dict, List, Optional
 
-from . import config, desktop, memory, providers, samples
+from . import config, desktop, memory, providers, samples, triage
 from .agent_mcp import ToolError
 from .mailbox import MailError, parse_message, real_mid
 from .actions import ActionError
+from .store import Store
 
 LIST_MOST = 200
 BODY_MOST = 8000
@@ -194,12 +195,13 @@ def _in_list(kind: str, which: str) -> bool:
     return which == "all" or kind == which or (which == "needs" and kind in NEEDS + ("suspicious",))
 
 
-def _line(acct: str, it: dict, due: set) -> dict:
-    return {"id": it["id"], "account": acct, "from": _who(it), "subject": memory.mask(it.get("subject")),
+def _line(acct: str, it: dict, due: set, archived: bool = False) -> dict:
+    return {"id": it["id"], "account": acct, "archived": archived, "from": _who(it), "subject": memory.mask(it.get("subject")),
             "ask_text": memory.mask(it.get("summary")) or None, "date": it.get("date"), "due": it.get("due_date"),
-            "overdue": bool(it.get("overdue")), "due_soon": it["id"] in due, "kind": _kind(it),
+            "start": it.get("start_date"), "overdue": bool(it.get("overdue")), "due_soon": it["id"] in due, "kind": _kind(it),
             "action": it.get("action"), "priority": it.get("priority"), "suspicious": bool(it.get("suspicious")),
-            "flagged": bool(it.get("flagged")), "draft": bool(it.get("draft_text")), "open_url": it.get("open_url")}
+            "flagged": bool(it.get("flagged")), "draft": bool(it.get("draft_text")), "open_url": it.get("open_url"),
+            "calendar_added": bool(it.get("calendar_added"))}
 
 
 PLAN_PARTS = ("todo", "tidy", "sus")
@@ -238,7 +240,7 @@ def inbox(app, args: dict) -> dict:
                 rows.append(line)
         if not plan:                               # mail the user archived that still has a reply or an appointment
             counts["archived"] += len(archived)
-            rows += [_line(acct, it, due) for it in archived] if which == "archived" else []
+            rows += [_line(acct, it, due, True) for it in archived] if which == "archived" else []
     rows.sort(key=lambda r: (r["date"] or "", r["account"], r["id"]), reverse=True)    # the same order each page
     rows.sort(key=lambda r: (not r["due_soon"], r["due"] or "" if r["due_soon"] else ""))
     at = int(args.get("cursor") or 0) if str(args.get("cursor") or "0").isdigit() else 0
@@ -352,20 +354,24 @@ def clean(app, args: dict) -> dict:
             days = int(subs.get("days") or 60)
             kinds = app.store.cache_get(acct, "sender_kinds")[0] or {}
             rows = [_sender(acct, x, days, kinds) for x in subs["senders"]]
-            f = full or {"checked_at": None, "days": days, "scanned": 0, "model_note": None, "model_check": None, "senders": []}
+            f = full or {"checked_at": None, "days": days, "scanned": 0, "unreturned": 0, "model_note": None, "model_check": None,
+                         "senders": []}
             if not f["model_note"] and subs.get("model_note"):
                 f["model_note"], f["model_check"] = subs.get("model_note"), subs.get("model_check")
             f["checked_at"] = max(f["checked_at"] or "", subs.get("at") or "") or None
             f["scanned"] += subs.get("scanned") or 0
+            f["unreturned"] += subs.get("unreturned") or 0
             f["senders"] += rows
             full = f
         old = app.old_view(acct, "inbox")
         if old.get("scanned"):
             keep = set(old.get("keep") or [])
-            a = arch or {"scanned_at": None, "days": old.get("days"), "judged": 0, "total": 0, "judging": False, "groups": []}
+            a = arch or {"scanned_at": None, "days": old.get("days"), "judged": 0, "total": 0, "unreturned": 0, "judging": False,
+                         "groups": []}
             a["scanned_at"] = max(a["scanned_at"] or "", old.get("at") or "") or None
             a["judged"] += old.get("judged") or 0
             a["total"] += old.get("total") or 0
+            a["unreturned"] += old.get("unreturned") or 0
             a["judging"] = a["judging"] or bool((old.get("judging") or {}).get("on"))
             a["groups"] += [_group(acct, g) for g in old.get("groups") or [] if g["kind"] != "pending"
                             and g["action"] == "archive" and g["suggested"] and g["key"] not in keep]
@@ -433,7 +439,7 @@ def old(app, args: dict) -> dict:
     j = v.get("judging") or {}
     return {"account": acct, "scope": scope, "scanned_at": v.get("at"), "days": v.get("days"), "stale": bool(v.get("stale")),
             "total": v.get("total") or 0, "judged": v.get("judged") or 0, "size": v.get("size") or 0,
-            "held": v.get("flagged") or 0,
+            "held": v.get("flagged") or 0, "unreturned": v.get("unreturned") or 0,
             "judging": {"on": bool(j.get("on")), "running": bool(j.get("running")), "problem": j.get("problem"),
                         "problem_code": j.get("problem_code")},
             "groups": groups}
@@ -553,10 +559,16 @@ def activity(app, args: dict) -> dict:
 
 # ---- data/mail --------------------------------------------------------------------------------------------------
 def _ways_of(it: dict) -> List[str]:
-    """What can be done with this mail, the suggestion first (the ops of mail_act, plus draft and calendar)."""
+    """What can be done with this mail, the suggestion first (the ops of mail_act, plus draft and calendar). Mail
+    archived before its date: only 完成 (its date stops reminding)."""
     if it.get("suspicious"):
-        return ["spam", "archive", "skip"]
+        return ["spam", "archive", "skip"] if it.get("state") == "pending" else []
+    today = (samples.TODAY if it.get("account") == "demo" else dt.date.today()).isoformat()
+    due = [e for e in triage.calendar_events(it) if e.get("kind") == "due" and e["date"] >= today]   # a deadline to come
+    if it.get("state") != "pending":
+        return ["complete"] + (["calendar"] if due else [])
     first = {"reply": ["draft"], "schedule": ["calendar"], "follow_up": ["flag"], "ignore": ["trash"]}.get(it.get("action") or "", [])
+    first += ["calendar"] if due else []
     return first + [op for op in ("archive", "trash", "flag", "skip") if op not in first]
 
 
@@ -592,8 +604,16 @@ def mail(app, args: dict) -> dict:
             "attachments": names("attachments"), "ask_text": memory.mask(it.get("summary")) or None,
             "draft_text": memory.mask(it.get("draft_text")) or None, "suspicious": bool(it.get("suspicious")),
             "action": it.get("action"), "category": it.get("category"), "due": it.get("due_date"),
-            "open_url": _open_url(app, acct, it), "ways": _ways_of(it) if it.get("state") == "pending" else [],
+            "start": it.get("start_date"), "open_url": _open_url(app, acct, it), "ways": _ways_of(it) if it.get("state") == "pending" or _put_away(app, acct, it) else [],
             "events": _events(app, acct, it)}
+
+
+def _put_away(app, acct: str, it: dict) -> bool:
+    """Archived before its date, and its date still reminds (App.put_away)."""
+    if it.get("state") != "done" or it.get("done_action") not in Store.PUT_AWAY or not it.get("due_date"):
+        return False
+    today = samples.TODAY if acct == "demo" else dt.date.today()
+    return any(x["id"] == it["id"] for x in app.put_away(acct, today))
 
 
 def _events(app, acct: str, it: dict) -> list:
@@ -604,7 +624,8 @@ def _events(app, acct: str, it: dict) -> list:
     today = samples.TODAY if acct == "demo" else dt.date.today()
     return [{"index": e["index"], "title": memory.mask(e.get("title")) or None, "date": e.get("date"),
              "start": e.get("start"), "end": e.get("end"), "location": memory.mask(e.get("location")) or None,
-             "past": bool(e.get("past")), "added": bool(e.get("added"))} for e in app._events_view(it, today)]
+             "past": bool(e.get("past")), "added": bool(e.get("added")), "kind": e.get("kind") or "event"}
+            for e in app._events_view(it, today)]
 
 
 # ---- actions ----------------------------------------------------------------------------------------------------

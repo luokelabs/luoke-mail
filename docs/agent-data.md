@@ -87,7 +87,11 @@ luoke-agent 照效果图核过以后，邮件助手照这里实现；改了这�
 - 处理过的信还能打开：分拣过的信连同正文存在本机，归档、删除、移到垃圾邮件以后照样读得到（`ways` 是 `[]`），直到移除这个邮箱或全部清除。
   `open_url` 只在 Gmail 上有：归档的能直接打开；移到已删除、垃圾邮件的，Gmail 网页上可能找不到，邮箱清空以后就没了。
 - `ways`：能做的，建议的在前（`mail_act` 的动作，加 `draft` 写草稿、`calendar` 加入日程）；处理过的是 `[]`。
+  截止日还没到就归档了的（见 `data/inbox` 的 `archived`）只有 `["complete"]`：截止日照样提醒，标为完成才不再提醒（11-18）。
 - `events`：信里的日程，按模型列的顺序，最多 4 个；`index` 交给 `mail_calendar`。`past`：已经过了；`added`：已经交给过「日历」（同一天同一时间、同一个发件域名的）。没有是 `[]`。
+  `kind`：`event` 是日程；加星标、回复这两类有截止日、没有日程的，是 `due`（截止那天的全天日程，日历在前一天 9:00 提醒），
+  有开始日期的另有一项 `start` 排在前面（那天的全天日程，当天 9:00 提醒；开始日期已经过了就不给）（11-18）。
+- `start`：这件事从哪天起才能办（模型从信里读的 `start_date`，没有是 `null`），和 `due` 一起是一段时间（「11-23 至 12-06」）。
 - `to`、`cc`、`attachments`：11-15 以前一直是 `[]`（读错了字段），现在有值。
 
 ### `data/today?account=`
@@ -128,7 +132,8 @@ luoke-agent 照效果图核过以后，邮件助手照这里实现；改了这�
  "items": [{"id": 4019, "account": "me@example.com", "from": {"name": "王老师", "address": "wang@uni.example"},
             "subject": "答辩时间确认", "ask_text": "王老师问答辩时间，周五前回", "date": "2026-11-12 16:20:00",
             "due": "2026-11-18", "overdue": false, "due_soon": true, "kind": "reply", "action": "reply", "priority": "high",
-            "suspicious": false, "flagged": false, "draft": false, "open_url": "https://mail.google.com/…"}],
+            "suspicious": false, "flagged": false, "draft": false, "open_url": "https://mail.google.com/…", "archived": false,
+            "start": null, "calendar_added": false}],
  "counts": {"reply": 4, "needs": 7, "suspicious": 1, "direct": 12, "archived": 1, "unsorted": 2},
  "more": false}
 ```
@@ -138,12 +143,17 @@ luoke-agent 照效果图核过以后，邮件助手照这里实现；改了这�
   - `needs`：要用户处理的，包括回复、日程、跟进、可疑；
   - `suspicious`：可疑；
   - `direct`：建议归档、删除的；
-  - `archived`：用户最近自己归档了、里面还有要回复或日程的（旧界面的「你归档的邮件里还有要处理的」）；不在收件箱里，不算进 `all`；
+  - `archived`：不在收件箱里、还有事的，不算进 `all`。两种：用户在邮件助手之外归档、邮件助手没见过的，里面还有要回复或日程的（旧界面的「你归档的邮件里还有要处理的」）；
+    截止日还没到就归档了的（在这里归档、按习惯归档、在手机上归档都算），截止日照样提醒，直到标为完成（`mail_act` 的 `complete`，只改本机记录，不动邮箱）、删除，或者截止日过了（11-18：一件 5 天后才能办的事先归档，提醒也跟着没了）。
+    在手机上删除的不算；这个版本以前归档的不算；
   - `all`：收件箱里的全部。
 - `kind`：`reply`、`schedule`、`follow_up`、`suspicious`、`direct`、`unsorted`。
 - `action`：分拣的建议，`triage.ACTIONS` 的代号。
 - `ask_text`：模型写的摘要，说对方要什么。
 - `open_url`：Gmail 里这封信的地址，只在 Gmail 上有，别的邮箱是 `null`。
+- `start`：这件事从哪天起才能办，没有是 `null`。开始日期还没到的，`due_soon` 是 `false`（到了才算快到期），行上写一段时间（「11-23 至 12-06」），不只写截止日；开始那天起照旧写截止日。
+- `calendar_added`（每行）：加入日程会加的（信里的日程，或者截止日）已经都交给过「日历」，窗口不必再给加入日程（11-19）。
+- `archived`（每行）：这一行在不在收件箱里，`list=archived` 的行是 `true`。不在收件箱里的，`archive`、`flag` 这类移动邮件的动作没有意义，给 `complete`（完成）和能加日程时的加入日程。
 - `due_soon`：快到期（截止在三天内或已过），排在最前，按截止日先后；其余新的在前，时间相同的按邮件编号，每次翻页顺序不变。
 - 切换列表只读每行要的字段（不读正文、日程、草稿说明），几千封待处理的邮箱一次也在零点几秒内；`counts` 每次都带全。
 - `counts`：每个列表各几封，`unsorted` 是还没分析的。
@@ -183,7 +193,7 @@ luoke-agent 照效果图核过以后，邮件助手照这里实现；改了这�
 ### `data/clean?account=`
 
 ```json
-{"subscriptions": {"checked_at": "2026-11-10 21:00:00", "days": 60, "scanned": 1800,
+{"subscriptions": {"checked_at": "2026-11-10 21:00:00", "days": 60, "scanned": 1800, "unreturned": 0,
                    "senders": [{"key": "list:promo.shop.example", "account": "me@example.com", "name": "某某商城",
                               "address": "news@shop.example",
                               "count": 24, "per_week": 2.8, "read": 0, "last": "2026-11-12 10:00:00",
@@ -191,7 +201,7 @@ luoke-agent 照效果图核过以后，邮件助手照这里实现；改了这�
                               "mailto": null, "reply_keyword": null, "size": 1200000, "subjects": ["双十一预热", "…"],
                               "suspicious": false, "group": "unsubscribe", "decision": null, "still_sending": false,
                               "rule": null}]},
- "archive": {"scanned_at": "2026-11-09 20:10:00", "days": 30, "judged": 1180, "total": 1211, "judging": false,
+ "archive": {"scanned_at": "2026-11-09 20:10:00", "days": 30, "judged": 1180, "total": 1211, "unreturned": 0, "judging": false,
              "groups": [{"key": "notice|from:noreply@post.example", "account": "me@example.com", "kind": "notice",
                          "name": "某快递",
                          "address": "noreply@post.example", "count": 41, "size": 820000,
@@ -199,6 +209,7 @@ luoke-agent 照效果图核过以后，邮件助手照这里实现；改了这�
 ```
 
 - `subscriptions`：订阅体检的全部结果，`scanned` 是读了多少封。没体检过是 `null`。
+  `unreturned`：服务器列出来、再要也没给的封数（139 这类服务器常有），没算进 `scanned`，也不是邮件没了；下次体检读到了就是 0。
   `model_note`：这次体检本机模型没能看完时的说明（原文，例如「有 3 个发件人未能分析，它们的建议仅依据收信和阅读情况。」），看完了是 `null`。
   `model_check` 是同一件事的数据：`reason`（`no_model` 没选本机模型、`model_error` 模型出错，原因在 `problem_code`、
   `unanswered` 模型答了但没答到这几个）、`unchecked` 几个发件人没看、`of` 一共要看几个；看完了是 `null`（2026-11-17 以前的体检没有这一项）。
@@ -222,6 +233,7 @@ luoke-agent 照效果图核过以后，邮件助手照这里实现；改了这�
 - `archive`：收件箱里超过 `days` 天、建议归档、没被「留着别再问」的几组。没读过旧邮件是 `null`。
   - `kind` 是 `triage.OLD_KINDS` 的代号。
   - `earliest`、`latest` 是这一组最早和最晚的一封。
+  - `unreturned`：读旧邮件时服务器没给的封数，没分析，下次读取再试（同 `data/old`）。
 - 没有自动整理（11-13 定）：清理都要用户点，所以这里不给周期和上次时间。
 
 ### `data/sender?account=&key=`
@@ -247,7 +259,7 @@ luoke-agent 照效果图核过以后，邮件助手照这里实现；改了这�
 
 ```json
 {"account": "me@example.com", "scope": "archive", "scanned_at": "2026-11-09 20:10", "days": null,
- "stale": false, "total": 5200, "judged": 4100, "size": 912000000, "held": 37,
+ "stale": false, "total": 5200, "judged": 4100, "size": 912000000, "held": 37, "unreturned": 0,
  "judging": {"on": true, "running": false, "problem": null},
  "groups": [{"key": "promotion|from:ad@store.example", "account": "me@example.com", "kind": "promotion",
              "name": "某店", "address": "ad@store.example", "count": 310, "size": 41000000, "unread": 290,
@@ -256,6 +268,7 @@ luoke-agent 照效果图核过以后，邮件助手照这里实现；改了这�
 ```
 
 - 没读过是 `scanned_at: null`、`groups: []`；读用 `mail_old_scan`（带 `scope`）。`stale`：读完以后邮箱又变了，要再读。
+- `unreturned`：服务器列出来、再要也没给的封数。它们不在任何一组里，也没分析；不是邮件没了，下次读取（`mail_old_scan`）再试。11-19 以前读的是 0。
 - `action`：勾了以后做什么。收件箱的是 `archive` 或 `trash`（一次性通知、广告、订阅内容，不是和人的往来）；归档的只有 `trash`。用 `mail_old_archive` 或 `mail_old_trash` 执行。
 - 三种组：`suggested` 是建议（归档的叫「建议删除」），`judged` 但没建议是「待确认」，`judged: false`（`kind` 是 `pending`）是「未分析」，本机模型还没看到。`kept`：用户说过「留着别再问」（`mail_old_keep`），不再建议。
 - `held`：星标的、按标签留着的，从不进组。`judging`：本机模型在不在看（`mail_old_judge` 开停）；`problem` 是它停下的原因（原文），
@@ -376,7 +389,7 @@ luoke-agent 照效果图核过以后，邮件助手照这里实现；改了这�
 
 | 名字 | 参数 | 做什么 | 可逆 |
 |---|---|---|---|
-| `mail_act` | `account, ids[], op` | `op`：`archive` 归档、`trash` 移到已删除、`spam` 移到垃圾邮件、`flag` 加星标、`read` 标已读、`unread` 标未读、`skip` 留在收件箱、`complete` 完成并归档 | 可撤销（`mail_undo_step`）。`trash`、`spam` 在邮箱清空前可恢复；一次多封的 `trash`、`spam` 要先开处理模式 |
+| `mail_act` | `account, ids[], op` | `op`：`archive` 归档、`trash` 移到已删除、`spam` 移到垃圾邮件、`flag` 加星标、`read` 标已读、`unread` 标未读、`skip` 留在收件箱、`complete` 完成并归档（已经不在收件箱的只标为完成，不再提醒截止日） | 可撤销（`mail_undo_step`）。`trash`、`spam` 在邮箱清空前可恢复；一次多封的 `trash`、`spam` 要先开处理模式 |
 | `mail_undo_step` | `account, log_id` | 撤销 `data/today`、`data/activity` 里的一项 | 撤销本身不再撤销 |
 | `mail_apply_plan` / `mail_undo` | 照旧 | 卡片上的方案、撤销 | 可撤销 |
 | `mail_plan` | `ids[]` | 给选中的信出方案（只读），再用 `mail_apply_plan` 执行 | — |

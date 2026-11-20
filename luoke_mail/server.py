@@ -44,7 +44,8 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
                  ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp"}
 WINDOW_DAYS = 31                # NetEase opens only the last 30 days to IMAP until the user changes it
-WINDOW_NOTE = "网易邮箱目前只开放最近 30 天的邮件。要整理更早的邮件，请在网页版「设置 → POP3/SMTP/IMAP → 收取选项」中选择「收取全部邮件」。"
+WINDOW_EDGE = 28                # ... and then the oldest mail it shows is right at that edge: 29-31 days old
+WINDOW_NOTE = "收件箱仅能读取最近 30 天的邮件。如网页版可见更早的邮件，可在网页版「设置 → POP3/SMTP/IMAP → 收取选项」中选择「收取全部邮件」。"
 MAIL_SECRET = "imap"
 ENGINE_SECRET = "engine"
 # 全部清除: the files beside the store (the store and calendar/ go whole). The logs say what was done, to which
@@ -97,6 +98,7 @@ class App:
         self._secret_known: dict[str, bool] = {}
         self.adopt_rules()
         self.store.settle_dates(triage.settle_dates)   # 0.17.10: dates once counted from the day of sorting
+        self.store.resort_suspicious(triage.prompt_sign())
         self.mem = memory_ or memory.open_memory()            # the person's memory, shared by luoke tools (luoke-mem)
         self.demo_mem = demo_memory_ or memory.open_memory(demo=True)
         memory.seed_demo(self.demo_mem)
@@ -730,6 +732,13 @@ class App:
         self.store.cache_set(acct, "synced_ok", {})
         return r
 
+    def _window_only(self, acct: str, mb, present) -> bool:
+        """A NetEase inbox that IMAP shows only 30 days of: nothing older than WINDOW_DAYS,
+        and the oldest mail right at that edge. A new mailbox, whose oldest mail is younger, is not one; a tidy
+        inbox with mail just at the edge still reads like one, so the note is worded as a check, not a fact."""
+        return (self.provider(acct) in ("163", "126") and bool(present) and not mb.count_before(WINDOW_DAYS)
+                and bool(mb.count_between(WINDOW_EDGE, WINDOW_DAYS)))
+
     def _sync_mailbox(self, acct: str, job: dict, analyze: bool = True, user: bool = False) -> dict:
         """Bring the list in step with the inbox and sort what's new (the manual sync and background sorting).
         Mail of the last `days` days is sorted one by one, read or not; only bodies not seen before are
@@ -746,8 +755,7 @@ class App:
             present = mb.inbox_uids()
             self._name_unnamed(acct, mb, present)
             self._group_mailings(acct, mb)
-            self.store.cache_set(acct, "window_only", self.provider(acct) in ("163", "126") and bool(present)
-                                 and not mb.count_before(WINDOW_DAYS))
+            self.store.cache_set(acct, "window_only", self._window_only(acct, mb, present))
             self._recheck_senders(acct, mb, present)
             gone = self.store.mark_missing(acct, present)
             self._handled_elsewhere(acct, mb, gone, present)
@@ -947,6 +955,9 @@ class App:
             was = set(before) - unseen
             read = [it for it in self.store.items(acct, "pending")
                     if it.get("uid") in was and it.get("uid") in present and it["id"] not in ours and it.get("place") == "inbox"]
+        if moved["trash"]:                          # deleted, not put away: its date no longer reminds
+            was = self.store.cache_get(acct, "deleted_elsewhere")[0] or []
+            self.store.cache_set(acct, "deleted_elsewhere", (was + [it["id"] for it in moved["trash"]])[-1000:])
         for op, its in (("archive", moved["archive"]), ("trash", moved["trash"]), ("read", read)):
             if its:
                 self._acted(acct, its, op, where="elsewhere")
@@ -1358,7 +1369,7 @@ class App:
     def _read_old(self, acct: str, scope: str, job: dict) -> None:
         """Read the headers of a scope's old mail into old_mail (headers only, the mailbox is only examined)."""
         days = self.cfg["fetch"]["days"]
-        partial = False
+        partial = 0
         if acct == DEMO:
             folder, rows = ("INBOX", samples.demo_old_mail(days)) if scope == "inbox" else ("[Gmail]/All Mail", samples.demo_archive())
         else:
@@ -1366,12 +1377,14 @@ class App:
             job["stage"] = stage
             with self.open_mailbox(acct) as mb:
                 folder, rows = mb.old_headers(scope, days, progress=lambda d, t: job.update(stage=stage, done=d, total=t))
-                partial = bool(mb.unreturned)
-        self.store.old_sync(acct, scope, rows, partial)
+                partial = len(mb.unreturned)
+        self.store.old_sync(acct, scope, rows, bool(partial))
         if acct != DEMO:
             self.store.gmail_ids_set(acct, {r["message_id"]: r["gm_msgid"] for r in rows if r.get("gm_msgid")})
+        # mail the server listed and never gave, after asking again: not analysed, and said on the page until a
+        # later read brings it (it is not mail that has gone)
         self.store.cache_set(acct, f"scan:{scope}", {"at": time.strftime("%Y-%m-%d %H:%M"), "ts": time.time(),
-                                                      "folder": folder, "days": days})
+                                                      "folder": folder, "days": days, "unreturned": partial})
         if scope == "inbox":
             self.store.cache_set(acct, "old_count", {"count": len(rows), "days": days})
 
@@ -1477,6 +1490,7 @@ class App:
         stale = told is not None and told != self.store.old_read(acct, scope)   # not len(rows): those leave out the
         # older unread already listed in the inbox, so a mailbox with them looked stale on every visit
         return {"scanned": True, "stale": stale, "scope": scope, "at": scan["at"], "days": scan.get("days"), "folder": scan["folder"],
+                "unreturned": scan.get("unreturned") or 0,
                 "total": len(kept), "flagged": flagged, "size": sum(r["size"] or 0 for r in kept),
                 "judged": sum(1 for r in kept if r["kind"]),
                 "judging": {"on": self.judging(acct, scope), "problem": (judge or {}).get("problem"),
@@ -1790,6 +1804,7 @@ class App:
                 job["stage"] = f"正在读取最近 {days} 天的邮件"
                 with self.open_mailbox(acct) as mb:
                     headers = mb.fetch_headers(days=days)
+                    unreturned = len(mb.unreturned)       # listed, never given: not counted below (as 清理's read)
                     todo = list(subscriptions.needs_body_check(headers, self.store.suspicious_senders(acct)).values())[:30]
                     for i, h in enumerate(todo, 1):
                         job.update(stage=f"正在查找退订方式（{i}/{len(todo)}）", done=i, total=len(todo))
@@ -1798,7 +1813,7 @@ class App:
             headers = [h for h in headers if (h.get("from_addr") or "").lower() not in self._me(acct)]     # not a sender
             rows = subscriptions.summarize(headers, self.store.suspicious_senders(acct), days, self.store.read_by_us(acct))
             note, check = self._check_senders(acct, headers, rows, job)
-            result = {"days": days, "scanned": len(headers), "senders": rows, "at": time.strftime("%Y-%m-%d %H:%M"), "model_note": note,
+            result = {"days": days, "scanned": len(headers), "unreturned": unreturned if acct != DEMO else 0, "senders": rows, "at": time.strftime("%Y-%m-%d %H:%M"), "model_note": note,
                       "model_check": check}
             self.store.cache_set(acct, "subscriptions", result)
             return self.subscriptions_view(acct)
@@ -1858,10 +1873,10 @@ class App:
         return triage.draft_note(it, text, self.address(it["account"]), self.cfg["profile"].get("signature") or "")
 
     # what a line of the main window's inbox shows (agent_data._line); the old page's card has much more
-    LINE_FIELDS = ("id", "subject", "from_name", "from_addr", "date", "action", "summary", "due_date", "suspicious",
+    LINE_FIELDS = ("id", "subject", "from_name", "from_addr", "date", "action", "summary", "due_date", "start_date", "suspicious",
                    "flagged", "draft_text", "state", "group_key")
     CARD_FIELDS = ("id", "subject", "from_name", "from_addr", "date", "body", "attachments", "action", "priority", "category",
-                   "summary", "reason", "due_date", "event", "reply_points", "suspicious", "error", "flagged", "draft_text",
+                   "summary", "reason", "due_date", "start_date", "event", "reply_points", "suspicious", "error", "flagged", "draft_text",
                    "state", "done_action", "group_key", "list_id")
 
     def public_item(self, it: dict, brief: bool = False) -> dict:
@@ -1893,21 +1908,57 @@ class App:
 
     DUE_AHEAD, DUE_BEHIND = 3, 7          # days: what is due soon, or was and still waits, comes first
 
-    def due_soon(self, acct: str, pending: list[dict] | None = None) -> list[dict]:
+    def due_soon(self, acct: str, pending: list[dict] | None = None, put_away: bool = True) -> list[dict]:
         """Mail that needs the user and has a day to it -- a bill's deadline, a form, a meeting to answer -- within
         the next DUE_AHEAD days, or past it by up to DUE_BEHIND and still waiting: soonest first. A default to start
-        from (2026-10-17: coarse first, then closer by what the user does). `pending`: the waiting mail, read already."""
+        from (2026-10-17: coarse first, then closer by what the user does). `pending`: the waiting mail, read already.
+        `put_away`: with mail archived before its date (App.put_away); not on the old page, whose 快到期 offers what
+        moves mail in the inbox."""
         today = samples.TODAY if acct == DEMO else dt.date.today()
         lo, hi = (today - dt.timedelta(days=self.DUE_BEHIND)).isoformat(), (today + dt.timedelta(days=self.DUE_AHEAD)).isoformat()
         out = []
-        for it in self.store.items(acct, "pending") if pending is None else pending:
+        waiting = self.store.items(acct, "pending") if pending is None else pending
+        for it in waiting + (self.put_away(acct, today) if put_away else []):
             coming = [e["date"] for e in triage.events_of(it) if e["date"][:10] >= today.isoformat()]     # the next leg
             when = it.get("due_date") or (coming[0] if coming and it.get("action") == "schedule" else None)
-            if self._past_event(it, today) or self._in_calendar(it):
+            if self._past_event(it, today) or self._in_calendar(it) or self._due_in_calendar(it):
                 continue                         # an appointment that has been, or is in the calendar already (10-22)
+            if (it.get("start_date") or "") > today.isoformat():
+                continue                         # can't be done yet: it is told the day it opens (opening)
             if when and lo <= when[:10] <= hi and it.get("action") in background.NEEDS_YOU and not it.get("suspicious"):
                 out.append({**it, "when": when[:10]})
         return sorted(out, key=lambda it: it["when"])
+
+    OPENING_BEHIND = 2                    # days: opened while the Mac was off, still told
+
+    def opening(self, acct: str) -> list[dict]:
+        """Mail whose thing can be done from today (`start_date`, 11-18: a re-registration open from 11-23 to 12-06):
+        told the day it opens, or within OPENING_BEHIND days of it, before its deadline; in the inbox or archived
+        before its date, not suspicious, not with that day put in the calendar. `when` is the day it opens."""
+        today = samples.TODAY if acct == DEMO else dt.date.today()
+        lo = (today - dt.timedelta(days=self.OPENING_BEHIND)).isoformat()
+        out = []
+        for it in self.store.items(acct, "pending", body=False) + self.put_away(acct, today):
+            start = (it.get("start_date") or "")[:10]
+            if (start and lo <= start <= today.isoformat() and (it.get("due_date") or "")[:10] >= today.isoformat()
+                    and it.get("action") in background.NEEDS_YOU and not it.get("suspicious")
+                    and not self._due_in_calendar(it, "start")):
+                out.append({**it, "when": start})
+        return sorted(out, key=lambda it: it["when"])
+
+    def put_away(self, acct: str, today: dt.date) -> list[dict]:
+        """Mail archived before its date (Store.put_away_dated): its date still reminds, until the user marks it
+        完成 or the day is past. Not what was deleted on the phone. Counted from the version that began this
+        (cache `remind_put_away_since`): what was archived before was taken as finished, and stays so."""
+        if acct == DEMO:
+            return []
+        since = self.store.cache_get(acct, "remind_put_away_since")[0]
+        if not since:
+            since = time.strftime("%Y-%m-%d %H:%M:%S")
+            self.store.cache_set(acct, "remind_put_away_since", since)
+        deleted = set(self.store.cache_get(acct, "deleted_elsewhere")[0] or [])
+        return [{**it, "put_away": True} for it in self.store.put_away_dated(acct, today.isoformat(), since)
+                if it["id"] not in deleted]
 
     @staticmethod
     def _past_event(it: dict, today: dt.date) -> str | None:
@@ -1929,17 +1980,27 @@ class App:
         done = [self._added(it, ev) for ev in events]
         return done[0] if all(x and x.get("message_id") != it.get("message_id") for x in done) else None
 
-    def _added(self, it: dict, ev: dict) -> dict | None:
+    def _due_in_calendar(self, it: dict, kind: str = "due") -> bool:
+        """A deadline (`kind` "due"), or the day it can be started from ("start"), the user put in the calendar from
+        this mail (triage.calendar_events): the calendar reminds of it, the mail assistant doesn't again."""
+        events = [ev for ev in triage.calendar_events(it) if ev.get("kind") == kind]
+        return bool(events) and all((self._added(it, ev) or {}).get("message_id") == it.get("message_id") for ev in events)
+
+    def _added(self, it: dict, ev: dict, added: list | None = None) -> dict | None:
+        """The entry for `ev` the user already put in the calendar (same day and start, same sender's domain), this
+        mail's own first. `added`: the cache `calendar_added`, read already (a list of lines)."""
         domain = (it.get("from_domain") or "").lower()
-        for x in self.store.cache_get(it["account"], "calendar_added")[0] or []:
-            if x.get("date") == ev.get("date") and (x.get("start") or "") == (ev.get("start") or "") and x.get("domain") == domain and domain:
-                return {"date": x["date"], "start": x.get("start"), "message_id": x.get("message_id")}
-        return None
+        if added is None:
+            added = self.store.cache_get(it["account"], "calendar_added")[0] or []
+        same = [x for x in added
+                if x.get("date") == ev.get("date") and (x.get("start") or "") == (ev.get("start") or "") and x.get("domain") == domain and domain]
+        same.sort(key=lambda x: x.get("message_id") != it.get("message_id"))          # this mail's own first
+        return {"date": same[0]["date"], "start": same[0].get("start"), "message_id": same[0].get("message_id")} if same else None
 
     def _events_view(self, it: dict, today: dt.date) -> list[dict]:
         """A mail's appointments for its card: each with its own over / already-added state."""
         return [{**ev, "index": i, "past": ev["date"][:10] < today.isoformat(), "added": bool(self._added(it, ev))}
-                for i, ev in enumerate(triage.events_of(it))]
+                for i, ev in enumerate(triage.calendar_events(it, today.isoformat()))]
 
     def inbox_mail(self, acct: str) -> tuple[list[dict], list[dict], set[int]]:
         """What the main window's inbox lists (data/inbox), a line a mail: (the waiting mail, the archived mail that
@@ -1948,11 +2009,20 @@ class App:
         pending = self.store.items(acct, "pending", body=False)
         due = {it["id"] for it in self.due_soon(acct, pending)}
         archived = [i for i in self.store.items(acct, "pending", place="archive", body=False) if i["action"]]
-        return [self.public_item(i, brief=True) for i in pending], [self.public_item(i, brief=True) for i in archived], due
+        today = samples.TODAY if acct == DEMO else dt.date.today()
+        archived += self.put_away(acct, today)
+        added = self.store.cache_get(acct, "calendar_added")[0] or []
+
+        def line(it: dict) -> dict:
+            # `calendar_added`: what 加入日程 would add (its appointments, or its deadline) is in the calendar already
+            events = triage.calendar_events(it, today.isoformat())
+            return {**self.public_item(it, brief=True),
+                    "calendar_added": bool(events) and all(self._added(it, ev, added) for ev in events)}
+        return [line(i) for i in pending], [line(i) for i in archived], due
 
     def list_items(self, source: str) -> dict:
         acct = self.account(source)
-        due = self.due_soon(acct)
+        due = self.due_soon(acct, put_away=False)
         where = self._thread_of(acct)
         pending = [{**self.public_item(i), "thread": where.get(i["id"])} for i in self.store.items(acct, "pending")]
         archived = [self.public_item(i) for i in self.store.items(acct, "pending", place="archive") if i["action"]]
@@ -2074,7 +2144,7 @@ class App:
         snap = self.store.snapshot([it["id"] for it in items])
         for it in items:
             s = {"action": action, "priority": it.get("priority"), "category": it.get("category"), "summary": it.get("summary"),
-                 "reason": "已手动改为「" + triage.ACTIONS[action] + "」", "due_date": it.get("due_date"),
+                 "reason": "已手动改为「" + triage.ACTIONS[action] + "」", "due_date": it.get("due_date"), "start_date": it.get("start_date"),
                  "event": it.get("event"), "reply_points": it.get("reply_points"), "suspicious": False}
             self.store.set_suggestion(it["id"], s, "user")
         undo = [{"kind": "restore_suggestions", "items": snap}]

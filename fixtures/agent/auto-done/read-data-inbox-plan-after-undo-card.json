@@ -20,7 +20,9 @@
               {
                 "account": "me@example.com",
                 "action": "ignore",
+                "archived": false,
                 "ask_text": "促销",
+                "calendar_added": false,
                 "date": "2026-10-19 18:06",
                 "draft": false,
                 "due": null,
@@ -35,6 +37,7 @@
                 "open_url": "https://mail.google.com/mail/u/?authuser=me@example.com#all/000000000006",
                 "overdue": false,
                 "priority": "low",
+                "start": null,
                 "subject": "周末促销",
                 "suspicious": false
               }

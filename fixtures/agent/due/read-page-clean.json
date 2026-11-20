@@ -1,0 +1,234 @@
+{
+  "reply": {
+    "id": 11,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": [
+            {
+              "createSurface": {
+                "catalogId": "ai.luoke/a2ui/agent/1",
+                "surfaceId": "clean"
+              },
+              "version": "v0.9"
+            },
+            {
+              "updateComponents": {
+                "components": [
+                  {
+                    "children": [
+                      "g4-c5",
+                      "g4-c10",
+                      "g4-r13"
+                    ],
+                    "component": "Column",
+                    "id": "root",
+                    "layout": "sections"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g4-t1",
+                    "text": "可以退订",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g4-t2",
+                    "text": "还没检查过你的订阅。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g4-b3-t",
+                    "text": "检查订阅"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g4-b3",
+                          "page": "clean"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g4-b3-t",
+                    "component": "Button",
+                    "id": "g4-b3",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g4-t2",
+                      "g4-b3"
+                    ],
+                    "component": "Row",
+                    "id": "g4-r4"
+                  },
+                  {
+                    "children": [
+                      "g4-t1",
+                      "g4-r4"
+                    ],
+                    "component": "Column",
+                    "id": "g4-c5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g4-t6",
+                    "text": "可以归档",
+                    "variant": "h5"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g4-t7",
+                    "text": "还没看过收件箱里的旧邮件。",
+                    "variant": "caption"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g4-b8-t",
+                    "text": "看一遍"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "button": "g4-b8",
+                          "page": "clean"
+                        },
+                        "name": "mail_do"
+                      }
+                    },
+                    "child": "g4-b8-t",
+                    "component": "Button",
+                    "id": "g4-b8",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g4-t7",
+                      "g4-b8"
+                    ],
+                    "component": "Row",
+                    "id": "g4-r9"
+                  },
+                  {
+                    "children": [
+                      "g4-t6",
+                      "g4-r9"
+                    ],
+                    "component": "Column",
+                    "id": "g4-c10"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g4-b11-t",
+                    "text": "订阅体检"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "page": "subs"
+                        },
+                        "name": "agent.open_page"
+                      }
+                    },
+                    "child": "g4-b11-t",
+                    "component": "Button",
+                    "id": "g4-b11",
+                    "variant": "borderless"
+                  },
+                  {
+                    "component": "Text",
+                    "id": "g4-b12-t",
+                    "text": "清理旧邮件"
+                  },
+                  {
+                    "action": {
+                      "event": {
+                        "context": {
+                          "page": "sweep"
+                        },
+                        "name": "agent.open_page"
+                      }
+                    },
+                    "child": "g4-b12-t",
+                    "component": "Button",
+                    "id": "g4-b12",
+                    "variant": "borderless"
+                  },
+                  {
+                    "children": [
+                      "g4-b11",
+                      "g4-b12"
+                    ],
+                    "component": "Row",
+                    "id": "g4-r13"
+                  }
+                ],
+                "surfaceId": "clean"
+              },
+              "version": "v0.9"
+            }
+          ],
+          "uri": "page/clean"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 11,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "page/clean"
+    }
+  }
+}

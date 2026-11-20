@@ -386,6 +386,13 @@ class Mailbox:
             return len(self._uid_search(["UNDELETED", "BEFORE", _imap_date(days)]))
         return self._guard(run)
 
+    def count_between(self, newer: int, older: int) -> int:
+        """Inbox mail sent from `older` days ago up to `newer` days ago (newer < older)."""
+        def run():
+            self.select("INBOX", readonly=True)
+            return len(self._uid_search(["UNDELETED", "SINCE", _imap_date(older), "BEFORE", _imap_date(newer)]))
+        return self._guard(run)
+
     def wrote_to(self, addresses: list[str]) -> set[str]:
         """Which of these the user has ever sent mail to. Without a sent folder to look in: all of them, so nobody
         the user may know is taken for a mailing."""
@@ -1162,19 +1169,32 @@ def _short_link(m: re.Match) -> str:
     return re.sub(r"^(https?://[^/?#]*).*$", r"\1/…", url)
 
 
+def html_source(plain: str | None) -> bool:
+    """A plain-text part that is really HTML source."""
+    p = (plain or "").strip()
+    return bool(re.search(r"<(html|body)\b", p, re.I)) or len(re.findall(r"<(?:div|table|td|tr|p|br|span|a)\b", p, re.I)) >= 10
+
+
+def prefers_html(plain: str | None, html: str | None) -> bool:
+    """Whether the HTML part is the one to read: no plain-text part, a plain one that is HTML source, or only a line
+    saying to read the HTML version while the HTML part has the message (luoke-mail#28). 精选 (digest.read) asks
+    this too, so a newsletter is read from the same part as its mail."""
+    p = (plain or "").strip()
+    if not p or html_source(p):
+        return True
+    if html and len(p) < 200:
+        return len(html_to_text(html).strip()) > max(3 * len(p), 100)   # the HTML version says much more
+    return False
+
+
 def pick_body(plain: str | None, html: str | None) -> str:
-    """The part to read: the plain-text part, unless it is really HTML source, or only a line saying to read the
-    HTML version while the HTML part has the message (luoke-mail#28)."""
+    """The text of the part to read (prefers_html)."""
     p = (plain or "").strip()
     if not p:
         return html_to_text(html or "")
-    if re.search(r"<(html|body)\b", p, re.I) or len(re.findall(r"<(?:div|table|td|tr|p|br|span|a)\b", p, re.I)) >= 10:
+    if html_source(p):
         return html_to_text(html or plain)
-    if html and len(p) < 200:
-        text = html_to_text(html).strip()
-        if len(text) > max(3 * len(p), 100):        # the HTML version says much more (and says the rest anyway)
-            return text
-    return plain
+    return html_to_text(html).strip() if prefers_html(plain, html) else plain
 
 
 def clean_body(text: str, limit: int = BODY_CHAR_LIMIT) -> str:

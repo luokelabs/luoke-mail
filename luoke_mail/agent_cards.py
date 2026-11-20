@@ -44,10 +44,15 @@ def host_features(meta: Optional[dict]) -> frozenset:
 
 
 def button(label: str, event: str, context: Optional[dict] = None, *, primary: bool = False,
-           icon: Optional[str] = None, tooltip: Optional[str] = None, variant: Optional[str] = None) -> dict:
+           icon: Optional[str] = None, tooltip: Optional[str] = None, variant: Optional[str] = None,
+           count: Optional[dict] = None) -> dict:
     """一个按钮的说明，交给 `Card.buttons`。`event` 是工具的 MCP 工具名，或 agent 的 `agent.open_url`。
-    `icon`：Lucide 的图标名，画在字前面；`tooltip`：悬停提示和读屏念的字（按钮上的字太短时写清做什么）。"""
+    `icon`：Lucide 的图标名，画在字前面；`tooltip`：悬停提示和读屏念的字（按钮上的字太短时写清做什么）。
+    `count`：`{"path": "/choices", "value": 数哪个}`，字里的 `{n}` 换成选了它的项数，0 项不画（§4 countLabel，
+    核心列了 `countLabel` 才给）。"""
     spec = {"label": label, "event": event, "context": context or {}, "primary": primary}
+    if count:
+        spec["count"] = count
     if icon:
         spec["icon"] = icon
     if tooltip:
@@ -222,6 +227,8 @@ class Card:
             comp["variant"] = spec["variant"]      # 例如 borderless：每一行上的小动作
         if spec.get("tooltip"):
             comp["tooltip"] = spec["tooltip"]
+        if spec.get("count"):
+            comp["count"] = spec["count"]
         if spec.get("icon"):                       # 字前面一个图标：子组件是一行「图标 + 字」（§4「图标按钮」）
             rid = bid + "-row"
             comp["child"] = rid
@@ -283,7 +290,7 @@ def _old_items(card: Card, items: Iterable[dict]) -> None:
 def plan_card(surface_id: str, title: str, items: Iterable[dict], *, apply_event: str, plan_id: str,
               apply_label: str, note: Optional[str] = None, badge: Optional[str] = None,
               extra_buttons: Sequence[dict] = (), update: bool = False, id_prefix: str = "",
-              features: Optional[Iterable[str]] = None) -> List[dict]:
+              features: Optional[Iterable[str]] = None, apply_count: Optional[dict] = None) -> List[dict]:
     """「N 封邮件的处理方案」：一张卡片一列邮件（每项见 `Card.mail_items`）。`badge` 是标题后面的标签（邮箱地址）。
 
     主按钮写清做什么（`apply_label`，例如「加星标 4 · 写草稿 1」），调 `apply_event`，上下文是
@@ -306,7 +313,7 @@ def plan_card(surface_id: str, title: str, items: Iterable[dict], *, apply_event
             card.text(note, caption=True)
         card.mail_items(items)
         card.buttons(button(apply_label, apply_event, {"plan_id": plan_id, "choices": CHOICES}, primary=True,
-                            icon="check"), *extra_buttons)
+                            icon="check", count=apply_count), *extra_buttons)
     return card.update_messages(include_data=False) if update else card.messages()
 
 

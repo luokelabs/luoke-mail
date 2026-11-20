@@ -22,7 +22,7 @@ def rule_suggestion(item: dict, rule: dict) -> dict:
     action = "ignore" if spam else rule["action"]      # junk: not a scam, just never wanted (moved to junk on the page)
     return {"action": action, "priority": "low" if action in ("archive", "ignore") else "medium",
             "category": item.get("category"), "summary": item.get("summary") or item.get("subject"),
-            "suspicious": bool(item.get("suspicious")), "due_date": item.get("due_date"), "event": item.get("event"), "reply_points": item.get("reply_points"),
+            "suspicious": bool(item.get("suspicious")), "due_date": item.get("due_date"), "start_date": item.get("start_date"), "event": item.get("event"), "reply_points": item.get("reply_points"),
             "reason": f"规则：{RULE_KINDS.get(rule['kind'], rule['kind'])}「{rule['value']}」的邮件"
                       f"{RULE_ACTIONS.get(rule['action'], rule['action'])}。"}
 

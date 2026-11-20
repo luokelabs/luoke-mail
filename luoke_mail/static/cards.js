@@ -101,6 +101,8 @@ export function renderCard(it, opts = {}) {
   // over already: an appointment that has been, a deadline that passed (10-22, luoke-mail#22)
   if (it.past_event) tags.append(el("span", { class: "chip soft" }, `日程已过（${shortDate(it.past_event)}）`));
   else if (it.in_calendar) tags.append(el("span", { class: "chip success" }, "已在日程中"));
+  else if (it.due_date && !it.overdue && it.start_date && it.start_date > localDay())   // can't be done yet: its window (11-18)
+    tags.append(el("span", { class: "chip soft" }, `${shortDate(it.start_date)} 至 ${shortDate(it.due_date)}`));
   else if (it.due_date) tags.append(el("span", { class: "chip " + (it.overdue ? "danger" : "warning") }, (it.overdue ? "已过期 " : "截止 ") + shortDate(it.due_date)));
   if (it.thread) tags.append(el("span", { class: "chip soft" }, it.thread.what ? `${it.thread.label}：${it.thread.what}` : it.thread.label));
   if (it.flagged) tags.append(el("span", { class: "chip soft" }, "已加星标"));
@@ -217,4 +219,9 @@ export function renderGroup(entry) {
     el("ul", null, entry.items.map((i) => el("li", null, el("span", { class: "meta" }, (i.date || "").slice(5, 10) + " "), i.subject)))));
   card.append(body);
   return showPending(card, ids);
+}
+
+function localDay() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }

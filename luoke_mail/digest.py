@@ -15,7 +15,7 @@ from html.parser import HTMLParser
 from urllib.parse import urlparse
 
 from . import engines, prompts
-from .mailbox import parse_message
+from .mailbox import _decode_part, parse_message, prefers_html
 from .triage import _loads
 
 TEXT_LIMIT = 12000           # characters of newsletter text the model reads (prefill time on small machines)
@@ -54,6 +54,8 @@ class _Reader(HTMLParser):
         return len(self.links)
 
     def handle_starttag(self, tag, attrs):
+        if tag == "body":                 # a <head> never closed: the body is text all the same (as html_to_text)
+            self.skip = 0
         if tag in self.SKIP:
             self.skip += 1
         elif tag == "a":
@@ -94,7 +96,8 @@ def _tidy(text: str) -> str:
 
 
 def read(raw: bytes) -> dict:
-    """Headers, readable text with 〔n〕 after each link, and the numbered links."""
+    """Headers, readable text with 〔n〕 after each link, and the numbered links. The part read is the one the
+    mail's own reading takes (mailbox.prefers_html), decoded the same way (a gb2312 notice as gb18030)."""
     m = parse_message(raw)
     msg = email.message_from_bytes(raw, policy=policy.default)
     html = plain = ""
@@ -104,16 +107,14 @@ def read(raw: bytes) -> dict:
         ctype = part.get_content_type()
         if ctype not in ("text/html", "text/plain"):
             continue
-        try:
-            body = part.get_content()
-        except Exception:  # noqa: BLE001 - unknown charset: best effort
-            body = (part.get_payload(decode=True) or b"").decode("utf-8", "replace")
+        body = _decode_part(part)
         if ctype == "text/html":
             html += body
         else:
             plain += body
     r = _Reader()
-    if html:
+    if prefers_html(plain, html):
+        html = html or plain              # a plain part that is HTML source
         try:
             r.feed(html)
             r.close()

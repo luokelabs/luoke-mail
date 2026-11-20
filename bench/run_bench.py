@@ -4,6 +4,7 @@
   python3 bench/run_bench.py --base-url http://127.0.0.1:8000/v1 --model Qwen3.8-27B-oQ4e-mtp [--api-key KEY]
   python3 bench/run_bench.py --hub SOCKET --label "..."     # through 螺壳主控's task luoke-mail.triage (a hub named)
   ... --label "<label of an earlier result>" --fill   # only the items added since; merged into that result
+  ... --memory          # every mail with a memory in front of it (samples.ABOUT), as a person who has one
 
 Scores (each email lists the acceptable answers, see luoke_mail/samples.py):
   action      suggested action is acceptable                       (the main number)
@@ -11,6 +12,7 @@ Scores (each email lists the acceptable answers, see luoke_mail/samples.py):
   false_alarm normal emails wrongly flagged suspicious
   dates       exact due date / event date on emails that state one
   false_due   a due date invented for mail that needs nothing (effective dates, promo dates...)
+  false_start a day it opens (start_date) given to mail that never says one
   priority    acceptable priority on non-suspicious emails
   json        valid output on the first try
   basic/hard  emails fully right (action + suspicious flag + the expected date), per level
@@ -56,6 +58,8 @@ def score(items: list[dict], results: list[dict]) -> dict:
             return False
         if e.get("more_dates") and [x.get("date") for x in (t.get("event") or {}).get("more") or []] != e["more_dates"]:
             return False
+        if e.get("start") and t.get("start_date") != e["start"]:
+            return False
         return True
     pri = [(it, r) for it, r in normal if it["expect"]["priority"]]
     good = [r for r in results if r.get("triage")]
@@ -75,6 +79,8 @@ def score(items: list[dict], results: list[dict]) -> dict:
         "false_alarm": ok(r.get("triage") and r["triage"]["suspicious"] for _, r in normal), "normal_n": len(normal),
         "dates": ok(r.get("triage") and date_ok(it, r["triage"]) for it, r in dated), "dates_n": len(dated),
         "false_due": ok(r.get("triage") and r["triage"].get("due_date") for _, r in quiet), "quiet_n": len(quiet),
+        # a day it opens given to mail that never says one (11-18: start_date)
+        "false_start": ok(r.get("triage") and r["triage"].get("start_date") for it, r in zip(items, results) if not it["expect"].get("start")),
         "priority": ok(r.get("triage") and r["triage"]["priority"] in it["expect"]["priority"] for it, r in pri), "priority_n": len(pri),
         "json_first_try": ok(r.get("triage") and not r["triage"]["retried"] for r in results),
         "failed": n - len(good),
@@ -93,6 +99,7 @@ def main() -> None:
     ap.add_argument("--label", default=None, help="name in the results file (default: model id)")
     ap.add_argument("--out", default=os.path.join(ROOT, "bench", "results"), help="where the result goes")
     ap.add_argument("--warmup", action="store_true", help="send one untimed request first (model load)")
+    ap.add_argument("--memory", action="store_true", help="give every mail the memory block samples.ABOUT")
     ap.add_argument("--fill", action="store_true", help="run only the items the result with this label lacks (same "
                     "model and machine as before), and merge them into it")
     a = ap.parse_args()
@@ -119,9 +126,10 @@ def main() -> None:
         print(f"filling {len(items)} item(s) into {path}: {', '.join(it['tag'] for it in items)}")
     else:
         items = every
+    about = samples.ABOUT if a.memory else ""
     if a.warmup:
         try:
-            triage.analyze(items[0]["mail"], link, today=samples.TODAY, user_address=samples.ME)
+            triage.analyze(items[0]["mail"], link, about, today=samples.TODAY, user_address=samples.ME)
         except Exception as e:  # noqa: BLE001
             print("warmup failed:", e)
     results = []
@@ -129,11 +137,11 @@ def main() -> None:
     for i, it in enumerate(items, 1):
         r = {"tag": it["tag"]}
         try:
-            r["triage"] = triage.analyze(it["mail"], link, today=samples.TODAY, user_address=samples.ME)
+            r["triage"] = triage.analyze(it["mail"], link, about, today=samples.TODAY, user_address=samples.ME)
             t = r["triage"]
             mark = "ok " if t["action"] in it["expect"]["action"] else "XX "
             ev = (t.get("event") or {}).get("date")
-            print(f"{i:2d} {mark}{it['tag']:18s} {t['action']:9s} {t['priority']:6s} due={t['due_date']} ev={ev} sus={t['suspicious']}{' cleared' if t.get('cleared') else ''}{' risks=' + ','.join(t['risks']) if t.get('risks') else ''} {t['seconds']}s", flush=True)
+            print(f"{i:2d} {mark}{it['tag']:18s} {t['action']:9s} {t['priority']:6s} due={t['due_date']} start={t.get('start_date')} ev={ev} sus={t['suspicious']}{' cleared' if t.get('cleared') else ''}{' risks=' + ','.join(t['risks']) if t.get('risks') else ''} {t['seconds']}s", flush=True)
         except Exception as e:  # noqa: BLE001
             r["error"] = str(e)[:300]
             print(f"{i:2d} ERR {it['tag']:18s} {r['error'][:100]}", flush=True)
@@ -153,7 +161,8 @@ def main() -> None:
           f" · json first try {s['json_first_try']}/{s['n']} · {s['avg_seconds']}s/email")
     os.makedirs(out_dir, exist_ok=True)
     out = {"label": label, "model": link.name if a.hub is not None else a.model, "base_url": a.base_url, "machine": engines.machine_summary(),
-           "python": platform.python_version(), "date": time.strftime("%Y-%m-%d"), "score": s, "results": results}
+           "python": platform.python_version(), "date": time.strftime("%Y-%m-%d"), "memory": a.memory, "score": s,
+           "results": results}
     if earlier:                                    # first run's date and machine stay; the fill is recorded
         out.update({k: earlier[k] for k in ("model", "base_url", "machine", "python", "date") if k in earlier})
         out.update({k: earlier[k] for k in ("source",) if k in earlier}, filled=filled)

@@ -709,6 +709,44 @@ class DataTests(unittest.TestCase):
         self.assertEqual(([x["subject"] for x in a["items"]], a["counts"]["archived"]), (["合同扫描件"], 1))
         self.assertNotIn("合同扫描件", [x["subject"] for x in self.data("inbox", account=ME, list="all")["items"]])
 
+    def test_mail_archived_before_its_date_is_listed_with_only_complete(self):
+        """Archived with its date ahead, a mail still reminds (11-18): listed among the archived mail that still has
+        something for the user, opened with 完成 alone, and 完成 takes it off without moving anything."""
+        it = self.item("合同扫描件")
+        st = self.r.app.store
+        st.db.execute("UPDATE items SET due_date=? WHERE id=?", ("2099-01-01", it["id"]))
+        st.db.commit()
+        self.assertFalse(self.data("inbox", account=ME, list="needs")["items"][0]["archived"])
+        self.assertEqual(self.data("mail", id=it["id"])["ways"][:2], ["flag", "calendar"])   # a deadline: to the calendar too
+        st.db.execute("UPDATE items SET start_date=? WHERE id=?", ("2098-12-20", it["id"]))
+        st.db.commit()
+        line = next(x for x in self.data("inbox", account=ME, list="needs")["items"] if x["id"] == it["id"])
+        self.assertEqual((line["start"], line["due"], line["due_soon"]), ("2098-12-20", "2099-01-01", False))
+        m = self.data("mail", id=it["id"])
+        self.assertEqual(m["start"], "2098-12-20")
+        self.assertEqual([(e["kind"], e["date"]) for e in m["events"]], [("start", "2098-12-20"), ("due", "2099-01-01")])
+        st.db.execute("UPDATE items SET start_date=NULL WHERE id=?", (it["id"],))
+        st.db.commit()
+        with mock.patch.object(self.r.app, "_acted", lambda *a, **k: 0):
+            self.assertFalse(self.call("mail_act", {"account": ME, "ids": [it["id"]], "op": "archive"}).is_error)
+        a = self.data("inbox", account=ME, list="archived")
+        line = next(x for x in a["items"] if x["id"] == it["id"])
+        self.assertEqual((line["archived"], line["due"]), (True, "2099-01-01"))
+        m = self.data("mail", id=it["id"])
+        self.assertEqual(m["ways"], ["complete", "calendar"])
+        self.assertFalse(line["calendar_added"])
+        with mock.patch.object(desktop, "open_url"):
+            self.assertFalse(self.call("mail_calendar", {"account": ME, "id": it["id"]}).is_error)
+        line = next(x for x in self.data("inbox", account=ME, list="archived")["items"] if x["id"] == it["id"])
+        self.assertTrue(line["calendar_added"])                              # the deadline is in the calendar now
+        self.assertEqual([(e["kind"], e["date"], e["index"]) for e in m["events"]], [("due", "2099-01-01", 0)])
+        r = self.call("mail_act", {"account": ME, "ids": [it["id"]], "op": "complete"})
+        self.assertFalse(r.is_error, r.text)
+        self.assertNotIn(it["id"], [x["id"] for x in self.data("inbox", account=ME, list="archived")["items"]])
+        self.assertEqual(self.data("mail", id=it["id"])["ways"], [])
+        self.assertFalse(self.call("mail_undo_step", {"account": ME, "log_id": r.structured["log_id"]}).is_error)
+        self.assertIn(it["id"], [x["id"] for x in self.data("inbox", account=ME, list="archived")["items"]])
+
     # ---- actions ----------------------------------------------------------------------------------------------
     def test_acting_needs_the_tap_and_is_undone(self):
         it = self.item("本周精选")

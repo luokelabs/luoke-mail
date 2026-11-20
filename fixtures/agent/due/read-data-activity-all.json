@@ -1,0 +1,174 @@
+{
+  "reply": {
+    "id": 30,
+    "jsonrpc": "2.0",
+    "result": {
+      "contents": [
+        {
+          "mimeType": "application/json",
+          "text": {
+            "cursor": null,
+            "items": [
+              {
+                "account": "me@example.com",
+                "at": "2026-10-20 09:30:00",
+                "by": "user",
+                "categories": [
+                  "finance"
+                ],
+                "count": 1,
+                "label": null,
+                "log_id": 2,
+                "mail": {
+                  "from": "某银行",
+                  "subject": "重新登记奖赏计划"
+                },
+                "mails": [
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-19 22:54",
+                    "from": {
+                      "address": "notice@bank.example",
+                      "name": "某银行"
+                    },
+                    "id": 3,
+                    "subject": "重新登记奖赏计划"
+                  }
+                ],
+                "more": 0,
+                "ok": true,
+                "op": "archive",
+                "senders": [
+                  {
+                    "address": "notice@bank.example",
+                    "name": "某银行"
+                  }
+                ],
+                "undoable": true,
+                "undone": false
+              },
+              {
+                "account": "me@example.com",
+                "at": "2026-10-20 09:30:00",
+                "by": "read",
+                "categories": [
+                  "work",
+                  "notification",
+                  "finance"
+                ],
+                "count": 3,
+                "label": null,
+                "log_id": 1,
+                "mail": null,
+                "mails": [
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-20 01:18",
+                    "from": {
+                      "address": "wang@school.example",
+                      "name": "王老师"
+                    },
+                    "id": 1,
+                    "subject": "答辩时间确认"
+                  },
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-19 22:54",
+                    "from": {
+                      "address": "booking@health-center.example",
+                      "name": "健康管理中心"
+                    },
+                    "id": 2,
+                    "subject": "体检预约安排"
+                  },
+                  {
+                    "account": "me@example.com",
+                    "date": "2026-10-19 22:54",
+                    "from": {
+                      "address": "notice@bank.example",
+                      "name": "某银行"
+                    },
+                    "id": 3,
+                    "subject": "重新登记奖赏计划"
+                  }
+                ],
+                "more": 0,
+                "ok": true,
+                "op": "read",
+                "senders": [
+                  {
+                    "address": "wang@school.example",
+                    "name": "王老师"
+                  },
+                  {
+                    "address": "booking@health-center.example",
+                    "name": "健康管理中心"
+                  },
+                  {
+                    "address": "notice@bank.example",
+                    "name": "某银行"
+                  }
+                ],
+                "undoable": true,
+                "undone": false
+              }
+            ],
+            "more": false
+          },
+          "uri": "data/activity?account=all"
+        }
+      ],
+      "resultType": "complete"
+    }
+  },
+  "request": {
+    "id": 30,
+    "jsonrpc": "2.0",
+    "method": "resources/read",
+    "params": {
+      "_meta": {
+        "io.modelcontextprotocol/clientCapabilities": {
+          "experimental": {
+            "ai.luoke/a2ui": {
+              "features": [
+                "placement",
+                "badge",
+                "strong",
+                "maxLines",
+                "optionIcons",
+                "collapsed",
+                "lucide",
+                "tooltip",
+                "doneGroup",
+                "itemIcons",
+                "countLabel",
+                "openPage",
+                "subtitle",
+                "countAlso",
+                "countWeights",
+                "pageArgs",
+                "bigPages",
+                "secureField",
+                "pageRefresh",
+                "saveFile",
+                "neutralBadge",
+                "chips",
+                "pageSections",
+                "confirm",
+                "rowOpen",
+                "fieldSubmit",
+                "lucide2"
+              ]
+            }
+          }
+        },
+        "io.modelcontextprotocol/clientInfo": {
+          "name": "luoke-agent",
+          "version": "fixtures"
+        },
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+      },
+      "uri": "data/activity?account=all"
+    }
+  }
+}

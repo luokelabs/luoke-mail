@@ -142,6 +142,14 @@ MAILS: Dict[str, Tuple[str, float, Optional[str], Dict[str, Any]]] = {
     "新品上架": ("某某书店 <news@books.example>", 0.6, "promo.books.example",
              {"action": "ignore", "priority": "low", "category": "promotion", "summary": "促销", "reason": "广告",
               "due_date": None, "reply_points": []}),
+    "重新登记奖赏计划": ("某银行 <notice@bank.example>", 0.4, None,
+                 {"action": "follow_up", "priority": "medium", "category": "finance",
+                  "summary": "10-21 前在 App 重新登记 2027 年奖赏计划", "reason": "不登记明年没有额外奖赏",
+                  "due_date": "2026-10-21", "reply_points": []}),
+    "体检预约安排": ("健康管理中心 <booking@health-center.example>", 0.4, None,
+               {"action": "follow_up", "priority": "medium", "category": "notification",
+                "summary": "10-22 至 11-05 在官网预约 2027 年体检，逾期视为放弃", "reason": "名额有限",
+                "due_date": "2026-11-05", "start_date": "2026-10-22", "reply_points": []}),
     "账户已冻结": ("某银行 <sec@bank-verify.example>", 0.2, None,
               {"action": "ignore", "priority": "high", "category": "phishing", "summary": "冒充银行要你登录验证",
                "reason": "发件域名仿冒银行", "due_date": None, "suspicious": True, "risks": ["冒充", "可疑链接"], "reply_points": []}),
@@ -512,6 +520,30 @@ def trouble(r: Recorder) -> None:
     r.read(uri, "read-data-sender-error.json", "读原始数据 data/sender：再读时查完了，邮箱拒绝登录（history_state: error）")
 
 
+def due(r: Recorder) -> None:
+    """明天截止的事先归档了：提醒照旧（outbox 的 due），收件箱「已归档待处理」列着，只给完成和加入日程。"""
+    r.connect()
+    r.deliver("重新登记奖赏计划", "体检预约安排", "答辩时间确认")
+    r.sync()
+    r.at(T0)
+    it = next(x for x in r.app.store.items(ME, "pending") if x["subject"] == "重新登记奖赏计划")
+    ua = {"surfaceId": "inbox", "componentId": "archive", "at": r.now.astimezone(SHANGHAI).isoformat(timespec="seconds")}
+    r.request("call-mail_act-archive.json", "用户在收件箱把「重新登记奖赏计划」归档（截止日是明天，还没办）", "tools/call",
+              {"name": "mail_act", "arguments": {"account": ME, "ids": [it["id"]], "op": "archive"}}, user_action=ua)
+    r.snapshot()
+    q = urllib.parse.quote(ME, safe="")
+    r.read(f"data/inbox?account={q}&list=archived", "read-data-inbox-archived.json",
+           "读原始数据 data/inbox?list=archived：归档了、截止日还没到的那封，每行 `archived: true`")
+    r.read(f"data/mail?id={it['id']}", "read-data-mail-archived.json",
+           "读原始数据 data/mail：打开它，`ways` 只有 complete 和 calendar，`events` 是截止那天（`kind: due`）")
+    r.at(at(5))
+    r.click("call-mail_apply_plan-complete.json", "用户在「即将截止」卡片上把这一行选成「完成」，点「标为完成 1 封」",
+            event="mail_apply_plan", item=r.item("due"), choose={f"m{it['id']}": "complete"})
+    r.read(OUTBOX, "read-outbox-after-complete.json", "完成以后再读 outbox（这件撤下）")
+    r.read(f"data/inbox?account={q}&list=archived", "read-data-inbox-archived-after-complete.json",
+           "完成以后再读 data/inbox?list=archived（不再列出）")
+
+
 def wait_job(app: Any, jid: str) -> None:
     for _ in range(600):
         if app.jobs[jid]["status"] != "running":
@@ -573,6 +605,20 @@ SCENARIOS = [
               "那一行写「已撤销」，按钮没了；两组都撤了，这件从 outbox 撤下。",
               "「规则」页列着两条习惯和一条规则，「编辑规则」打开邮件助手自己的页面。"],
              auto_done),
+    Scenario("due", "明天截止的事先归档了",
+             "一封银行的通知要在明天前重新登记，用户先把它归档了（11-18：归档以后提醒跟着没了）。一封体检预约后天才开放（10-22 至 11-05）。"
+             "另有一封要回的信。",
+             ["一件 `due`、`normal`，`deadline` 是截止那天的 23:59，`why_now` 「明天截止」：「1 封即将截止」，标题后面一个邮箱地址的标签；"
+              "每行一行发件人（加粗）、主题和「明天截止」的标签，选择框「完成 / 暂不处理」，默认暂不处理（点了不会替用户标完成）；"
+              "还没进日历的那行右边一个「加入日程 · 10-21」（`mail_open_calendar`，交给「日历」的文件，带前一天 9:00 的提醒）。",
+              "收件箱「已归档待处理」（`data/inbox?list=archived`）列着它，行上 `archived: true`：不在收件箱里，归档、加星标这类移动邮件的按钮"
+              "没有意义，给「完成」（`mail_act` 的 `complete`，只改本机记录、不动邮箱）和加入日程。",
+              "打开这封（`data/mail`）：`ways` 是 `[\"complete\", \"calendar\"]`，`events` 一项 `kind: due`、截止那天。",
+              "体检预约：`data/inbox` 的行上 `start: 2026-10-22`、`due: 2026-11-05`、`due_soon: false`，窗口写「10-22 至 11-05」；"
+              "「邮箱」卡片上这行的标签已经写好「10-22 至 11-05」。开放那天它进 `due`，标签「今天起可办理」。",
+              "卡片上选「完成」点主按钮（`count` 数选了「完成」的行，字是「标为完成 {n} 封」，0 行时不画，核心没列 `countLabel` 时写「按所选处理」）：答复带 `done: true`，结果卡的 root 带 `group`（`<邮箱>/complete`）；这件从 outbox 撤下，"
+              "「已归档待处理」不再列它。"],
+             due),
     Scenario("search", "问螺壳搜邮件",
              "收件箱里有几封信，用户在问螺壳里搜「答辩」。",
              ["`mail_search` 答 `hits`（工具协议 §1b），`card` 是空的：窗口的 `HitsList` 做好之前，agent 的 `_search_one` 不画这个来源，见下面「要对齐的」。",

@@ -68,7 +68,7 @@ class FixtureTests(unittest.TestCase):
                 rec = load(sc, s["file"])
                 params = rec["request"]["params"]
                 mark = params["_meta"].get("ai.luoke/user-action")
-                if rec["request"]["method"] == "tools/call" and params["name"] in ("mail_apply_plan", "mail_undo", "mail_do"):
+                if rec["request"]["method"] == "tools/call" and params["name"] in ("mail_apply_plan", "mail_undo", "mail_do", "mail_act"):
                     self.assertEqual(sorted(mark), ["at", "componentId", "surfaceId"], s["file"])
                     self.assertFalse(rec["reply"]["result"]["isError"], s["file"])
                     taps += 1

@@ -15,6 +15,18 @@ from .mailbox import NOREPLY, clean_body, group_key, html_to_text
 
 TODAY = dt.date(2026, 10, 12)
 ME = "me@luoke.example"
+# A memory as the triage prompt gets it (memory.about), for `run_bench.py --memory`: a person's accounts and habits,
+# none of them the bench's senders -- the shape that made the 9B of 32 GB call ordinary mail suspicious (11-06).
+ABOUT = """关于用户：
+- 在一家软件公司做产品经理，负责 B 端客户
+- 在招商银行有储蓄账户和信用卡
+- 使用 GitHub 托管代码
+- 订阅了 iCloud 存储服务
+- 常乘坐东方航空的航班
+- 在京东和淘宝购物
+处理习惯：
+- 银行通知看完就归档
+- 购物促销邮件直接忽略"""
 WEEK = "一二三四五六日"
 
 
@@ -45,7 +57,7 @@ def build() -> list[dict]:
     items = []
 
     def add(mail, action, category, priority=None, deadline=None, suspicious=False, tag="", level="basic", optional_date=False,
-            bench_only=False, more_dates=(), watch=False):
+            bench_only=False, more_dates=(), watch=False, start=None):
         # `deadline` is the event day for calendar items and the due date for everything else; `bench_only` items
         # are scored but stay out of the demo inbox
         sched = "schedule" in action
@@ -54,7 +66,9 @@ def build() -> list[dict]:
             "action": set(action), "category": set(category), "priority": set(priority) if priority else None,
             "due": None if sched else iso, "event_date": iso if sched else None, "suspicious": suspicious,
             # an expiry date is a deadline only implicitly; leaving it out is also acceptable
-            "date_optional": optional_date, "more_dates": [d.isoformat() for d in more_dates]}})
+            "date_optional": optional_date, "more_dates": [d.isoformat() for d in more_dates],
+            # the day it can be done from (11-18): only when the mail says so
+            "start": start.isoformat() if start else None}})
 
     n = iter(range(1, 100))
     # ---- needs a reply -------------------------------------------------------------------
@@ -289,7 +303,7 @@ def build() -> list[dict]:
 
     # ---- what real inboxes showed. `watch`: observed the first round, outside the hard items
     def watched(mail, action, category, suspicious=False, tag="", **kw):
-        add(mail, action, category, None, kw.get("deadline"), suspicious, tag, H, bench_only=True, watch=True)
+        add(mail, action, category, None, kw.get("deadline"), suspicious, tag, H, bench_only=True, watch=True, start=kw.get("start"))
     any_ok = ["archive", "follow_up", "ignore"]
     calm = ["notification", "finance", "other", "promotion", "personal"]
     watched(_mail(next(n), "云帐户团队", "account-security-noreply@accountprotection.cloudsoft.example", "安全代码",
@@ -359,6 +373,25 @@ def build() -> list[dict]:
                   "您的信用卡账户刚刚在一台新设备上登录。如非本人操作，请在 24 小时内登录 "
                   "https://cmbchina-security.example/review 查看账户活动，逾期账户将被冻结。", auth="pass"),
             ["ignore"], ["phishing", "finance"], True, tag="phish-verified-link-only")
+    # a window that opens later (11-18, a real Hong Kong bank's notice, in traditional characters): the day it opens
+    # and the day it closes
+    watched(_mail(next(n), "銀行通知", "notifications@message.bank-hk.example", "有關2027「自主獎賞」計劃",
+                  "親愛的客戶：\n感謝您對本計劃一直以來的支持。現有計劃的推廣期將於12月31日結束。\n如欲參加2027年度計劃，"
+                  "無論您希望更改或保留現有的簽賬類別選擇，均須重新登記。\n"
+                  f"請於{_d(5).month}月{_d(5).day}日至{_d(18).month}月{_d(18).day}日期間，登入銀行的獎賞應用程式，按簡單步驟重新登記計劃，"
+                  "並將額外「獎賞錢」自由分配至五大簽賬類別。\n這封是來自銀行的服務電郵。", auth="pass"),
+            ["follow_up"], ["finance", "notification"], tag="window-later", deadline=_d(18), start=_d(5))
+    watched(_mail(next(n), "健康管理中心", "booking@health-center.example", "2027 年度体检预约安排",
+                  f"各位员工：2027 年度体检预约将于 {zh(_d(7))} 开放，名额有限，请在 {zh(_d(20))} 前通过官网完成预约，"
+                  "逾期视为自动放弃。"),
+            ["follow_up"], ["work", "notification", "personal", "other"], tag="booking-opens", deadline=_d(20), start=_d(7))
+    # a look-alike whose sign-in link is long enough to be cut to 「https://host/…」 (11-19): the prompt then says a cut
+    # link means nothing in itself (triage.SHORT_LINK_NOTE) -- the host it shows still does
+    watched(_mail(next(n), "招商银行", "service@cmb-account-check.example", "您的账户需要重新验证",
+                  "尊敬的客户：您的网银账户因安全升级需要重新验证身份，请在 24 小时内登录以下页面，输入卡号、查询密码和短信验证码："
+                  "https://cmb-account-check.example/secure/verify/session?token=" + "f3K9qLm2Xa7Rz" * 6 +
+                  "\n逾期未验证的账户将暂停网银服务。"),
+            ["ignore"], ["phishing", "finance"], True, tag="phish-cut-link")
     return items
 
 

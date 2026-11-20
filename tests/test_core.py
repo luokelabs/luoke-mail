@@ -384,6 +384,27 @@ class SecureDeleteTests(unittest.TestCase):
                 with open(path + suffix, "rb") as f:
                     self.assertNotIn(secret.encode(), f.read(), suffix or "db")
 
+    def test_suspicious_mail_still_waiting_is_sorted_again_once_the_prompt_changes(self):
+        from luoke_mail.store import Store
+        st = Store(os.path.join(tempfile.mkdtemp(), "s.db"))
+        self.addCleanup(st.close)
+        st.resort_suspicious("a")                                      # the prompt the store was sorted with
+        ids = {}
+        for n in ("sus", "fine", "done"):
+            ids[n], _ = st.upsert_message("me@example.com", {"message_id": f"<{n}@y>", "uid": n, "subject": n, "body": n, "from_addr": "a@b.example"})
+            st.set_suggestion(ids[n], {"category": "phishing" if n != "fine" else "work", "reason": "", "reply_points": [],
+                                       "event": None, "suspicious": n != "fine", "due_date": None, "priority": "high",
+                                       "action": "ignore" if n != "fine" else "reply", "summary": n}, "model", "m")
+        st.set_state([ids["done"]], "done", "archive")
+        self.assertEqual(st.resort_suspicious("a"), 0)                 # the same prompt: nothing
+        self.assertEqual(st.resort_suspicious("b"), 1)                 # a new one: the waiting suspicious one only
+        self.assertEqual({i["subject"] for i in st.unanalyzed("me@example.com")}, {"sus"})
+        self.assertEqual(st.resort_suspicious("b"), 0)                 # once
+
+    def test_a_reply_point_handing_over_personal_details_is_dropped(self):
+        out = triage.parse_output(json.dumps({"action": "reply", "reply_points": ["确认参加周三的会", "回复手机号以便确认", "告知验证码"]}))
+        self.assertEqual(out["reply_points"], ["确认参加周三的会"])
+
     def test_an_older_file_is_scrubbed_once(self):
         import sqlite3
         from luoke_mail import store
@@ -608,6 +629,22 @@ class TriageTests(unittest.TestCase):
         self.assertEqual(triage.settle_cc({"priority": "low"}, cc, samples.ME)["priority"], "low")
         self.assertEqual(triage.settle_cc({"priority": "high"}, {**cc, "to": [samples.ME]}, samples.ME)["priority"], "high")
 
+    def test_a_cut_link_is_explained_only_where_there_is_one(self):
+        # 11-19: in the system prompt the line changed every mail's prompt and the 9B let planted instructions
+        # through; said only with a cut link in the body, other mail reads as before
+        text = lambda mail: triage.build_messages(mail, today=samples.TODAY)[1]["content"]  # noqa: E731
+        plain = {"from_addr": "a@b.example", "subject": "s", "body": "见 https://b.example/a"}
+        self.assertNotIn(triage.SHORT_LINK_NOTE, text(plain))
+        self.assertIn(triage.SHORT_LINK_NOTE, text({**plain, "body": "见 https://b.example/…\n谢谢"}))
+        self.assertNotIn(triage.SHORT_LINK_NOTE, text({**plain, "body": "原价 199/… 现价 99"}))
+        self.assertNotIn(triage.SHORT_LINK_NOTE, triage.SYSTEM_PROMPT)
+
+    def test_the_prompt_sign_follows_the_note_too(self):
+        was = triage.prompt_sign()
+        with mock.patch.object(triage, "SHORT_LINK_NOTE", triage.SHORT_LINK_NOTE + "。"):
+            self.assertNotEqual(triage.prompt_sign(), was)
+        self.assertEqual(triage.prompt_sign(), was)
+
     def test_engine_fallbacks_and_retry(self):
         calls = []
 
@@ -702,6 +739,13 @@ class SentDateTests(unittest.TestCase):
         self.assertEqual(triage.settle_dates({"due_date": "2027-08-08", "event": None}, said)["due_date"], "2027-08-08")
         self.assertEqual(triage.settle_dates({"due_date": "2027-08-08", "event": None}, {"subject": "x"})["due_date"],
                          "2027-08-08")                                             # no sent date: nothing to count from
+
+    def test_a_year_inside_a_longer_number_is_not_written(self):
+        """An order number 「20271009」 holds 2027, but the mail never writes the year."""
+        order = {**self.LETTER, "body": "订单号 20271009，8月7日前付款。"}
+        self.assertEqual(triage.settle_dates({"due_date": "2027-08-07", "event": None}, order)["due_date"], "2026-08-07")
+        apart = {**self.LETTER, "body": "订单号 X-2027，8月7日前付款。"}
+        self.assertEqual(triage.settle_dates({"due_date": "2027-08-07", "event": None}, apart)["due_date"], "2027-08-07")
 
     def test_only_whole_dates_come_through(self):
         """A second `_DATE` (drafts' contact check, 0.19.12) once replaced the one checking the model's dates, and

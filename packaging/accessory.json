@@ -3,7 +3,7 @@
   "accessory": "luoke-mail",
   "bundle_id": "ai.luoke.mail",
   "name": "螺壳邮件助手",
-  "version": "0.19.71",
+  "version": "0.20.1",
   "icon": "AppIcon.icns",
   "type": "app",
   "entry": [
@@ -117,6 +117,11 @@
     "protocol": 1,
     "socket": "~/.luoke-mail/run/agent.sock",
     "reports": [
+      {
+        "kind": "due",
+        "title": "即将截止和开始办理的邮件",
+        "urgency": "normal"
+      },
       {
         "kind": "new-mail",
         "title": "要你处理的邮件",

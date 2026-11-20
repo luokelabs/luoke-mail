@@ -6,7 +6,8 @@ data folder (`run/agent.sock`), served by the luoke-mail process that holds the 
 - **outbox** (`luoke://luoke-mail/outbox`): the state of what luoke-mail wants to say now, not a stream. Per
   mailbox (「今天」's template, luoke-mail#81): the mail that needs the user and is high priority today (「要你决定」),
   one card for the rest -- what else needs them, what could be tidied, older suspicious mail (「顺便看看」) -- and each
-  suspicious message just received (urgent). Each card comes with a plan.
+  suspicious message just received (urgent); and what is due today or tomorrow (快到期, the day-before reminder). Each
+  card comes with a plan.
 - **plans** (store `agent_plans`): what a card proposes, kept across restarts -- the user may tap hours later.
   Only a plan luoke-mail made is carried out, only with the choices its card offered, only on the user's tap
   (`ai.luoke/user-action`, checked by the server), and only after checking again: the mail still where it was,
@@ -43,6 +44,7 @@ from . import agent_mcp, config, desktop, engines, memory, providers, triage
 from .actions import ActionError
 from .agent_mcp import USER_ACTION, ToolError, ToolServer
 from .mailbox import MailError, parse_message, real_mid
+from .store import Store
 
 ACCESSORY = "luoke-mail"
 NEEDS_YOU = ("reply", "schedule", "follow_up")
@@ -60,14 +62,16 @@ HEADINGS = {"new-mail": "新邮件的处理方案", "suspicious": "判为可疑�
             "suspicious-old": "其他判为可疑的邮件", "tidy": "待整理的邮件"}
 STILL_HERE = 0.9                           # a loose row's plan stays while this much of its mail is still waiting
 UNDONE = {"draft": "删除草稿 {} 封", "archive": "移回收件箱 {} 封", "trash": "移回收件箱 {} 封", "spam": "移回收件箱 {} 封",
-          "flag": "取消星标 {} 封"}
-DONE = {"archive": "归档", "trash": "删除", "spam": "移到垃圾邮件", "flag": "加星标", "draft": "写草稿"}
+          "flag": "取消星标 {} 封", "complete": "取消完成 {} 封"}
+DONE = {"archive": "归档", "trash": "删除", "spam": "移到垃圾邮件", "flag": "加星标", "draft": "写草稿", "complete": "标为完成"}
 OPTIONS = {
     "reply": [("draft", "写草稿"), ("flag", "加星标"), ("archive", "归档"), ("keep", "暂不处理")],
     "schedule": [("flag", "加星标"), ("archive", "归档"), ("keep", "暂不处理")],
     "follow_up": [("flag", "加星标"), ("archive", "归档"), ("keep", "暂不处理")],
 }
 SUSPICIOUS = [("spam", "移到垃圾邮件"), ("keep", "暂不处理")]     # never unsubscribe: it confirms the address
+# 快到期: 完成 stops the reminder (and archives what is still in the inbox); nothing is done unless picked
+DUE = [("complete", "完成"), ("keep", "暂不处理")]
 # A flag can be wrong (2026-11-06: a 9B flagged dozens of real notices), and a tap on 按这个处理 takes what is
 # selected: so 暂不处理 is, and moving a message is the user's own pick.
 SUSPICIOUS_PICK = "keep"
@@ -76,10 +80,10 @@ SUSPICIOUS_URGENT = 3                      # at most this many such cards; more,
 ANY_MAIL = [("archive", "归档"), ("trash", "删除"), ("keep", "暂不处理")]
 # 「今天」's template (protocol §4 later additions, luoke-mail#81): a choice's icon, a button's words for what it does
 ICONS = {"draft": "pencil-line", "flag": "star", "archive": "archive", "trash": "trash-2", "spam": "shield-alert",
-         "keep": "circle-minus"}
+         "keep": "circle-minus", "complete": "check"}
 DONE_GROUP = {"flag": "已加星标 {n} 封", "draft": "已生成草稿 {n} 封", "archive": "已归档 {n} 封",
-              "trash": "已移到「已删除」 {n} 封", "spam": "已移到垃圾邮件 {n} 封"}
-PART_LABEL = {"new-mail": "新邮件", "todo": "新邮件", "tidy": "整理", "sus": "可疑邮件", "suspicious": "可疑邮件"}
+              "trash": "已移到「已删除」 {n} 封", "spam": "已移到垃圾邮件 {n} 封", "complete": "已标为完成 {n} 封"}
+PART_LABEL = {"due": "即将截止", "new-mail": "新邮件", "todo": "新邮件", "tidy": "整理", "sus": "可疑邮件", "suspicious": "可疑邮件"}
 PAGES = {"accounts": "settings", "rules": "rules"}     # service.ui's page ids -> the page's own
 OPENS_SOMETHING = ("mail_open", "mail_open_settings", "mail_open_page", "mail_open_calendar", "mail_show",
                    "mail_disconnect")   # protocol §5: only on a tap, whatever their readOnlyHint says
@@ -140,6 +144,17 @@ def _due_badge(due: str | None) -> tuple[str, str | None] | None:
     return f"{shown} 截止", None
 
 
+def _window_badge(opens: str | None, start: str | None, due: str | None) -> tuple[str, str | None] | None:
+    """A thing that can be done only from a day (11-18): 「今天起可办理」 the day it opens (`opens`), 「11-23 至 12-06」
+    before it does; once open, the deadline's own label."""
+    today = time.strftime("%Y-%m-%d")
+    if opens:
+        return ("今天起可办理" if opens[:10] == today else f"{opens[5:10]} 起可办理"), "warning"
+    if start and due and start[:10] > today:
+        return f"{start[5:10]} 至 {due[5:10]}", None
+    return None
+
+
 def _row_due(dues, today: str | None = None) -> str | None:
     """The deadline of a row of alike mail (a bank's statement each month is one row): the nearest one not yet past,
     else the latest. The earliest was a year-old statement's, shown as 「已过」 (2026-11-17)."""
@@ -148,6 +163,12 @@ def _row_due(dues, today: str | None = None) -> str | None:
         return None
     today = today or time.strftime("%Y-%m-%d")
     return next((d for d in days if d[:10] >= today), days[-1])
+
+
+def _due_title(entries: dict) -> str:
+    """快到期's heading: what is due, what opens today, or both."""
+    n, opening = len(entries), sum(1 for e in entries.values() if e.get("opens"))
+    return f"{n} 封即将截止" if not opening else f"{n} 封今天起可办理" if opening == n else f"{n} 封待办理"
 
 
 def _apply_words(entries: dict, part: str | None = None) -> str:
@@ -437,7 +458,7 @@ class Agent:
             urgent, older = self._suspicious(acct, [it for it in pending if it.get("suspicious")], label)
             out += urgent
             mail = [it for it in pending if not it.get("suspicious")]
-            for item in (self._new_mail(acct, mail, label), self._mailbox(acct, mail, older, label),
+            for item in (self._due(acct, label), self._new_mail(acct, mail, label), self._mailbox(acct, mail, older, label),
                          self._auto_done(acct, label)):
                 if item:
                     out.append(item)
@@ -543,7 +564,7 @@ class Agent:
                 row["who"], row["subject"] = e.get("who") or "", e["subject"]
             else:
                 row["label"] = e["label"]
-            due = _due_badge(e.get("due"))
+            due = _window_badge(e.get("opens"), e.get("start"), e.get("due")) or _due_badge(e.get("due"))
             if due:
                 row["due"], row["due_tone"] = due
             if extra and k in extra:
@@ -592,6 +613,8 @@ class Agent:
              "was": _was(row), "detail": _plain(it.get("summary"), 120)}
         if part:
             e["part"] = part
+        if len(row) == 1 and it.get("start_date"):
+            e["start"] = it["start_date"]
         if it["action"] == "schedule" and (it.get("event") or {}).get("date"):
             e["event"] = it["id"]
         return e
@@ -672,6 +695,67 @@ class Agent:
                 "title": f"{total} 封待处理邮件{label}",
                 "summary": _plain(heads + (f"；另有 {more} 封" if more else "") + "。", 300),
                 "card": self._decide_card(pid, acct, plan["entries"])}
+
+    def _due(self, acct: str, label: str) -> dict | None:
+        """快到期: what is due today or tomorrow (App.due_soon -- mail archived before its date too, not a deadline put
+        in the calendar). The day-before reminder background sorting gives on its own while 螺壳 isn't reading
+        (11-18: with 螺壳 reading, nobody reminded). A row each: 完成 stops it, 暂不处理 leaves it for a day; answered
+        or put down, the same rows aren't brought up again."""
+        today = time.strftime("%Y-%m-%d")
+        soon = time.strftime("%Y-%m-%d", time.localtime(time.time() + 86400))
+        quiet = self._quiet(acct)
+        due = [it for it in self.app.due_soon(acct) if today <= it["when"] <= soon and it["id"] not in quiet]
+        opens = [it for it in self.app.opening(acct) if it["id"] not in quiet and it["id"] not in {d["id"] for d in due}]
+        rows = (opens + due)[:SHOWN]
+        if not rows:
+            self._withdraw(acct, "due", set())
+            return None
+        entries = {f"m{it['id']}": self._due_entry(it, opening=it in opens) for it in rows}
+        plan = self._offer(acct, "due", entries)
+        self._withdraw(acct, "due", {plan["plan_id"]} if plan else set())
+        if not plan:
+            return None
+        pid, entries = plan["plan_id"], plan["entries"]
+        first = min(e["due"] for e in entries.values())
+        heads = "；".join(f"{e['who']}：{e['subject']}" for e in list(entries.values())[:2])
+        more = len(entries) - 2
+        closing = [e for e in entries.values() if not e.get("opens")]
+        why = ("今天截止" if min(e["due"] for e in closing) == today else "明天截止") if closing else "今天起可办理"
+        return {"id": f"due/{pid}", "kind": "due", "urgency": "normal", "deadline": f"{first}T23:59:00",
+                "created": _iso(plan["created_at"]), "why_now": why, "title": _due_title(entries) + label,
+                "summary": _plain(heads + (f"；另有 {more} 封" if more > 0 else "") + "。", 300),
+                "card": self._due_card(pid, acct, entries)}
+
+    @staticmethod
+    def _due_entry(it: dict, opening: bool = False) -> dict:
+        """`opening`: it can be done from today (App.opening), its deadline later; else due today or tomorrow."""
+        who, subject = _who(it), _plain(it.get("subject"), SUBJECT)
+        e = {"ids": [it["id"]], "allowed": [v for v, _ in DUE], "selected": "keep", "options": DUE, "who": who,
+             "subject": subject, "label": f"{who}：{subject}", "due": it["due_date"][:10] if opening else it["when"],
+             "part": "due", "was": _was([it]), "detail": _plain(it.get("summary"), 120)}
+        if opening:
+            e["opens"] = it["when"]
+        return e
+
+    def _due_card(self, pid: str, acct: str, entries: dict, note: str | None = None, update: bool = False) -> list:
+        """A row each, with the deadline's own 加入日程 when it isn't in the calendar yet (the file, with its reminder:
+        Google's link can't set one)."""
+        new, extra = _new_template(), {}
+        for k, e in entries.items():
+            it = self.store.get(e["ids"][0])
+            if it and not self.app._due_in_calendar(it) and any(ev.get("kind") == "due" for ev in triage.calendar_events(it)):
+                extra[k] = self._calendar_button(acct, pid, k, it, compact=new, file=True)
+        ids = [i for e in entries.values() for i in e["ids"]]
+        see = _look(pid, {"id": ids[0]}) if len(ids) == 1 else _see(pid, "在邮件助手中查看", acct=acct, lst="needs")
+        # the button counts what is picked 完成 (nothing by itself: 暂不处理); an older core, a plain one
+        counted = "countLabel" in _features()
+        msgs = cards.plan_card(pid, _due_title(entries), self._rows(entries, extra=extra if new else None),
+                               apply_event="mail_apply_plan", plan_id=pid, note=note,
+                               apply_label="标为完成 {n} 封" if counted else "按所选处理",
+                               apply_count={"path": "/choices", "value": "complete"} if counted else None,
+                               badge=self._box(acct), extra_buttons=([] if new else list(extra.values())[:3]) + [see],
+                               update=update, id_prefix=f"s{int(time.time())}-" if update else "", features=_features())
+        return _subtitled(msgs, self._box(acct))
 
     def _decide_card(self, pid: str, acct: str, entries: dict, note: str | None = None, update: bool = False) -> list:
         on_row, under = self._calendars(acct, pid, entries)
@@ -774,6 +858,8 @@ class Agent:
         pid, acct, entries = plan["plan_id"], plan["account"], plan["entries"]
         if plan["kind"] == "new-mail":
             return self._decide_card(pid, acct, entries, note=note, update=True)
+        if plan["kind"] == "due":
+            return self._due_card(pid, acct, entries, note=note, update=True)
         if plan["kind"] == "mailbox":
             return self._mailbox_card(pid, acct, entries, note=note, note_part=part, update=True)
         return cards.plan_card(pid, HEADINGS.get(plan["kind"], HEADINGS["new-mail"]), self._rows(entries),
@@ -781,9 +867,11 @@ class Agent:
                                update=True, id_prefix=f"s{int(time.time())}-", extra_buttons=[_to_settings()],
                                features=_features())
 
-    def _calendar_button(self, acct: str, pid: str, key: str, it: dict, alone: bool = True, compact: bool = False) -> dict:
-        """加入日程. `compact`: on the mail's own row, the date and time, 加入日程 in its tooltip (the template)."""
-        ev = it.get("event") or {}
+    def _calendar_button(self, acct: str, pid: str, key: str, it: dict, alone: bool = True, compact: bool = False,
+                         file: bool = False) -> dict:
+        """加入日程. `compact`: on the mail's own row, the date and time, 加入日程 in its tooltip (the template).
+        `file`: the calendar file even on Gmail (a deadline's reminder is in the file; Google's link has none)."""
+        ev = (triage.calendar_events(it) or [{}])[0]
         when = " ".join(w for w in (str(ev.get("date") or "")[5:], ev.get("start") or "") if w)
         if compact:     # the button says what it does, then when (owner 11-16: a bare 「11-14 13:30」 doesn't read as 加入日程)
             title, extra = (f"加入日程 · {when}" if when else "加入日程"), {"icon": "calendar-plus", "tooltip": "加入日程"}
@@ -793,7 +881,7 @@ class Agent:
             url = self.app.actions(acct, write=False).calendar(it["id"], adding=False).get("google_url")
         except ActionError:
             url = None
-        if url and url.startswith("https://") and not (it.get("event") or {}).get("more"):    # several: the file has them all
+        if url and url.startswith("https://") and not file and not (it.get("event") or {}).get("more"):    # several: the file has them all
             return cards.open_url_button(title, url, **extra)      # 螺壳 says where it goes before it opens
         return cards.button(title, "mail_open_calendar", {"plan_id": pid, "key": key}, **extra)
 
@@ -945,7 +1033,8 @@ class Agent:
         for key, choice in picked.items():
             for i in plan["entries"][key]["ids"]:
                 it = self.store.get(i)
-                if not it or it["account"] != acct or it["state"] != "pending":
+                put_away = bool(it) and choice == "complete" and it["state"] == "done" and it.get("done_action") in Store.PUT_AWAY
+                if not it or it["account"] != acct or (it["state"] != "pending" and not put_away):
                     groups.setdefault("_handled", []).append(i)
                     continue
                 if _changed(it, plan["entries"][key]):      # changed on the page since the card was made: the user's
@@ -964,11 +1053,11 @@ class Agent:
         acts = self.app.actions(acct)
         logs, said, failed = [], [], []
         try:
-            for op in ("archive", "trash", "spam", "flag"):
+            for op in ("archive", "trash", "spam", "flag", "complete"):
                 if groups.get(op):
                     r = acts.execute(groups[op], op)
                     if r.get("log_id"):
-                        logs.append({"log": r["log_id"], "op": op, "n": len(r.get("done") or [])})
+                        logs.append({"log": r["log_id"], "op": op, "n": len(r.get("done") or []) + len(r.get("settled") or [])})
                     said.append(r["message"])
             drafts, odd = groups.get("draft", []), 0
             for i in drafts:

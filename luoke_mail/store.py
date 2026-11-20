@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS items (
   list_id TEXT, unsub_http TEXT, unsub_mailto TEXT, unsub_one_click INTEGER DEFAULT 0, bulk INTEGER DEFAULT 0,
   subject TEXT, date TEXT, to_json TEXT, cc_json TEXT, attachments_json TEXT, body TEXT,
   group_key TEXT,
-  action TEXT, priority TEXT, category TEXT, summary TEXT, reason TEXT, due_date TEXT,
+  action TEXT, priority TEXT, category TEXT, summary TEXT, reason TEXT, due_date TEXT, start_date TEXT,
   event_json TEXT, reply_points_json TEXT, suspicious INTEGER DEFAULT 0,
   suggested_by TEXT, model TEXT, seconds REAL, error TEXT,
   draft_text TEXT, flagged INTEGER DEFAULT 0,
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS agent_plans (
 MESSAGE_FIELDS = ("uid", "from_name", "from_addr", "from_domain", "reply_to", "list_id", "unsub_http",
                   "unsub_mailto", "unsub_one_click", "bulk", "subject", "date", "body", "group_key", "auth", "images")
 RULE_KINDS = {"sender": "发件人", "domain": "域名", "list": "邮件列表"}
-SUGGESTION_FIELDS = ("action", "priority", "category", "summary", "reason", "due_date", "event_json", "reply_points_json",
+SUGGESTION_FIELDS = ("action", "priority", "category", "summary", "reason", "due_date", "start_date", "event_json", "reply_points_json",
                      "suspicious", "suggested_by", "model", "seconds", "analyzed_at")
 
 
@@ -204,23 +204,40 @@ class Store:
             self.db.execute("ALTER TABLE items ADD COLUMN older INTEGER DEFAULT 0")
         if "images" not in cols:            # 0.19: pictures in the body, whose words the model can't read (#42)
             self.db.execute("ALTER TABLE items ADD COLUMN images INTEGER DEFAULT 0")
+        if "start_date" not in cols:        # 0.20: the day a thing can be done from (11-18: a window that opens later)
+            self.db.execute("ALTER TABLE items ADD COLUMN start_date TEXT")
 
     # ---- items -----------------------------------------------------------------------------
+    def resort_suspicious(self, sign: str) -> int:
+        """Once the sorting prompt has changed (`sign`, triage.prompt_sign): waiting inbox mail it called suspicious
+        is sorted again. 2026-11-06: a new prompt and a newer judgement left 180 old verdicts standing, every one a
+        card. Only what still waits for the user; what was handled stays. Returns how many."""
+        was, _ = self.cache_get("", "triage_prompt")
+        if was == sign:
+            return 0
+        with self.lock:
+            n = self.db.execute("UPDATE items SET action=NULL, suggested_by=NULL, error=NULL, suspicious=0 "
+                                "WHERE state='pending' AND place='inbox' AND suspicious=1 AND analyzed_at IS NOT NULL").rowcount
+            self.db.commit()
+        self.cache_set("", "triage_prompt", sign)
+        return n
+
     def settle_dates(self, settle) -> int:
         """Run `settle(result, mail)` (triage.settle_dates) over every item's due date and event, saving what it
         moved. Mail sorted before 0.17.10 had its dates counted from the day it was sorted, not sent. Returns the count."""
         moved = 0
         with self.lock:
-            rows = self.db.execute("SELECT id, date, subject, body, due_date, event_json FROM items "
+            rows = self.db.execute("SELECT id, date, subject, body, due_date, start_date, event_json FROM items "
                                    "WHERE due_date IS NOT NULL OR event_json IS NOT NULL").fetchall()
             for r in rows:
                 event = json.loads(r["event_json"]) if r["event_json"] else None
-                was = {"due_date": r["due_date"], "event": event}
-                now = settle({"due_date": r["due_date"], "event": dict(event) if event else None},
+                was = {"due_date": r["due_date"], "start_date": r["start_date"], "event": event}
+                now = settle({"due_date": r["due_date"], "start_date": r["start_date"], "event": dict(event) if event else None},
                              {"date": r["date"], "subject": r["subject"], "body": r["body"]})
                 if now != was:
-                    self.db.execute("UPDATE items SET due_date=?, event_json=? WHERE id=?",
-                                    (now["due_date"], json.dumps(now["event"], ensure_ascii=False) if now["event"] else None, r["id"]))
+                    self.db.execute("UPDATE items SET due_date=?, start_date=?, event_json=? WHERE id=?",
+                                    (now["due_date"], now.get("start_date"),
+                                     json.dumps(now["event"], ensure_ascii=False) if now["event"] else None, r["id"]))
                     moved += 1
             if moved:
                 self.db.commit()
@@ -254,10 +271,11 @@ class Store:
     def set_suggestion(self, item_id: int, s: dict, source: str, model: str | None = None) -> None:
         with self.lock:
             self.db.execute(
-                """UPDATE items SET action=?, priority=?, category=?, summary=?, reason=?, due_date=?, event_json=?,
-                   reply_points_json=?, suspicious=?, suggested_by=?, model=?, seconds=?, error=NULL, analyzed_at=?
+                """UPDATE items SET action=?, priority=?, category=?, summary=?, reason=?, due_date=?, start_date=?,
+                   event_json=?, reply_points_json=?, suspicious=?, suggested_by=?, model=?, seconds=?, error=NULL, analyzed_at=?
                    WHERE id=?""",
                 (s["action"], s.get("priority"), s.get("category"), s.get("summary"), s.get("reason"), s.get("due_date"),
+                 s.get("start_date"),
                  json.dumps(s.get("event")) if s.get("event") else None, json.dumps(s.get("reply_points") or [], ensure_ascii=False),
                  int(bool(s.get("suspicious"))), source, model, s.get("seconds"), now(), item_id))
             self.db.commit()
@@ -460,6 +478,21 @@ class Store:
             rows = self.db.execute(q + " ORDER BY date DESC", args).fetchall()
         return [self._item(r) for r in rows]
 
+    # put away, not finished: archived here, by a habit or on the phone. 完成并归档, deleting and junk finish it
+    PUT_AWAY = ("archive", "gone")
+
+    def put_away_dated(self, account: str, due_from: str, since: str) -> list[dict]:
+        """Mail that needs the user, put away since `since` (a time as `now` writes it) without being finished, whose
+        date is `due_from` (YYYY-MM-DD) or later: its date still stands (11-18: a window that opens in five days is
+        archived until then, and the reminder went with it). Without the text."""
+        with self.lock:
+            cols = ", ".join(r[1] for r in self.db.execute("PRAGMA table_info(items)") if r[1] != "body")
+            rows = self.db.execute(
+                f"SELECT {cols} FROM items WHERE account=? AND state='done' AND done_action IN (?, ?) AND done_at >= ? "
+                "AND suspicious=0 AND action IN ('reply', 'schedule', 'follow_up') AND substr(due_date, 1, 10) >= ? "
+                "ORDER BY date DESC", (account, *self.PUT_AWAY, since, due_from)).fetchall()
+        return [self._item(r) for r in rows]
+
     def unnamed(self, account: str, present: set[str]) -> list[dict]:
         """Mail in the inbox read before a message with no Date or Message-ID was given them (#41)."""
         with self.lock:
@@ -585,7 +618,7 @@ class Store:
     def restore(self, snap: list[dict]) -> None:
         with self.lock:
             for r in snap:
-                fields = {k: r[k] for k in SUGGESTION_FIELDS}
+                fields = {k: r[k] for k in SUGGESTION_FIELDS if k in r}       # a snapshot from before start_date: as it was
                 sets = ", ".join(f"{k}=?" for k in fields)
                 self.db.execute(f"UPDATE items SET {sets} WHERE id=?", (*fields.values(), r["id"]))
             self.db.commit()

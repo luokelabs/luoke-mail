@@ -208,6 +208,7 @@ def build(w, p: kit.Page, view: dict) -> None:
     size = sum(s.get("bytes") or 0 for s in pending)
     p.add(p.text((f"{data['at']} · " if data.get("at") else "") + f"最近 {data.get('days')} 天共 {data.get('scanned', 0)} 封邮件，"
                  f"来自 {len(rows)} 个发件人。" + (f"建议处理 {len(pending)} 个，约占 {human(size)}。" if pending else "")
+                 + (f"服务器未返回 {data['unreturned']} 封，未计入。" if data.get("unreturned") else "")
                  + (f" {data['model_note']}" if data.get("model_note") else ""), "caption"))
     lists = {"pending": pending, "handled": handled, "regular": regular}
     pick = view.get("list") if view.get("list") in lists else "pending"

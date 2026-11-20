@@ -236,6 +236,55 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(picked[f"m{it['id']}"], ["draft"])                       # a person asking: a draft
         self.assertEqual(picked[f"m{n['id']}"], ["flag"])                         # a notice: follow up, no draft
 
+    def test_what_is_due_tomorrow_is_said_even_archived_and_complete_stops_it(self):
+        """11-18: with 螺壳 reading the outbox, the mail assistant gives no notice of its own, and nothing said a
+        deadline was tomorrow. 快到期 says it -- for mail archived before its date too -- with 完成 on each row (nothing
+        picked by itself) and the deadline's 加入日程 as the calendar file, its reminder in it."""
+        store = self.r.app.store
+        tomorrow = time.strftime("%Y-%m-%d", time.localtime(time.time() + 86400))
+        it = next(i for i in store.items(ME, "pending") if i["subject"] == "合同扫描件")
+        store.db.execute("UPDATE items SET due_date=? WHERE id=?", (tomorrow, it["id"]))
+        store.db.commit()
+        with mock.patch.object(self.r.app, "_acted", lambda *a, **k: 0):
+            self.r.app.items_act(ME, [it["id"]], "archive")
+        due = self.outbox()["due"][0]
+        self.assertEqual((due["urgency"], due["deadline"], due["why_now"]), ("normal", f"{tomorrow}T23:59:00", "明天截止"))
+        self.assertIn("1 封即将截止", due["title"])
+        self.assertIn("合同扫描件", due["summary"])
+        s = a2ui.build(due["card"])
+        self.assertEqual(s.data["choices"], {f"m{it['id']}": ["keep"]})              # nothing done unless picked
+        self.assertIn("明天截止", [c.get("text") for c in s.components.values()])
+        cal = labelled(s, "加入日程 · " + tomorrow[5:])
+        self.assertEqual(s.find_action(cal)[0], "mail_open_calendar")                 # the file, with its reminder
+        done = labelled(s, "标为完成 {n} 封")                              # counts what is picked 完成: none, not drawn
+        self.assertEqual(s.components[done]["count"], {"path": "/choices", "value": "complete"})
+        r = self.press(due["card"], "标为完成 {n} 封", **{f"m{it['id']}": "complete"})
+        self.assertFalse(r.is_error, r.text)
+        self.assertIn("已标为完成 1 封", r.text)
+        self.assertEqual(store.get(it["id"])["done_action"], "complete")
+        self.assertNotIn("due", self.outbox())
+
+    def test_what_opens_today_is_said_and_before_that_its_window(self):
+        """A thing that can be done from today is on 快到期 too (「今天起可办理」); before that, the mail's row says its
+        window (「11-23 至 12-06」), not only its deadline."""
+        store = self.r.app.store
+        today = time.strftime("%Y-%m-%d")
+        later = time.strftime("%Y-%m-%d", time.localtime(time.time() + 9 * 86400))
+        soon = time.strftime("%Y-%m-%d", time.localtime(time.time() + 4 * 86400))
+        it = next(i for i in store.items(ME, "pending") if i["subject"] == "合同扫描件")
+        store.db.execute("UPDATE items SET due_date=?, start_date=? WHERE id=?", (later, soon, it["id"]))
+        store.db.commit()
+        box = a2ui.build(self.box()["card"])
+        self.assertIn(f"{soon[5:]} 至 {later[5:]}", [c.get("text") for c in box.components.values()])
+        self.assertNotIn("due", self.outbox())
+        store.db.execute("UPDATE items SET start_date=? WHERE id=?", (today, it["id"]))
+        store.db.commit()
+        due = self.outbox()["due"][0]
+        self.assertEqual((due["why_now"], due["deadline"]), ("今天起可办理", f"{later}T23:59:00"))
+        self.assertIn("1 封今天起可办理", due["title"])
+        s = a2ui.build(due["card"])
+        self.assertIn("今天起可办理", [c.get("text") for c in s.components.values()])
+
     def test_older_and_many_flagged_share_one_card_that_waits(self):
         for n in range(6):                                   # flagged anew, received days ago (a newer prompt, a re-sort)
             self.flag(300 + n, f"旧通知 {n}", 3 + n)

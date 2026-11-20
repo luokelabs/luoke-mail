@@ -131,6 +131,30 @@ class ReadingTests(unittest.TestCase):
         self.assertIn("〔1〕", r["text"])
         self.assertEqual([l["url"] for l in r["links"]], ["https://blog.example/post"])
 
+    def test_newsletter_read_from_the_part_its_mail_is(self):
+        """精选 once read the HTML whenever there was one, kept a never-closed <head> to the end, and decoded
+        a gb2312 part as gb2312; the mail's own reading (mailbox.pick_body, _decode_part) does none of these."""
+        both = EmailMessage()
+        both["Subject"], both["Message-ID"] = "both", "<b@x>"
+        both.set_content("本周推荐：一篇很长的文章，讲本地推理怎么提速。" * 12 + "\nhttps://blog.example/post")
+        both.add_alternative("<html><body><p>HTML 版本</p></body></html>", subtype="html")
+        r = digest.read(both.as_bytes())
+        self.assertIn("本地推理", r["text"])                      # a full plain part is the one read
+        self.assertNotIn("HTML 版本", r["text"])
+        short = EmailMessage()
+        short["Subject"], short["Message-ID"] = "short", "<s@x>"
+        short.set_content("请用支持 HTML 的客户端查看。")
+        short.add_alternative("<html><head><title>t</title><body><p>" + "本周三篇长文：本地推理提速。" * 10
+                              + '<a href="https://blog.example/a">读全文</a></p></body></html>', subtype="html")
+        r = digest.read(short.as_bytes())                        # a line pointing to the HTML: the HTML, <head> unclosed
+        self.assertIn("本周三篇长文", r["text"])
+        self.assertIn("读全文〔1〕", r["text"])
+        gb = EmailMessage()
+        gb["Subject"], gb["Message-ID"] = "gb", "<g@x>"
+        gb.set_content("商户：某某餐廳".encode("gb18030"), maintype="text", subtype="plain", cte="base64")
+        gb.replace_header("Content-Type", 'text/plain; charset="gb2312"')
+        self.assertIn("餐廳", digest.read(gb.as_bytes())["text"])
+
     def test_parse_clamps_and_maps_links(self):
         links = [{"n": 1, "url": "https://a.example/x", "host": "a.example", "text": "x"}]
         out = digest.parse(json.dumps({"items": [{"title": "A", "score": 9, "lasting": True, "link": 1, "topics": ["t"], "summary": "s", "why": "w"},
